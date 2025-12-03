@@ -1,20 +1,43 @@
 # Base44 App
 
+Application Vite + React connectee a l'API Base44, avec un petit serveur Node pour le proxy chat et les verifications MySQL.
 
-This app was created automatically by Base44.
-It's a Vite+React app that communicates with the Base44 API.
+## Prerequis
+- Node.js 18+ et npm
 
-## Running the app
-
+## Installation
 ```bash
 npm install
+```
+
+## Configuration (.env)
+Creer un fichier `.env` a la racine avec au minimum:
+```
+GROQ_API_KEY=xxx
+GROQ_MODEL=llama-3.3-70b-versatile   # optionnel, valeur par defaut
+```
+Optionnel pour la partie MySQL du proxy:
+```
+MYSQL_HOST=...
+MYSQL_USER=...
+MYSQL_PASSWORD=...
+MYSQL_DATABASE=...
+MYSQL_PORT=3306
+```
+
+## Lancer le frontend
+```bash
 npm run dev
 ```
+Par defaut: http://localhost:5173
 
-## Building the app
-
+## Lancer le serveur proxy/chat
 ```bash
-npm run build
+npm run backend
 ```
+Expose /api/chat et /api/db/health. Necessite les variables .env ci-dessus.
 
-For more information and support, please contact Base44 support at app@base44.com.
+## Autres scripts
+- `npm run build` : build de production
+- `npm run preview` : previsualisation du build
+- `npm run lint` : linting du code
