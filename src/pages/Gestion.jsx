@@ -53,7 +53,9 @@ import {
   Clock,
   LinkIcon,
   BookOpen,
-  Copy
+  Copy,
+  Sun,
+  Moon
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import AdminProjetCard from "../components/admin/AdminProjetCard";
@@ -61,8 +63,11 @@ import AdminProjetForm from "../components/admin/AdminProjetForm";
 import PlanningChatBot from "../components/admin/PlanningChatBot";
 import ListesChatBot from "../components/admin/ListesChatBot";
 import GestionChatBot from "../components/admin/GestionChatBot";
+import { AdminHero } from "../components/admin/AdminHero";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function Gestion() {
+  const { theme } = useTheme();
   const [activeSection, setActiveSection] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -261,8 +266,8 @@ export default function Gestion() {
 
   return (
     <div
-      className="min-h-screen flex"
-      style={{ backgroundColor: "var(--color-bg-body)", color: "var(--color-text-primary)" }}
+      className={`min-h-screen flex ${theme === "dark" ? "admin-textured-bg-dark" : "admin-textured-bg"}`}
+      style={{ color: "var(--color-text-primary)" }}
     >
       <GestionChatBot />
 
@@ -271,7 +276,7 @@ export default function Gestion() {
         style={{ borderRight: `1px solid var(--color-border-light)` }}
       >
         <div className="flex flex-col h-full w-64">
-          <div className="px-4 sm:px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--color-border-light)" }}>
+          <div className="px-4 sm:px-6 py-5 border-b flex-shrink-0" style={{ borderColor: "var(--color-border-light)" }}>
             <div className="flex items-center gap-2">
               <Shield className="w-5 h-5 flex-shrink-0" color="var(--color-badge-primary-text)" />
               <div className="min-w-0 flex-1">
@@ -372,12 +377,15 @@ export default function Gestion() {
               </div>
             </div>
 
-              <QuickAccessLinks activeSection={activeSection} onNavigate={handleNavigation} />
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <QuickAccessLinks activeSection={activeSection} onNavigate={handleNavigation} />
+              </div>
             </div>
           </div>
         </header>
 
-        <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 w-full mx-auto">
           {activeSection === "dashboard" && <DashboardContent stats={stats} setActiveSection={setActiveSection} />}
           {activeSection === "projets" && (
             <ProjetsContent 
@@ -464,40 +472,18 @@ function DashboardContent({ stats, setActiveSection }) {
     a_retenir: { label: "A retenir", color: "#FFE0B2", icon: Lightbulb }
   };
 
+  const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
     <div className="space-y-6">
-      <div
-        className="relative overflow-hidden rounded-2xl p-8 shadow-lg"
-        style={{
-          background: "linear-gradient(135deg, var(--color-primary-100), var(--color-accent-warm-200))",
-          border: `1px solid var(--color-border-light)`,
-          boxShadow: "var(--shadow-lg)",
-        }}
-      >
-        <div
-          className="absolute inset-0 opacity-60"
-          style={{
-            backgroundImage: "radial-gradient(circle, rgba(194,105,63,0.16) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }}
-        ></div>
-        <div className="relative z-10">
-          <div className="flex items-center gap-4 mb-3">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-apple"
-              style={{ backgroundColor: "var(--color-primary-500)", color: "var(--color-text-inverse)" }}
-            >
-              <LayoutDashboard className="w-7 h-7" />
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold" style={{ color: "var(--color-text-primary)" }}>Tableau de bord</h2>
-              <p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
-                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AdminHero
+        icon={LayoutDashboard}
+        eyebrow="Gestion Web • Assistant Client"
+        title="Tableau de bord"
+        subtitle={`Synthèse du jour — ${todayLabel}`}
+        badges={["Vue globale", "Accès rapide"]}
+        gradient="linear-gradient(135deg, var(--color-primary-500), var(--color-primary-400))"
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1 admin-card" style={{ borderColor: "var(--color-border-light)" }}>
@@ -824,26 +810,15 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
 
   return (
     <div className="space-y-6">
-      <div
-        className="relative overflow-hidden rounded-xl border p-6 shadow-md"
-        style={{
-          background: "linear-gradient(135deg, var(--color-primary-100), var(--color-accent-warm-100))",
-          borderColor: "var(--color-border-light)",
-        }}
-      >
-        <div className="relative flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
-            style={{ backgroundColor: "var(--color-primary-200)" }}
-          >
-            <Globe className="w-5 h-5" color="var(--color-primary-100)" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Gestion du Portfolio</h2>
-            <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Projets & Prestations</p>
-          </div>
-        </div>
-      </div>
+      <AdminHero
+        icon={Globe}
+        eyebrow="Gestion Web"
+        title="Projets & Prestations"
+        subtitle="Pilote ton portfolio, visibilité et services"
+        badges={["Publies", "En avant", "SEO-ready"]}
+        gradient="linear-gradient(135deg, var(--color-primary-500), var(--color-accent-warm-400))"
+        iconTint="rgba(255,255,255,0.14)"
+      />
 
       <div className="flex items-center gap-2 border-b" style={{ borderColor: "var(--color-border-light)" }}>
         <button onClick={() => setView("projets")} className="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
@@ -1208,26 +1183,14 @@ function AssistantClientContent() {
 
   return (
     <div className="space-y-6">
-      <div
-        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
-        style={{
-          background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))",
-          borderColor: "var(--color-border-light)",
-        }}
-      >
-        <div className="relative z-10 flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
-            style={{ backgroundColor: "var(--color-accent-warm-300)" }}
-          >
-            <MessageSquare className="w-5 h-5" color="var(--color-accent-warm-100)" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Assistant Clients</h2>
-            <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Conversations avec vos prospects</p>
-          </div>
-        </div>
-      </div>
+      <AdminHero
+        icon={MessageSquare}
+        eyebrow="Assistant Client"
+        title="Conversations prospects"
+        subtitle="Suivi des échanges, relances et résumés pour devis"
+        badges={["Live", "Résumé devis", "Base44"]}
+        gradient="linear-gradient(135deg, var(--color-accent-warm-400), var(--color-primary-500))"
+      />
 
       <div className="grid lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1 border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
@@ -1349,6 +1312,7 @@ function AssistantClientContent() {
 }
 
 function AssistantContent() {
+  const { theme } = useTheme();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -1396,22 +1360,44 @@ function AssistantContent() {
 
   const MessageBubble = ({ message }) => {
     const isUser = message.role === 'user';
+    const assistantBubbleStyle = theme === "dark"
+      ? { backgroundColor: "var(--color-bg-surface-hover)", borderColor: "var(--color-border-medium)", color: "var(--color-text-primary)" }
+      : { backgroundColor: "#ffffff", borderColor: "var(--color-accent-warm-300)", color: "var(--color-text-primary)" };
     return (
       <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-        {!isUser && <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center flex-shrink-0 shadow-lg"><Wrench className="w-5 h-5 text-white" /></div>}
-        <div className={`max-w-[85%] ${isUser ? 'bg-gradient-to-br from-neutral-700 to-neutral-900 text-white rounded-2xl px-4 py-3 shadow-md' : 'space-y-2'}`}>
+        {!isUser && (
+          <div
+            className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
+            style={{
+              background: theme === "dark" ? "linear-gradient(135deg, var(--color-primary-400), var(--color-primary-600))" : "linear-gradient(135deg, #f97316, #c2410c)",
+            }}
+          >
+            <Wrench className="w-5 h-5 text-white" />
+          </div>
+        )}
+        <div className={`max-w-[85%] ${isUser ? 'rounded-2xl px-4 py-3 shadow-md text-white' : 'space-y-2'}`}
+          style={isUser ? { background: theme === "dark" ? "linear-gradient(135deg, #1f2937, #0f172a)" : "linear-gradient(135deg, #404040, #262626)" } : undefined}>
           {isUser ? (
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
           ) : (
             <>
-              <div className="bg-white border-2 border-orange-100 text-neutral-800 rounded-2xl px-4 py-3 shadow-md">
+              <div className="rounded-2xl px-4 py-3 shadow-md border" style={assistantBubbleStyle}>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
               </div>
               {message.actions && message.actions.length > 0 && (
-                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3 text-xs">
-                  <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="font-semibold text-green-900">Actions effectuees :</span></div>
+                <div
+                  className="rounded-lg p-3 text-xs border"
+                  style={{
+                    backgroundColor: theme === "dark" ? "rgba(99, 198, 196, 0.12)" : "var(--color-success-bg)",
+                    borderColor: theme === "dark" ? "rgba(63,198,196,0.35)" : "var(--color-success-border)",
+                    color: theme === "dark" ? "var(--color-text-primary)" : "var(--color-success-text)",
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2" style={{ color: theme === "dark" ? "#63c6c4" : "var(--color-success-icon)" }}>
+                    <CheckCircle2 className="w-4 h-4" /> <span className="font-semibold">Actions effectuees :</span>
+                  </div>
                   {message.actions.map((action, idx) => (
-                    <div key={idx} className="text-green-800">
+                    <div key={idx}>
                       {action.type === 'create' && ' Creation'} {action.type === 'update' && ' Modification'} {action.type === 'delete' && ' Suppression'} <strong>{action.entity}</strong>
                     </div>
                   ))}
@@ -1427,36 +1413,57 @@ function AssistantContent() {
 
   return (
     <div className="space-y-6">
-      <div
-        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
-        style={{
-          background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))",
-          borderColor: "var(--color-border-light)",
-        }}
-      >
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm" style={{ backgroundColor: "var(--color-accent-warm-300)" }}>
-            <Lightbulb className="w-5 h-5" color="var(--color-accent-warm-100)" />
-          </div>
-          <div><h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Mon Assistant</h2><p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Gestion intelligente de votre activite</p></div>
-        </div>
-      </div>
+      <AdminHero
+        icon={Lightbulb}
+        eyebrow="Assistant interne"
+        title="Pilotage intelligent"
+        subtitle="Gestion des tâches, actions automatiques et suivi"
+        badges={["Automation", "Base44", "Actions live"]}
+        gradient="linear-gradient(135deg, var(--color-accent-warm-500), var(--color-accent-warm-400))"
+      />
 
       <Card className="border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
-        <CardHeader className="p-6" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
+        <CardHeader
+          className="p-6"
+          style={{
+            background:
+              theme === "dark"
+                ? "linear-gradient(135deg, var(--color-bg-surface), var(--color-bg-surface-hover))"
+                : "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))",
+          }}
+        >
           <CardTitle className="text-xl" style={{ color: "var(--color-text-primary)" }}>Assistant de Gestion</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="h-[500px] overflow-y-auto p-6" style={{ backgroundColor: "var(--color-accent-warm-100)" }}>
+          <div
+            className="h-[500px] overflow-y-auto p-6"
+            style={{
+              backgroundColor: theme === "dark" ? "var(--color-bg-surface)" : "var(--color-accent-warm-100)",
+              borderBottom: theme === "dark" ? `1px solid var(--color-border-medium)` : undefined,
+            }}
+          >
             {messages.map((message, index) => (<MessageBubble key={index} message={message} />))}
             {isLoading && (
               <div className="flex gap-3 justify-start mb-4">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center flex-shrink-0 shadow-lg"><Wrench className="w-5 h-5 text-white" /></div>
-                <div className="bg-white border-2 border-orange-100 rounded-2xl px-4 py-3 shadow-md">
+                <div
+                  className="h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg"
+                  style={{
+                    background: theme === "dark" ? "linear-gradient(135deg, var(--color-primary-400), var(--color-primary-600))" : "linear-gradient(135deg, #f97316, #c2410c)",
+                  }}
+                >
+                  <Wrench className="w-5 h-5 text-white" />
+                </div>
+                <div
+                  className="rounded-2xl px-4 py-3 shadow-md border"
+                  style={{
+                    backgroundColor: theme === "dark" ? "var(--color-bg-surface-hover)" : "#ffffff",
+                    borderColor: theme === "dark" ? "var(--color-border-medium)" : "var(--color-accent-warm-300)",
+                  }}
+                >
                   <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "var(--color-primary-500)" }}></div>
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "var(--color-primary-500)", animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: "var(--color-primary-500)", animationDelay: '0.4s' }}></div>
                   </div>
                 </div>
               </div>
@@ -1464,7 +1471,13 @@ function AssistantContent() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t-2 bg-white" style={{ borderColor: "var(--color-accent-warm-300)" }}>
+          <div
+            className="p-4 border-t-2"
+            style={{
+              borderColor: theme === "dark" ? "var(--color-border-medium)" : "var(--color-accent-warm-300)",
+              backgroundColor: theme === "dark" ? "var(--color-bg-surface-hover)" : "#ffffff",
+            }}
+          >
             <div className="flex gap-3">
               <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())} placeholder="Ex: Ou j'en suis sur le chantier Dupont ?" className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
               <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg btn-primary">
@@ -1500,23 +1513,14 @@ function PlanningContent() {
     <div className="space-y-4">
       <PlanningChatBot onEventCreated={handleEventCreatedByChatbot} />
 
-      <div
-        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
-        style={{
-          background: "linear-gradient(135deg, var(--color-secondary-100), var(--color-secondary-200))",
-          borderColor: "var(--color-border-light)",
-        }}
-      >
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm" style={{ backgroundColor: "var(--color-secondary-300)" }}>
-            <Calendar className="w-5 h-5" color="var(--color-secondary-100)" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Planning Google Calendar</h2>
-            <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Utilisez le chatbot en bas a droite</p>
-          </div>
-        </div>
-      </div>
+      <AdminHero
+        icon={Calendar}
+        eyebrow="Gestion pratique"
+        title="Planning"
+        subtitle="Synchronisé Google Calendar + chatbot"
+        badges={["Agenda", "Synchro", "Chatbot"]}
+        gradient="linear-gradient(135deg, var(--color-secondary-600), var(--color-secondary-400))"
+      />
 
       {todayEvents.length > 0 && (
         <Card className="border-blue-50 shadow-sm bg-white">
@@ -1647,31 +1651,22 @@ function ListesContent() {
     <div className="space-y-4">
       <ListesChatBot onItemCreated={handleItemCreatedByChatbot} />
 
-      <div
-        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
-        style={{
-          background: "linear-gradient(135deg, var(--color-accent-olive-100), var(--color-accent-olive-200))",
-          borderColor: "var(--color-border-light)",
-        }}
-      >
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm" style={{ backgroundColor: "var(--color-accent-olive-300)" }}>
-              <ListChecks className="w-5 h-5" color="var(--color-accent-olive-100)" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Mes Listes</h2>
-              <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Courses, materiaux et taches</p>
-            </div>
-          </div>
-          
-          <div className="flex rounded-lg p-1 gap-1" style={{ backgroundColor: "var(--color-bg-surface)", border: `1px solid var(--color-border-light)` }}>
+      <AdminHero
+        icon={ListChecks}
+        eyebrow="Gestion pratique"
+        title="Mes listes"
+        subtitle="Courses, matériaux et tâches du quotidien"
+        badges={["Dashboard", "Vue liste"]}
+        gradient="linear-gradient(135deg, var(--color-accent-olive-500), var(--color-accent-olive-400))"
+        iconTint="rgba(255,255,255,0.14)"
+        rightContent={
+          <div className="flex rounded-lg p-1 gap-1 bg-white/10 border border-white/25">
             <button
               onClick={() => setViewMode("dashboard")}
               className="px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
               style={viewMode === "dashboard"
-                ? { backgroundColor: "var(--color-primary-100)", color: "var(--color-text-primary)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--color-text-secondary)" }}
+                ? { backgroundColor: "rgba(255,255,255,0.16)", color: "var(--color-text-inverse)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--color-text-inverse)" }}
             >
               <LayoutDashboard className="w-3.5 h-3.5" /><span className="hidden sm:inline">Dashboard</span>
             </button>
@@ -1679,14 +1674,14 @@ function ListesContent() {
               onClick={() => setViewMode("liste")}
               className="px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
               style={viewMode === "liste"
-                ? { backgroundColor: "var(--color-secondary-100)", color: "var(--color-text-primary)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--color-text-secondary)" }}
+                ? { backgroundColor: "rgba(255,255,255,0.16)", color: "var(--color-text-inverse)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--color-text-inverse)" }}
             >
               <ListChecks className="w-3.5 h-3.5" /><span className="hidden sm:inline">Liste</span>
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-neutral-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-neutral-500 mb-1">Total</div><div className="text-3xl font-bold text-neutral-900">{totalItems}</div></CardContent></Card>
@@ -1811,29 +1806,159 @@ function ListesContent() {
 function SettingsContent({ user, handleLogout }) {
   return (
     <div className="space-y-6">
-      <Card className="border-neutral-200 shadow-sm">
-        <CardHeader><CardTitle>Informations du compte</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="block text-sm font-semibold text-neutral-700">Nom complet</Label>
-            <p className="text-neutral-600 mt-1">{user?.full_name || "Non renseigne"}</p>
+      <div
+        className="relative overflow-hidden rounded-2xl border shadow-lg p-6 sm:p-8"
+        style={{
+          background: "linear-gradient(135deg, var(--color-secondary-500), var(--color-accent-warm-400))",
+          color: "var(--color-text-inverse)",
+          borderColor: "rgba(255,255,255,0.18)",
+          boxShadow: "var(--shadow-lg)",
+        }}
+      >
+        <div
+          className="absolute inset-0 opacity-25"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.45) 0, rgba(255,255,255,0) 40%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.25) 0, rgba(255,255,255,0) 35%)",
+          }}
+        />
+        <div className="relative flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)" }}
+              >
+                <Settings className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-white/80">Gestion Web • Assistant Client</p>
+                <h2 className="text-2xl sm:text-3xl font-bold">Parametres</h2>
+                <p className="text-sm text-white/80">Personnalise ta console admin et garde les acces au propre.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-white/15 text-white border border-white/25">Profil actif</Badge>
+              <Badge className="bg-white/15 text-white border border-white/25">Derniere maj : aujourd'hui</Badge>
+            </div>
           </div>
-          <div>
-            <Label className="block text-sm font-semibold text-neutral-700">Email</Label>
-            <p className="text-neutral-600 mt-1">{user?.email}</p>
-          </div>
-        </CardContent>
-      </Card>
 
-      <Card className="border-neutral-200 shadow-sm border-2 border-neutral-700">
-        <CardHeader className="bg-neutral-50"><CardTitle className="text-neutral-900"> Securite</CardTitle></CardHeader>
-        <CardContent className="p-6">
-          <p className="text-neutral-700 mb-4">Ce systeme utilise l'authentification securisee de Base44.</p>
-          <Button onClick={handleLogout} variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
-            <LogOut className="w-4 h-4 mr-2" />Se deconnecter
-          </Button>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
+              <p className="text-xs text-white/70 mb-1">Identite</p>
+              <p className="text-sm font-semibold truncate">{user?.full_name || "Administrateur"}</p>
+            </div>
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
+              <p className="text-xs text-white/70 mb-1">Email</p>
+              <p className="text-sm font-semibold truncate">{user?.email || "admin@site.local"}</p>
+            </div>
+            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
+              <p className="text-xs text-white/70 mb-1">Espace</p>
+              <p className="text-sm font-semibold flex items-center gap-2">
+                Gestion Web <Sparkles className="w-4 h-4 text-white/80" />
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="border-neutral-200 shadow-sm lg:col-span-2" style={{ borderColor: "var(--color-border-light)" }}>
+          <CardHeader className="border-b" style={{ borderColor: "var(--color-border-light)" }}>
+            <CardTitle className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
+              <User className="w-5 h-5 text-[var(--color-primary-500)]" /> Profil administrateur
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid sm:grid-cols-2 gap-4 p-6">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-neutral-700">Nom complet</Label>
+              <p className="text-neutral-600 rounded-lg border px-3 py-2" style={{ borderColor: "var(--color-border-light)" }}>
+                {user?.full_name || "Non renseigne"}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-neutral-700">Email</Label>
+              <p className="text-neutral-600 rounded-lg border px-3 py-2" style={{ borderColor: "var(--color-border-light)" }}>
+                {user?.email || "admin@site.local"}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-neutral-700">Role</Label>
+              <div className="flex items-center gap-2">
+                <Badge className="badge-primary">Superviseur</Badge>
+                <Badge className="badge-secondary">Edition</Badge>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-neutral-700">Zones actives</Label>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-[var(--color-primary-100)] text-[var(--color-primary-600)] border border-[var(--color-primary-300)]">Gestion Web</Badge>
+                <Badge className="bg-[var(--color-secondary-100)] text-[var(--color-secondary-600)] border border-[var(--color-secondary-300)]">Assistant Client</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-neutral-200 shadow-lg" style={{ borderColor: "var(--color-border-medium)" }}>
+          <CardHeader className="border-b" style={{ borderColor: "var(--color-border-light)" }}>
+            <CardTitle className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
+              <Shield className="w-5 h-5 text-[var(--color-secondary-500)]" /> Securite
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-6">
+            <div className="rounded-lg border p-3 bg-[var(--color-info-bg)]" style={{ borderColor: "var(--color-info-border)" }}>
+              <p className="text-sm font-semibold" style={{ color: "var(--color-info-text)" }}>Authentification Base44 activee</p>
+              <p className="text-xs mt-1 opacity-80" style={{ color: "var(--color-info-text)" }}>Session chiffree, acces restreint aux administrateurs.</p>
+            </div>
+            <div className="flex items-center justify-between text-sm text-neutral-700">
+              <span>Session actuelle</span>
+              <Badge className="badge-secondary">Connecte</Badge>
+            </div>
+            <Button onClick={handleLogout} variant="outline" className="w-full text-red-600 border-red-600 hover:bg-red-50">
+              <LogOut className="w-4 h-4 mr-2" />Se deconnecter
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-neutral-200 shadow-sm">
+        <CardHeader className="border-b" style={{ borderColor: "var(--color-border-light)" }}>
+          <CardTitle className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
+            <Wrench className="w-5 h-5 text-[var(--color-accent-olive-500)]" /> Preferences visuelles
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 grid sm:grid-cols-3 gap-4">
+          <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", background: "var(--color-primary-100)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--color-primary-600)" }}>Mode atelier</p>
+            <p className="text-xs opacity-80" style={{ color: "var(--color-primary-600)" }}>Palette terre cuite</p>
+          </div>
+          <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", background: "var(--color-secondary-100)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--color-secondary-600)" }}>Accent calanques</p>
+            <p className="text-xs opacity-80" style={{ color: "var(--color-secondary-600)" }}>Bleu profond</p>
+          </div>
+          <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", background: "var(--color-accent-olive-100)" }}>
+            <p className="text-sm font-semibold" style={{ color: "var(--color-accent-olive-500)" }}>Touches olivier</p>
+            <p className="text-xs opacity-80" style={{ color: "var(--color-accent-olive-500)" }}>Contraste doux</p>
+          </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="btn-ghost"
+      onClick={toggleTheme}
+      title={isDark ? "Mode clair" : "Mode sombre"}
+      style={{ color: "var(--color-text-inverse)" }}
+    >
+      {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+    </Button>
   );
 }
