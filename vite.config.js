@@ -6,7 +6,10 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: true
+    allowedHosts: true,
+    proxy: {
+      "/api": "http://localhost:3000",
+    },
   },
   resolve: {
     alias: {
@@ -15,10 +18,18 @@ export default defineConfig({
     extensions: ['.mjs', '.js', '.jsx', '.ts', '.tsx', '.json']
   },
   optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@tanstack/react-query",
+      "framer-motion",
+      "lucide-react",
+    ],
     esbuildOptions: {
       loader: {
         '.js': 'jsx',
       },
     },
   },
-}) 
+})

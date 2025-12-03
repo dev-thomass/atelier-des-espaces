@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { createPageUrl } from "./utils";
+import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
-import { Home, User, Mail, Briefcase, Box, Menu, X, Shield, ArrowLeft, Globe, LayoutDashboard, Calendar, Wrench, Zap } from "lucide-react";
+import { Home, User, Mail, Phone, MapPin, Briefcase, Box, Menu, X, Shield, ArrowLeft, Globe, LayoutDashboard, Calendar, Wrench, Zap } from "lucide-react";
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   
-  // DÉTECTION TRÈS AGRESSIVE DES PAGES ADMIN
+  // DETECTION TRES AGRESSIVE DES PAGES ADMIN
   const path = location.pathname.toLowerCase();
   const pageName = (currentPageName || '').toLowerCase();
   
@@ -34,26 +34,24 @@ export default function Layout({ children, currentPageName }) {
   // SI ADMIN : PAS DE HEADER, JUSTE LE CONTENU + FOOTER MINIMAL
   if (isAdmin) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex flex-col">
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+      <div className="min-h-screen flex flex-col admin-surface bg-[radial-gradient(circle_at_20%_25%,rgba(59,130,246,0.12),transparent_38%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.12),transparent_32%),radial-gradient(circle_at_50%_80%,rgba(14,26,51,0.55),rgba(5,9,21,0.85))] bg-[#0b1529] text-slate-100">
+        <main className="flex-1 w-full">
+          {children}
         </main>
         
         {/* Footer minimal pour pages admin */}
-        <footer className="bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900 text-white py-6 border-t border-neutral-700">
+        <footer className="glass-dark text-white py-6 border-t border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <img 
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/2828a036b_Designsanstitre1.png"
                   alt="L'Atelier des Espaces"
-                  className="w-8 h-8"
+                  className="w-8 h-8 shadow-apple rounded-lg"
                 />
                 <div>
                   <h3 className="text-sm font-bold text-white">L'Atelier des Espaces</h3>
-                  <p className="text-xs text-neutral-400">Espace Administration</p>
+                  <p className="text-xs text-slate-300">Espace Administration</p>
                 </div>
               </div>
 
@@ -67,8 +65,8 @@ export default function Layout({ children, currentPageName }) {
                 </Link>
               </div>
 
-              <p className="text-xs text-neutral-500">
-                &copy; {new Date().getFullYear()} - Tous droits réservés
+              <p className="text-xs text-slate-400">
+                &copy; {new Date().getFullYear()} - Tous droits reserves
               </p>
             </div>
           </div>
@@ -81,18 +79,40 @@ export default function Layout({ children, currentPageName }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [scrolled, setScrolled] = useState(false);
+  const [heroHeight, setHeroHeight] = useState(520);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+    const measure = () => {
+      const hero = document.getElementById('layout-hero-overlay');
+      if (hero) {
+        setHeroHeight(hero.getBoundingClientRect().height || 520);
+      }
     };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Accueil plus long : bascule plus tard pour ne changer qu'en bas du hero
+      const isAccueil =
+        path === '/' ||
+        path.includes('accueil') ||
+        pageName === 'accueil';
+      const threshold = isAccueil
+        ? Math.max(heroHeight * 1.3, 360)
+        : Math.max(heroHeight * 0.85, 200);
+      setScrolled(window.scrollY > threshold);
+    };
+    handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [heroHeight, path, pageName]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -110,14 +130,37 @@ export default function Layout({ children, currentPageName }) {
     { name: "Accueil", url: createPageUrl("Accueil"), icon: Home },
     { name: "Prestations", url: createPageUrl("Prestations"), icon: Briefcase },
     { name: "Conception 3D", url: createPageUrl("Conception3D"), icon: Box },
-    { name: "À Propos", url: createPageUrl("APropos"), icon: User },
+    { name: "A Propos", url: createPageUrl("APropos"), icon: User },
     { name: "Contact", url: createPageUrl("Contact"), icon: Mail },
   ];
 
   const isActive = (url) => location.pathname === url;
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="relative min-h-screen bg-transparent overflow-hidden">
+      {/* Fond anime identique a l'accueil pour toutes les pages publiques */}
+      <div
+        id="layout-hero-overlay"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900"
+      >
+        <div className="absolute -top-32 left-0 right-0 h-[180%] bg-gradient-to-b from-stone-950 via-stone-900/85 to-stone-900/0" />
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                               linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+              backgroundSize: "50px 50px",
+            }}
+          ></div>
+        </div>
+        <div className="absolute -top-20 -right-24 w-[520px] h-[520px] bg-amber-600/25 rounded-full blur-[120px] animate-pulse"></div>
+        <div
+          className="absolute -bottom-16 -left-24 w-[480px] h-[480px] bg-amber-500/15 rounded-full blur-[100px] animate-pulse"
+          style={{ animationDelay: "0.8s" }}
+        ></div>
+      </div>
+
       <style>{`
         :root {
           --primary: #78350f;
@@ -132,25 +175,33 @@ export default function Layout({ children, currentPageName }) {
       `}</style>
 
       {/* Navigation */}
-      <nav className={`glass-nav fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled 
-          ? 'bg-white/70 border-b border-stone-200/50 shadow-lg shadow-stone-900/5' 
-          : 'bg-white/80 border-b border-200/30'
-      }`}>
+      <nav
+        className={`glass-nav fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? 'bg-transparent border-transparent shadow-none backdrop-blur-0'
+            : 'bg-transparent border-transparent shadow-none'
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             <Link to={createPageUrl("Accueil")} className="flex items-center gap-3 group">
-              <img 
+              <img
                 src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/2828a036b_Designsanstitre1.png"
                 alt="L'Atelier des Espaces"
                 className="w-12 h-12 transform group-hover:scale-105 transition-transform duration-300"
               />
               <div className="flex flex-col">
-                <div className="text-lg md:text-xl font-bold bg-gradient-to-r from-amber-900 via-amber-700 to-stone-900 bg-clip-text text-transparent leading-tight">
+                <div
+                  className="text-lg md:text-xl font-bold leading-tight bg-gradient-to-r from-amber-600 via-amber-700 to-amber-900 bg-clip-text text-transparent"
+                >
                   L'Atelier des Espaces
                 </div>
-                <div className="text-xs md:text-sm text-stone-600 font-medium">
-                  Artisan d'intérieur
+                <div
+                  className={`text-xs md:text-sm font-medium ${
+                    scrolled ? "text-stone-600" : "text-stone-200"
+                  }`}
+                >
+                  Artisan d'interieur
                 </div>
               </div>
             </Link>
@@ -162,8 +213,12 @@ export default function Layout({ children, currentPageName }) {
                   to={item.url}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 ${
                     isActive(item.url)
-                      ? "bg-amber-900 text-white shadow-lg shadow-amber-900/30"
-                      : "text-stone-700 hover:bg-stone-100/70 hover:text-amber-900"
+                      ? scrolled
+                        ? "bg-amber-900 text-white shadow-lg shadow-amber-900/30"
+                        : "bg-amber-900 text-white shadow-lg shadow-amber-900/30"
+                      : scrolled
+                        ? "text-stone-900 hover:bg-stone-100/70 hover:text-amber-900"
+                        : "text-white hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <item.icon className="w-4 h-4" />
@@ -174,7 +229,11 @@ export default function Layout({ children, currentPageName }) {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2.5 rounded-xl text-stone-700 hover:bg-stone-100/70 transition-all duration-300"
+              className={`md:hidden p-2.5 rounded-xl transition-all duration-300 ${
+                scrolled
+                  ? "text-stone-700 hover:bg-stone-100/70"
+                  : "text-stone-100 hover:text-white hover:bg-white/10"
+              }`}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -182,7 +241,13 @@ export default function Layout({ children, currentPageName }) {
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden glass-nav bg-white/90 border-t border-stone-200/50">
+          <div
+            className={`md:hidden glass-nav border-t ${
+              scrolled
+                ? "bg-white/90 border-stone-200/50"
+                : "bg-stone-900/95 border-white/10"
+            }`}
+          >
             <div className="px-4 py-4 space-y-2">
               {navigation.map((item) => (
                 <Link
@@ -192,7 +257,9 @@ export default function Layout({ children, currentPageName }) {
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                     isActive(item.url)
                       ? "bg-amber-900 text-white shadow-lg shadow-amber-900/30"
-                      : "text-stone-700 hover:bg-stone-100/70"
+                      : scrolled
+                        ? "text-stone-700 hover:bg-stone-100/70"
+                        : "text-white hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <item.icon className="w-5 h-5" />
@@ -204,7 +271,7 @@ export default function Layout({ children, currentPageName }) {
         )}
       </nav>
 
-      <main className="pt-20">{children}</main>
+      <main className="relative z-10 pt-20">{children}</main>
 
       {/* Footer */}
       <footer className="bg-gradient-to-r from-stone-900 via-amber-900 to-stone-900 text-white py-12">
@@ -219,11 +286,11 @@ export default function Layout({ children, currentPageName }) {
                 />
                 <div>
                   <h3 className="text-xl font-bold text-amber-100">L'Atelier des Espaces</h3>
-                  <p className="text-sm text-stone-300">Artisan d'intérieur</p>
+                  <p className="text-sm text-stone-300">Artisan d'interieur</p>
                 </div>
               </div>
               <p className="text-stone-300 leading-relaxed">
-                Spécialiste en aménagement et rénovation d'intérieur, nous transformons vos espaces en lieux uniques et fonctionnels.
+                Specialiste en amenagement et renovation d'interieur, nous transformons vos espaces en lieux uniques et fonctionnels.
               </p>
             </div>
             <div>
@@ -244,22 +311,31 @@ export default function Layout({ children, currentPageName }) {
             <div>
               <h4 className="text-lg font-semibold mb-4 text-amber-100">Contact</h4>
               <ul className="space-y-2 text-stone-300">
-                <li>▸ contact@atelierdesespaces.fr</li>
-                <li>▸ 06 95 07 10 84</li>
-                <li>▸ Bouches-du-Rhône, France</li>
+                <li className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-amber-200" />
+                  <span>contact@atelierdesespaces.fr</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-amber-200" />
+                  <span>06 95 07 10 84</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-amber-200" />
+                  <span>Bouches-du-Rhone, France</span>
+                </li>
               </ul>
             </div>
           </div>
           <div className="border-t border-stone-700 mt-8 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-center text-stone-400">
-                &copy; {new Date().getFullYear()} L'Atelier des Espaces. Tous droits réservés.
+                &copy; {new Date().getFullYear()} L'Atelier des Espaces. Tous droits reserves.
               </p>
               <Link
                 to={createPageUrl("AdminLogin")}
                 className="text-xs text-stone-500 hover:text-amber-300 transition-colors"
               >
-                🔒 Espace Administration
+                Espace Administration
               </Link>
             </div>
           </div>
@@ -268,4 +344,12 @@ export default function Layout({ children, currentPageName }) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
 

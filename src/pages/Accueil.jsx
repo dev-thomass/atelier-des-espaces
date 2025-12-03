@@ -175,7 +175,12 @@ export default function Accueil() {
   return (
     <div className="bg-stone-50">
       {/* Hero Section - RÉDUIT ET AFFINÉ */}
-      <section ref={heroRef} className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900">
+      <section
+        ref={heroRef}
+        className="relative min-h-screen -mt-20 md:-mt-24 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20"
+      >
+        {/* Nappe de degrade etendue pour englober la barre de navigation */}
+        <div className="absolute -top-32 left-0 right-0 h-[180%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
         {/* Grille subtile */}
         <div className="absolute inset-0 opacity-[0.03]">
           <div className="absolute inset-0" style={{
@@ -249,13 +254,13 @@ export default function Accueil() {
                 }`}
                 style={{ transitionDelay: `${index * 50}ms` }}
               >
-                <Card className="border-none shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-3 hover:scale-105 bg-gradient-to-br from-white to-stone-50 group">
-                  <CardContent className="p-4 md:p-8 text-center">
+                <Card className="h-full border-none shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-3 hover:scale-105 bg-gradient-to-br from-white to-stone-50 group">
+                  <CardContent className="h-full p-4 md:p-8 text-center flex flex-col">
                     <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-amber-700 to-amber-900 rounded-2xl flex items-center justify-center mx-auto mb-4 md:mb-6 transform group-hover:rotate-12 group-hover:scale-110 transition-transform duration-300">
                       <avantage.icon className="w-6 h-6 md:w-8 md:h-8 text-white" />
                     </div>
                     <h3 className="text-base md:text-xl font-bold text-stone-800 mb-2 md:mb-3 group-hover:text-amber-800 transition-colors">{avantage.titre}</h3>
-                    <p className="text-xs md:text-base text-stone-600 leading-relaxed">{avantage.description}</p>
+                    <p className="text-xs md:text-base text-stone-600 leading-relaxed flex-grow flex items-center justify-center text-center">{avantage.description}</p>
                   </CardContent>
                 </Card>
               </div>
@@ -748,3 +753,4 @@ export default function Accueil() {
     </div>
   );
 }
+

@@ -10,6 +10,47 @@ import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, Upload, X, Loader2, Mes
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { base44 } from "@/api/base44Client";
+import { sendAssistantMessage } from "@/api/assistantClient";
+
+const SYSTEM_PROMPT = `Tu es l'assistant projet de [Ton Entreprise], spécialisé en rénovation et aménagement.
+
+## Ton rôle
+Qualifier les demandes de devis en posant des questions naturelles et concises.
+
+## Informations à collecter
+- Type de travaux
+- Localisation (ville)
+- Surface ou pièces concernées
+- Description du besoin
+- Coordonnées (prénom, téléphone) → uniquement à la fin
+
+## Règles
+- UNE question à la fois, reste concis
+- Quand tu as assez d'infos pour un devis, demande les coordonnées
+- Après avoir reçu les coordonnées, fais un récapitulatif
+
+## Format de réponse OBLIGATOIRE (JSON uniquement)
+{
+  "message": "Ta réponse au client",
+  "summary": null,
+  "complete": false
+}
+
+Quand tu as TOUTES les infos (y compris coordonnées) :
+{
+  "message": "Merci ! Récapitulatif : ... Un conseiller vous rappelle sous 48h.",
+  "summary": {
+    "type_travaux": "",
+    "localisation": "",
+    "surface": "",
+    "description": "",
+    "prenom": "",
+    "telephone": ""
+  },
+  "complete": true
+}
+
+IMPORTANT : Réponds UNIQUEMENT en JSON valide, rien d'autre.`;
 
 // Hook d'animation au scroll
 const useScrollAnimation = (options = {}) => {
@@ -47,7 +88,7 @@ const useScrollAnimation = (options = {}) => {
   return [elementRef, isVisible];
 };
 
-// Composant de Message - AMÉLIORÉ AVEC DÉTAILS N8N
+// Composant de Message - AMELIORE AVEC DETAILS N8N
 function MessageBubble({ message }) {
   const isUser = message.role === 'user';
   
@@ -72,12 +113,12 @@ function MessageBubble({ message }) {
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
             </div>
             
-            {/* Actions effectuées */}
+            {/* Actions effectuees */}
             {message.actions && message.actions.length > 0 && (
               <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3 text-xs">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span className="font-semibold text-green-900">Actions effectuées :</span>
+                  <span className="font-semibold text-green-900">Actions effectuees :</span>
                 </div>
                 <div className="space-y-1">
                   {message.actions.map((action, idx) => (
@@ -88,10 +129,10 @@ function MessageBubble({ message }) {
                       }`}></div>
                       <div className="flex-1">
                         <span className="text-green-800">
-                          {action.type === 'create' && '✨ Création'}
-                          {action.type === 'update' && '✏️ Modification'}
-                          {action.type === 'delete' && '🗑️ Suppression'}
-                          {action.type === 'refresh' && '🔄 Actualisation'}
+                          {action.type === 'create' && 'Creation'}
+                          {action.type === 'update' && 'Modification'}
+                          {action.type === 'delete' && 'Suppression'}
+                          {action.type === 'refresh' && 'Actualisation'}
                           {' '}<strong>{action.entity}</strong>
                         </span>
                         {action.status === 'error' && (
@@ -105,14 +146,6 @@ function MessageBubble({ message }) {
             )}
 
             {/* Aucune action */}
-            {message.noAction && (
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-blue-600" />
-                  <span className="text-blue-800">Aucune action système effectuée - Réponse conversationnelle</span>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -126,20 +159,21 @@ function MessageBubble({ message }) {
 }
 
 // Composant Chat Assistant - VERSION N8N avec historique
-function AssistantChat() {
+function AssistantChat({ contactInfo }) {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [summary, setSummary] = useState(null);
   const recognitionRef = useRef(null);
 
-  // SCROLL AUTOMATIQUE SUPPRIMÉ - l'utilisateur peut défiler manuellement
+  // SCROLL AUTOMATIQUE SUPPRIME - l'utilisateur peut defiler manuellement
 
   useEffect(() => {
     setMessages([{
       role: 'assistant',
-      content: "Bonjour ! 👋 Je suis l'assistant expert de l'Atelier des Espaces.\n\nJe vais vous aider à définir précisément votre projet d'aménagement ou de rénovation pour vous proposer les meilleures solutions.\n\nPour commencer, dites-moi quel type d'espace vous souhaitez transformer ?\n(cuisine, salle de bain, salon, chambre, bureau, appartement complet...)",
+      content: "Bonjour ! Je suis l'assistant expert de l'Atelier des Espaces.\n\nJe vais vous aider a definir precisement votre projet d'amenagement ou de renovation pour vous proposer les meilleures solutions.\n\nPour commencer, dites-moi quel type d'espace vous souhaitez transformer ?\n(cuisine, salle de bain, salon, chambre, bureau, appartement complet...)",
       noAction: true
     }]);
   }, []);
@@ -177,7 +211,7 @@ function AssistantChat() {
 
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) {
-      alert("La reconnaissance vocale n'est pas supportée par votre navigateur.");
+      alert("La reconnaissance vocale n'est pas supportee par votre navigateur.");
       return;
     }
 
@@ -191,42 +225,34 @@ function AssistantChat() {
     }
   };
 
-  const sendToN8n = async (userMessage) => {
+  const sendToAssistant = async (userMessage) => {
     try {
-      const payload = {
-        userMessage: userMessage,
-        context: "assistant_projet_contact",
-        conversationId: conversationId
+      const ctx = {
+        page: "contact",
+        ...contactInfo,
       };
 
-      console.log("📤 Envoi direct à l'agent maître:", payload);
+      const result = await sendAssistantMessage({
+        message: userMessage,
+        conversationId,
+        context: ctx,
+        systemPrompt: SYSTEM_PROMPT,
+      });
 
-      // Appel DIRECT à l'agent maître (plus de passage par n8n)
-      const response = await base44.functions.invoke('invokeAgent', payload);
-      
-      const result = response.data;
-      console.log("📥 Réponse de l'agent maître:", result);
-
-      // Sauvegarder le conversationId pour les prochains messages
-      if (result.conversationId && !conversationId) {
+      if (!conversationId && result.conversationId) {
         setConversationId(result.conversationId);
-        console.log("💾 Conversation ID sauvegardé:", result.conversationId);
+      }
+      if (result.summary) {
+        setSummary(result.summary);
       }
 
-      // Extraire le message et les actions
-      const message = result.message || result.output || "Message reçu";
-      const actions = result.actions || [];
-      
-      // Vérifier si des actions ont été effectuées
-      const hasRealActions = actions.some(a => a.type !== 'refresh' && a.status !== 'pending_frontend');
-
       return {
-        message,
-        actions,
-        noAction: !hasRealActions
+        message: result.reply || result.raw || "Reponse indisponible",
+        actions: [],
+        noAction: true,
       };
     } catch (error) {
-      console.error('Erreur agent:', error);
+      console.error("Erreur assistant local:", error);
       throw error;
     }
   };
@@ -241,7 +267,7 @@ function AssistantChat() {
     setIsLoading(true);
 
     try {
-      const aiResponse = await sendToN8n(userMessage);
+      const aiResponse = await sendToAssistant(userMessage);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: aiResponse.message,
@@ -251,7 +277,7 @@ function AssistantChat() {
     } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "Désolé, une erreur s'est produite. Veuillez réessayer ou utiliser le formulaire de contact.",
+        content: "Desole, une erreur s'est produite. Veuillez reessayer ou utiliser le formulaire de contact.",
         noAction: true // Indicate no system action was taken due to error
       }]);
     } finally {
@@ -267,15 +293,15 @@ function AssistantChat() {
   };
 
   const quickSuggestions = [
-    "Rénovation de cuisine",
+    "Renovation de cuisine",
     "Nouvelle salle de bain",
-    "Aménagement salon",
-    "Rénovation complète"
+    "Amenagement salon",
+    "Renovation complete"
   ];
 
   return (
     <div className="flex flex-col h-[600px] bg-gradient-to-br from-stone-50 to-white rounded-xl border-2 border-stone-200 shadow-xl overflow-hidden">
-      {/* Header - Amélioré */}
+      {/* Header - Ameliore */}
       <div className="bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 text-white p-4 border-b-2 border-amber-900">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -313,6 +339,32 @@ function AssistantChat() {
           </div>
         )}
       </div>
+
+      {/* Résumé projet synthétique */}
+      {summary && (
+        <div className="px-4 pb-2">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-900">
+            <div className="font-semibold mb-2">Résumé du projet</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div><span className="font-medium">Type projet :</span> {summary.typeProjet || "A préciser"}</div>
+              <div><span className="font-medium">Type bien :</span> {summary.typeBien || "A préciser"}</div>
+              <div><span className="font-medium">Surface :</span> {summary.surface || "A préciser"}</div>
+              <div><span className="font-medium">Budget :</span> {summary.budget || "A préciser"}</div>
+              <div><span className="font-medium">Délai :</span> {summary.delai || "A préciser"}</div>
+              <div><span className="font-medium">Adresse :</span> {summary.adresse || "A préciser"}</div>
+            </div>
+            {summary.description && <div className="mt-2"><span className="font-medium">Description :</span> {summary.description}</div>}
+            {summary.pointsOuverts && summary.pointsOuverts.length > 0 && (
+              <div className="mt-2">
+                <span className="font-medium">Points à préciser :</span>
+                <ul className="list-disc list-inside space-y-1">
+                  {summary.pointsOuverts.map((p, idx) => <li key={idx}>{p}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Quick Suggestions */}
       {messages.length === 1 && !isLoading && (
@@ -546,7 +598,8 @@ export default function Contact() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Hero Section - UNIFORMISÉ ET AFFINÉ */}
-      <section ref={heroRef} className="relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900">
+      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20">
+        <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
         {/* Grille subtile */}
         <div className="absolute inset-0 opacity-[0.03]">
           <div className="absolute inset-0" style={{
@@ -556,6 +609,7 @@ export default function Contact() {
           }}></div>
         </div>
 
+        <div className="absolute bottom-0 left-0 w-[360px] h-[360px] bg-amber-500/12 rounded-full blur-[90px] animate-pulse" style={{ animationDelay: '0.8s' }}></div>
         {/* Effets lumineux - Plus subtils */}
         <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-amber-600/15 rounded-full blur-[100px]"></div>
         <div className="absolute bottom-1/4 left-1/4 w-64 h-64 bg-amber-500/10 rounded-full blur-[80px]"></div>
@@ -1002,7 +1056,17 @@ export default function Contact() {
                       </p>
                     </CardHeader>
                     <CardContent className="p-6 md:p-8">
-                      <AssistantChat />
+                      <AssistantChat contactInfo={{
+                        nom: formData.nom,
+                        email: formData.email,
+                        telephone: formData.telephone,
+                        adresse: formData.adresse,
+                        typeProjet: formData.typeProjet,
+                        typeBien: formData.typeBien,
+                        surface: formData.surface,
+                        budget: formData.budget,
+                        delai: formData.delai,
+                      }} />
                       
                       <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                         <p className="text-sm text-amber-900">

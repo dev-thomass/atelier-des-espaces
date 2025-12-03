@@ -136,7 +136,8 @@ export default function Prestations() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Hero Section - RÉDUIT ET AFFINÉ */}
-      <section ref={heroRef} className="relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900">
+      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20">
+        <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
         {/* Grille subtile */}
         <div className="absolute inset-0 opacity-[0.03]">
           <div className="absolute inset-0" style={{
@@ -145,6 +146,9 @@ export default function Prestations() {
             backgroundSize: '50px 50px'
           }}></div>
         </div>
+
+        {/* Effets lumineux */}
+        <div className="absolute bottom-0 left-0 w-[360px] h-[360px] bg-amber-500/12 rounded-full blur-[90px] animate-pulse" style={{ animationDelay: '0.8s' }}></div>
 
         {/* Effets lumineux - Plus subtils */}
         <div className="absolute top-1/4 right-1/4 w-80 h-80 bg-amber-600/15 rounded-full blur-[100px]"></div>
@@ -469,3 +473,4 @@ export default function Prestations() {
     </div>
   );
 }
+

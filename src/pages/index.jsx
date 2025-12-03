@@ -1,32 +1,21 @@
 import Layout from "./Layout.jsx";
+import { lazy, Suspense } from "react";
+import { BrowserRouter as Router, Route, Routes, useLocation } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
-import Accueil from "./Accueil";
-
-import Prestations from "./Prestations";
-
-import APropos from "./APropos";
-
-import Contact from "./Contact";
-
-import Conception3D from "./Conception3D";
-
-import Admin from "./Admin";
-
-import AdminLogin from "./AdminLogin";
-
-import Gestion from "./Gestion";
-
-import N8nTest from "./N8nTest";
-
-import N8nChatbot from "./N8nChatbot";
-
-import N8nInterface from "./N8nInterface";
-
-import N8nHub from "./N8nHub";
-
-import N8nAgent from "./N8nAgent";
-
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+// Lazy-load pages to reduce initial bundle and accélérer le démarrage
+const Accueil = lazy(() => import("./Accueil"));
+const Prestations = lazy(() => import("./Prestations"));
+const APropos = lazy(() => import("./APropos"));
+const Contact = lazy(() => import("./Contact"));
+const Conception3D = lazy(() => import("./Conception3D"));
+const Admin = lazy(() => import("./Admin"));
+const AdminLogin = lazy(() => import("./AdminLogin"));
+const Gestion = lazy(() => import("./Gestion"));
+const N8nTest = lazy(() => import("./N8nTest"));
+const N8nChatbot = lazy(() => import("./N8nChatbot"));
+const N8nInterface = lazy(() => import("./N8nInterface"));
+const N8nAgent = lazy(() => import("./N8nAgent"));
 
 const PAGES = {
     
@@ -52,7 +41,6 @@ const PAGES = {
     
     N8nInterface: N8nInterface,
     
-    N8nHub: N8nHub,
     
     N8nAgent: N8nAgent,
     
@@ -74,44 +62,31 @@ function _getCurrentPage(url) {
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     const location = useLocation();
-    const currentPage = _getCurrentPage(location.pathname);
-    
-    return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<Accueil />} />
-                
-                
-                <Route path="/Accueil" element={<Accueil />} />
-                
-                <Route path="/Prestations" element={<Prestations />} />
-                
-                <Route path="/APropos" element={<APropos />} />
-                
-                <Route path="/Contact" element={<Contact />} />
-                
-                <Route path="/Conception3D" element={<Conception3D />} />
-                
-                <Route path="/Admin" element={<Admin />} />
-                
-                <Route path="/AdminLogin" element={<AdminLogin />} />
-                
-                <Route path="/Gestion" element={<Gestion />} />
-                
-                <Route path="/N8nTest" element={<N8nTest />} />
-                
-                <Route path="/N8nChatbot" element={<N8nChatbot />} />
-                
-                <Route path="/N8nInterface" element={<N8nInterface />} />
-                
-                <Route path="/N8nHub" element={<N8nHub />} />
-                
-                <Route path="/N8nAgent" element={<N8nAgent />} />
-                
-            </Routes>
-        </Layout>
-    );
+  const currentPage = _getCurrentPage(location.pathname);
+  
+  return (
+    <Layout currentPageName={currentPage}>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-stone-600">Chargement...</div>}>
+        <Routes>            
+          <Route path="/" element={<Accueil />} />
+          <Route path={createPageUrl("Accueil")} element={<Accueil />} />
+          <Route path={createPageUrl("Prestations")} element={<Prestations />} />
+          <Route path={createPageUrl("APropos")} element={<APropos />} />
+          <Route path={createPageUrl("Contact")} element={<Contact />} />
+          <Route path={createPageUrl("Conception3D")} element={<Conception3D />} />
+          <Route path={createPageUrl("Admin")} element={<Admin />} />
+          <Route path={createPageUrl("AdminLogin")} element={<AdminLogin />} />
+          <Route path={createPageUrl("Gestion")} element={<Gestion />} />
+          <Route path={createPageUrl("N8nTest")} element={<N8nTest />} />
+          <Route path={createPageUrl("N8nChatbot")} element={<N8nChatbot />} />
+          <Route path={createPageUrl("N8nInterface")} element={<N8nInterface />} />
+          <Route path={createPageUrl("N8nAgent")} element={<N8nAgent />} />
+          {/* Catch-all to avoid blank page on unknown routes */}
+          <Route path="*" element={<Accueil />} />
+        </Routes>
+      </Suspense>
+    </Layout>
+  );
 }
 
 export default function Pages() {

@@ -71,7 +71,7 @@ const useScrollAnimation = (options = {}) => {
   return [elementRef, isVisible];
 };
 
-// Composant de Message - AMÉLIORÉ AVEC DÉTAILS N8N
+// Composant de Message - AMELIORE AVEC DETAILS N8N
 function MessageBubble({ message }) {
   const isUser = message.role === 'user';
 
@@ -96,12 +96,12 @@ function MessageBubble({ message }) {
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
             </div>
 
-            {/* Actions effectuées */}
+            {/* Actions effectuees */}
             {message.actions && message.actions.length > 0 && (
               <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3 text-xs">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span className="font-semibold text-green-900">Actions effectuées :</span>
+                  <span className="font-semibold text-green-900">Actions effectuees :</span>
                 </div>
                 <div className="space-y-1">
                   {message.actions.map((action, idx) => (
@@ -112,10 +112,10 @@ function MessageBubble({ message }) {
                       }`}></div>
                       <div className="flex-1">
                         <span className="text-green-800">
-                          {action.type === 'create' && '✨ Création'}
-                          {action.type === 'update' && '✏️ Modification'}
-                          {action.type === 'delete' && '🗑️ Suppression'}
-                          {action.type === 'refresh' && '🔄 Actualisation'}
+                          {action.type === 'create' && ' Creation'}
+                          {action.type === 'update' && ' Modification'}
+                          {action.type === 'delete' && ' Suppression'}
+                          {action.type === 'refresh' && ' Actualisation'}
                           {' '}<strong>{action.entity}</strong>
                         </span>
                         {action.status === 'error' && (
@@ -128,15 +128,6 @@ function MessageBubble({ message }) {
               </div>
             )}
 
-            {/* Aucune action */}
-            {message.noAction && (
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-blue-600" />
-                  <span className="text-blue-800">Aucune action système effectuée - Réponse conversationnelle</span>
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -159,12 +150,12 @@ function AssistantChat() {
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  // SCROLL AUTOMATIQUE SUPPRIMÉ - l'utilisateur peut défiler manuellement
+  // SCROLL AUTOMATIQUE SUPPRIME - l'utilisateur peut defiler manuellement
 
   useEffect(() => {
     setMessages([{
       role: 'assistant',
-      content: "Bonjour ! 👋 Je suis l'assistant expert de l'Atelier des Espaces.\n\nJe vais vous aider à définir votre besoin en scan 3D et plans détaillés.\n\nPour commencer, dites-moi quel type d'espace vous souhaitez scanner ?\n(appartement, maison, local commercial, bureau...)",
+      content: "Bonjour !  Je suis l'assistant expert de l'Atelier des Espaces.\n\nJe vais vous aider a definir votre besoin en scan 3D et plans detailles.\n\nPour commencer, dites-moi quel type d'espace vous souhaitez scanner ?\n(appartement, maison, local commercial, bureau...)",
       noAction: true
     }]);
   }, []);
@@ -205,7 +196,7 @@ function AssistantChat() {
 
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) {
-      alert("La reconnaissance vocale n'est pas supportée par votre navigateur.");
+      alert("La reconnaissance vocale n'est pas supportee par votre navigateur.");
       return;
     }
 
@@ -227,24 +218,24 @@ function AssistantChat() {
         conversationId: conversationId
       };
 
-      console.log("📤 Envoi direct à l'agent maître:", payload);
+      console.log(" Envoi direct a l'agent maitre:", payload);
 
-      // Appel DIRECT à l'agent maître (plus de passage par n8n)
+      // Appel DIRECT a l'agent maitre (plus de passage par n8n)
       const response = await base44.functions.invoke('invokeAgent', payload);
       
       const result = response.data;
-      console.log("📥 Réponse de l'agent maître:", result);
+      console.log(" Reponse de l'agent maitre:", result);
 
       if (result.conversationId && !conversationId) {
         setConversationId(result.conversationId);
-        console.log("💾 Conversation ID sauvegardé:", result.conversationId);
+        console.log(" Conversation ID sauvegarde:", result.conversationId);
       }
 
       // Extraire le message et les actions
-      const message = result.message || result.output || "Message reçu";
+      const message = result.message || result.output || "Message recu";
       const actions = result.actions || [];
 
-      // Vérifier si des actions ont été effectuées
+      // Verifier si des actions ont ete effectuees
       const hasRealActions = actions.some(a => a.type !== 'refresh' && a.status !== 'pending_frontend');
 
       return {
@@ -278,7 +269,7 @@ function AssistantChat() {
     } catch (error) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Désolé, une erreur s'est produite. Veuillez réessayer ou utiliser le formulaire de contact.",
+        content: "Desole, une erreur s'est produite. Veuillez reessayer ou utiliser le formulaire de contact.",
         noAction: true // If error, no action was performed
       }]);
     } finally {
@@ -309,11 +300,11 @@ function AssistantChat() {
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-lg">Assistant Expert IA</h3>
-            <p className="text-xs text-amber-100">Définissez votre projet de scan 3D</p>
+            <p className="text-xs text-amber-100">Definissez votre projet de scan 3D</p>
           </div>
           {conversationId && (
             <div className="text-xs text-amber-100 bg-white/10 px-2 py-1 rounded">
-              💾 Historique
+               Historique
             </div>
           )}
         </div>
@@ -342,7 +333,7 @@ function AssistantChat() {
 
       {messages.length === 1 && !isLoading && (
         <div className="px-4 py-2 bg-stone-50 border-t border-stone-200">
-          <p className="text-xs text-stone-600 mb-2 font-medium">💡 Suggestions rapides :</p>
+          <p className="text-xs text-stone-600 mb-2 font-medium"> Suggestions rapides :</p>
           <div className="flex flex-wrap gap-2">
             {quickSuggestions.map((suggestion, index) => (
               <button
@@ -363,7 +354,7 @@ function AssistantChat() {
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Décrivez votre projet... 🎤"
+            placeholder="Decrivez votre projet... "
             className="resize-none border-2 border-stone-300 focus:border-amber-600"
             rows={2}
             disabled={isLoading}
@@ -377,7 +368,7 @@ function AssistantChat() {
                   ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
                   : 'bg-amber-600 hover:bg-amber-700'
               } w-12 h-12 flex-shrink-0 p-0`} // Added w-12 h-12 and p-0 for better sizing
-              title={isListening ? "Arrêter la saisie vocale" : "Démarrer la saisie vocale"}
+              title={isListening ? "Arreter la saisie vocale" : "Demarrer la saisie vocale"}
             >
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </Button>
@@ -391,8 +382,8 @@ function AssistantChat() {
           </div>
         </div>
         <p className="text-xs text-stone-500 mt-2">
-          💡 Plus vous donnez de détails, plus mes recommandations seront précises
-          {conversationId && <span className="ml-2">• Conversation sauvegardée</span>}
+           Plus vous donnez de details, plus mes recommandations seront precises
+          {conversationId && <span className="ml-2"> Conversation sauvegardee</span>}
         </p>
       </div>
     </div>
@@ -424,20 +415,20 @@ export default function Conception3D() {
 
   // SEO Meta Tags
   useEffect(() => {
-    document.title = "Conception & Modélisation 3D - Plans Détaillés Marseille | L'Atelier des Espaces";
+    document.title = "Conception & Modelisation 3D - Plans Detailles Marseille | L'Atelier des Espaces";
 
     let metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute("content", "Services de conception 3D, scan 3D professionnel et plans détaillés pour vos projets de rénovation et aménagement à Marseille, Aix-en-Provence, Aubagne. Visualisez votre projet avant travaux.");
+      metaDescription.setAttribute("content", "Services de conception 3D, scan 3D professionnel et plans detailles pour vos projets de renovation et amenagement a Marseille, Aix-en-Provence, Aubagne. Visualisez votre projet avant travaux.");
     } else {
       metaDescription = document.createElement('meta');
       metaDescription.name = "description";
-      metaDescription.content = "Services de conception 3D, scan 3D professionnel et plans détaillés pour vos projets de rénovation et aménagement à Marseille, Aix-en-Provence, Aubagne. Visualisez votre projet avant travaux.";
+      metaDescription.content = "Services de conception 3D, scan 3D professionnel et plans detailles pour vos projets de renovation et amenagement a Marseille, Aix-en-Provence, Aubagne. Visualisez votre projet avant travaux.";
       document.head.appendChild(metaDescription);
     }
 
     let metaKeywords = document.querySelector('meta[name="keywords"]');
-    const keywords = "conception 3D marseille, scan 3D marseille, plans 3D marseille, modélisation 3D marseille, relevé 3D marseille, plans détaillés marseille, architecte intérieur marseille, design intérieur 3D marseille, visualisation 3D marseille, plans rénovation marseille, mesures précises marseille";
+    const keywords = "conception 3D marseille, scan 3D marseille, plans 3D marseille, modelisation 3D marseille, releve 3D marseille, plans detailles marseille, architecte interieur marseille, design interieur 3D marseille, visualisation 3D marseille, plans renovation marseille, mesures precises marseille";
     if (metaKeywords) {
       metaKeywords.setAttribute("content", keywords);
     } else {
@@ -469,7 +460,7 @@ export default function Conception3D() {
       }));
     } catch (err) {
       console.error("Error uploading photos:", err);
-      setError("Erreur lors de l'upload des photos. Veuillez réessayer.");
+      setError("Erreur lors de l'upload des photos. Veuillez reessayer.");
     } finally {
       setUploadingPhotos(false);
     }
@@ -502,18 +493,18 @@ export default function Conception3D() {
           <h3>Informations de contact :</h3>
           <p><strong>Nom :</strong> ${formData.nom}</p>
           <p><strong>Email :</strong> ${formData.email}</p>
-          <p><strong>Téléphone :</strong> ${formData.telephone}</p>
+          <p><strong>Telephone :</strong> ${formData.telephone}</p>
           <p><strong>Adresse du projet :</strong> ${formData.adresse}</p>
 
           <hr>
 
-          <h3>Détails du projet :</h3>
+          <h3>Details du projet :</h3>
           <p><strong>Type de prestation :</strong> ${formData.typeProjet}</p>
           <p><strong>Type de bien :</strong> ${formData.typeBien}</p>
           <p><strong>Surface approximative :</strong> ${formData.surface}</p>
-          <p><strong>Nombre de pièces concernées :</strong> ${formData.nombrePieces}</p>
+          <p><strong>Nombre de pieces concernees :</strong> ${formData.nombrePieces}</p>
           <p><strong>Budget approximatif :</strong> ${formData.budget}</p>
-          <p><strong>Délai souhaité :</strong> ${formData.delai}</p>
+          <p><strong>Delai souhaite :</strong> ${formData.delai}</p>
 
           <hr>
 
@@ -522,7 +513,7 @@ export default function Conception3D() {
 
           <hr>
 
-          <h3>Disponibilité pour visite :</h3>
+          <h3>Disponibilite pour visite :</h3>
           <p>${formData.disponibilite.replace(/\n/g, '<br>')}</p>
 
           <hr>
@@ -551,7 +542,7 @@ export default function Conception3D() {
       setTimeout(() => setIsSuccess(false), 5000);
     } catch (err) {
       console.error("Error sending email:", err);
-      setError("Une erreur s'est produite lors de l'envoi de votre demande. Veuillez réessayer.");
+      setError("Une erreur s'est produite lors de l'envoi de votre demande. Veuillez reessayer.");
     } finally {
       setIsSubmitting(false);
     }
@@ -564,23 +555,23 @@ export default function Conception3D() {
   const avantages = [
     {
       icon: Target,
-      titre: "Précision absolue",
-      description: "Plans détaillés au millimètre près avec relevé 3D professionnel"
+      titre: "Precision absolue",
+      description: "Plans detailles au millimetre pres avec releve 3D professionnel"
     },
     {
       icon: Sparkles,
-      titre: "Visualisation réaliste",
-      description: "Voyez votre projet en 3D avant le début des travaux"
+      titre: "Visualisation realiste",
+      description: "Voyez votre projet en 3D avant le debut des travaux"
     },
     {
       icon: Clock,
       titre: "Gain de temps",
-      description: "Moins d'imprévus grâce à une planification optimale"
+      description: "Moins d'imprevus grace a une planification optimale"
     },
     {
       icon: FileText,
-      titre: "Documentation complète",
-      description: "Plans, mesures, surfaces et volumes calculés automatiquement"
+      titre: "Documentation complete",
+      description: "Plans, mesures, surfaces et volumes calcules automatiquement"
     }
   ];
 
@@ -588,12 +579,12 @@ export default function Conception3D() {
     {
       url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/5b10319e2_plan3D.png",
       titre: "Plan 3D",
-      description: "Modélisation complète de votre espace"
+      description: "Modelisation complete de votre espace"
     },
     {
       url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/c02f03180_Scan3D.jpg",
       titre: "Scan 3D",
-      description: "Vue réaliste de l'espace existing"
+      description: "Vue realiste de l'espace existing"
     }
   ];
 
@@ -604,34 +595,33 @@ export default function Conception3D() {
     },
     {
       url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/536ebddd1_Plandetaill2.jpg",
-      titre: "Plan détaillé"
+      titre: "Plan detaille"
     },
     {
       url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/fd02cd6b1_Plandetaill3.jpg",
-      titre: "Mesures précises"
+      titre: "Mesures precises"
     },
     {
       url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/3f9d221aa_Plandetaill4.jpg",
-      titre: "Plans par pièce"
+      titre: "Plans par piece"
     },
     {
       url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/e16b4360b_Plandetaill5.jpg",
-      titre: "Détails techniques"
+      titre: "Details techniques"
     }
   ];
 
   const infos = [
     { icon: Mail, label: "Email", value: "thomasromeo.bonnardel@gmail.com" },
-    { icon: Phone, label: "Téléphone", value: "06 95 07 10 84" },
-    { icon: MapPin, label: "Zone", value: "Bouches-du-Rhône" },
-    { icon: Clock, label: "Disponibilité", value: "7j/7j" }
+    { icon: Phone, label: "Telephone", value: "06 95 07 10 84" },
+    { icon: MapPin, label: "Zone", value: "Bouches-du-Rhone" },
+    { icon: Clock, label: "Disponibilite", value: "7j/7j" }
   ];
 
   return (
     <div className="min-h-screen bg-stone-50">
-      {/* Hero Section - UNIFORMISÉ ET AFFINÉ */}
-      <section ref={heroRef} className="relative min-h-[60vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900">
-        {/* Grille 3D stylisée - Plus subtile */}
+      {/* Hero Section - UNIFORMISE ET AFFINE */}
+      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20">`n        <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />`n        {/* Grille 3D stylisee - Plus subtile */}
         <div className="absolute inset-0 opacity-[0.04]">
           <div className="absolute inset-0" style={{
             backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
@@ -642,7 +632,7 @@ export default function Conception3D() {
           }}></div>
         </div>
 
-        {/* Effets lumineux - Légère touche technologique */}
+        {/* Effets lumineux - Legere touche technologique */}
         <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-amber-600/15 rounded-full blur-[100px]"></div>
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px]"></div>
 
@@ -665,19 +655,19 @@ export default function Conception3D() {
 
           {/* Sous-titre */}
           <p className="text-base md:text-lg text-stone-300 max-w-3xl mx-auto leading-relaxed mb-6">
-            Visualisez votre projet avant sa réalisation grâce à nos<br />
-            <strong className="text-white">plans 3D détaillés</strong> et notre <strong className="text-white">technologie de scan</strong>
+            Visualisez votre projet avant sa realisation grace a nos<br />
+            <strong className="text-white">plans 3D detailles</strong> et notre <strong className="text-white">technologie de scan</strong>
           </p>
 
           {/* Features */}
           <div className="flex flex-wrap gap-4 justify-center items-center text-sm text-stone-400">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-amber-400" />
-              <span>Plans précis</span>
+              <span>Plans precis</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-amber-400" />
-              <span>Rendu réaliste</span>
+              <span>Rendu realiste</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-amber-400" />
@@ -719,7 +709,7 @@ export default function Conception3D() {
               Visualisation 3D
             </h2>
             <p className="text-base md:text-xl text-stone-600">
-              Scan 3D et modélisation pour une vision complète de votre projet
+              Scan 3D et modelisation pour une vision complete de votre projet
             </p>
             <div className="w-24 h-1 bg-amber-700 mx-auto mt-4"></div>
           </div>
@@ -759,10 +749,10 @@ export default function Conception3D() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 md:mb-16">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-stone-800 mb-4">
-              Exemple de plan détaillé
+              Exemple de plan detaille
             </h2>
             <p className="text-base md:text-xl text-stone-600">
-              Découvrez un exemple réel de plan 3D que je réalise pour mes clients
+              Decouvrez un exemple reel de plan 3D que je realise pour mes clients
             </p>
             <div className="w-24 h-1 bg-amber-700 mx-auto mt-4"></div>
           </div>
@@ -775,9 +765,9 @@ export default function Conception3D() {
                     <Box className="w-5 h-5 md:w-6 md:h-6 text-amber-700" />
                   </div>
                   <div>
-                    <h3 className="text-xl md:text-2xl font-bold text-stone-800 mb-1 md:mb-2">Plan 3D détaillé</h3>
+                    <h3 className="text-xl md:text-2xl font-bold text-stone-800 mb-1 md:mb-2">Plan 3D detaille</h3>
                     <p className="text-sm md:text-base text-stone-600">
-                      Scan complet de votre espace avec toutes les mesures précises
+                      Scan complet de votre espace avec toutes les mesures precises
                     </p>
                   </div>
                 </div>
@@ -790,11 +780,11 @@ export default function Conception3D() {
                 <ul className="space-y-2 md:space-y-3">
                   {[
                     "Vue d'ensemble de l'espace en 2D et 3D",
-                    "Surfaces au sol précises (m²)",
+                    "Surfaces au sol precises (m)",
                     "Hauteurs sous plafond",
-                    "Dimensions des murs, portes et fenêtres",
-                    "Volumes calculés automatiquement",
-                    "Plans détaillés pièce par pièce"
+                    "Dimensions des murs, portes et fenetres",
+                    "Volumes calcules automatiquement",
+                    "Plans detailles piece par piece"
                   ].map((item, index) => (
                     <li key={index} className="flex items-start gap-2 md:gap-3">
                       <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-amber-700 flex-shrink-0 mt-0.5" />
@@ -842,9 +832,9 @@ export default function Conception3D() {
                 <div>
                   <h3 className="text-base md:text-lg font-bold text-stone-800 mb-2">Processus rapide</h3>
                   <p className="text-sm md:text-base text-stone-700 leading-relaxed">
-                    Je me déplace chez vous avec mon équipement professionnel de scan 3D.
-                    En quelques heures, votre espace est entièrement numérisé. Vous recevez
-                    vos plans détaillés sous 48h.
+                    Je me deplace chez vous avec mon equipement professionnel de scan 3D.
+                    En quelques heures, votre espace est entierement numerise. Vous recevez
+                    vos plans detailles sous 48h.
                   </p>
                 </div>
               </div>
@@ -880,9 +870,9 @@ export default function Conception3D() {
                     <ul className="space-y-1.5 text-xs">
                       {[
                         "Devis gratuit",
-                        "Réponse rapide",
+                        "Reponse rapide",
                         "Visite sur place",
-                        "Plans précis"
+                        "Plans precis"
                       ].map((item, index) => (
                         <li key={index} className="flex items-center gap-2">
                           <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
@@ -901,7 +891,7 @@ export default function Conception3D() {
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="form" className="flex items-center gap-2">
                     <FileText className="w-4 h-4" />
-                    <span>Formulaire détaillé</span>
+                    <span>Formulaire detaille</span>
                   </TabsTrigger>
                   <TabsTrigger value="assistant" className="flex items-center gap-2">
                     <Bot className="w-4 h-4" />
@@ -917,7 +907,7 @@ export default function Conception3D() {
                         Demander un devis Scan 3D & Plans
                       </CardTitle>
                       <p className="text-sm text-stone-600 mt-2">
-                        Remplissez ce formulaire pour une estimation précise
+                        Remplissez ce formulaire pour une estimation precise
                       </p>
                     </CardHeader>
                     <CardContent className="p-6 md:p-8">
@@ -925,7 +915,7 @@ export default function Conception3D() {
                         <Alert className="mb-6 bg-green-50 border-green-500">
                           <CheckCircle2 className="h-4 w-4 text-green-600" />
                           <AlertDescription className="text-green-800 text-sm md:text-base">
-                            Votre demande a été envoyée ! Je vous recontacterai rapidement pour planifier une visite.
+                            Votre demande a ete envoyee ! Je vous recontacterai rapidement pour planifier une visite.
                           </AlertDescription>
                         </Alert>
                       )}
@@ -944,7 +934,7 @@ export default function Conception3D() {
                             <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                               1
                             </div>
-                            <h3 className="text-xl font-bold text-stone-800">Vos coordonnées</h3>
+                            <h3 className="text-xl font-bold text-stone-800">Vos coordonnees</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-13">
                             <div>
@@ -962,7 +952,7 @@ export default function Conception3D() {
                             </div>
                             <div>
                               <Label htmlFor="telephone" className="text-stone-700 font-medium mb-2 block">
-                                Téléphone *
+                                Telephone *
                               </Label>
                               <Input
                                 id="telephone"
@@ -1011,7 +1001,7 @@ export default function Conception3D() {
                             <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                               2
                             </div>
-                            <h3 className="text-xl font-bold text-stone-800">Détails du projet</h3>
+                            <h3 className="text-xl font-bold text-stone-800">Details du projet</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-13">
                             <div>
@@ -1020,13 +1010,13 @@ export default function Conception3D() {
                               </Label>
                               <Select value={formData.typeProjet} onValueChange={(value) => handleChange("typeProjet", value)} required>
                                 <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Sélectionnez" />
+                                  <SelectValue placeholder="Selectionnez" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="Scan 3D uniquement">Scan 3D uniquement</SelectItem>
                                   <SelectItem value="Scan 3D + Plans 2D">Scan 3D + Plans 2D</SelectItem>
-                                  <SelectItem value="Scan 3D + Plans détaillés">Scan 3D + Plans détaillés</SelectItem>
-                                  <SelectItem value="Modélisation 3D complète">Modélisation 3D complète</SelectItem>
+                                  <SelectItem value="Scan 3D + Plans detailles">Scan 3D + Plans detailles</SelectItem>
+                                  <SelectItem value="Modelisation 3D complete">Modelisation 3D complete</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -1036,7 +1026,7 @@ export default function Conception3D() {
                               </Label>
                               <Select value={formData.typeBien} onValueChange={(value) => handleChange("typeBien", value)} required>
                                 <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Sélectionnez" />
+                                  <SelectValue placeholder="Selectionnez" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="Appartement">Appartement</SelectItem>
@@ -1049,27 +1039,27 @@ export default function Conception3D() {
                             </div>
                             <div>
                               <Label htmlFor="surface" className="text-stone-700 font-medium mb-2 block">
-                                Surface à scanner *
+                                Surface a scanner *
                               </Label>
                               <Input
                                 id="surface"
                                 value={formData.surface}
                                 onChange={(e) => handleChange("surface", e.target.value)}
                                 required
-                                placeholder="Ex: 60 m²"
+                                placeholder="Ex: 60 m"
                                 className="h-11"
                               />
                             </div>
                             <div>
                               <Label htmlFor="nombrePieces" className="text-stone-700 font-medium mb-2 block">
-                                Nombre de pièces à scanner *
+                                Nombre de pieces a scanner *
                               </Label>
                               <Input
                                 id="nombrePieces"
                                 value={formData.nombrePieces}
                                 onChange={(e) => handleChange("nombrePieces", e.target.value)}
                                 required
-                                placeholder="Ex: 3 pièces"
+                                placeholder="Ex: 3 pieces"
                                 className="h-11"
                               />
                             </div>
@@ -1083,7 +1073,7 @@ export default function Conception3D() {
                             <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                               3
                             </div>
-                            <h3 className="text-xl font-bold text-stone-800">Budget et délai</h3>
+                            <h3 className="text-xl font-bold text-stone-800">Budget et delai</h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-13">
                             <div>
@@ -1092,30 +1082,30 @@ export default function Conception3D() {
                               </Label>
                               <Select value={formData.budget} onValueChange={(value) => handleChange("budget", value)}>
                                 <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Sélectionnez" />
+                                  <SelectValue placeholder="Selectionnez" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Moins de 500€">Moins de 500€</SelectItem>
-                                  <SelectItem value="500€ - 1 000€">500€ - 1 000€</SelectItem>
-                                  <SelectItem value="1 000€ - 2 000€">1 000€ - 2 000€</SelectItem>
-                                  <SelectItem value="2 000€ - 5 000€">2 000€ - 5 000€</SelectItem>
-                                  <SelectItem value="Plus de 5 000€">Plus de 5 000€</SelectItem>
-                                  <SelectItem value="À définir">À définir</SelectItem>
+                                  <SelectItem value="Moins de 500">Moins de 500</SelectItem>
+                                  <SelectItem value="500 - 1 000">500 - 1 000</SelectItem>
+                                  <SelectItem value="1 000 - 2 000">1 000 - 2 000</SelectItem>
+                                  <SelectItem value="2 000 - 5 000">2 000 - 5 000</SelectItem>
+                                  <SelectItem value="Plus de 5 000">Plus de 5 000</SelectItem>
+                                  <SelectItem value="A definir">A definir</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                             <div>
                               <Label className="text-stone-700 font-medium mb-2 block">
-                                Délai souhaité pour le scan
+                                Delai souhaite pour le scan
                               </Label>
                               <Select value={formData.delai} onValueChange={(value) => handleChange("delai", value)}>
                                 <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Sélectionnez" />
+                                  <SelectValue placeholder="Selectionnez" />
                                 &nbsp;</SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="Urgent (cette semaine)">Urgent (cette semaine)</SelectItem>
-                                  <SelectItem value="1 à 2 semaines">1 à 2 semaines</SelectItem>
-                                  <SelectItem value="2 à 4 semaines">2 à 4 semaines</SelectItem>
+                                  <SelectItem value="1 a 2 semaines">1 a 2 semaines</SelectItem>
+                                  <SelectItem value="2 a 4 semaines">2 a 4 semaines</SelectItem>
                                   <SelectItem value="Plus de 1 mois">Plus de 1 mois</SelectItem>
                                   <SelectItem value="Flexible">Flexible</SelectItem>
                                 </SelectContent>
@@ -1131,12 +1121,12 @@ export default function Conception3D() {
                             <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                               4
                             </div>
-                            <h3 className="text-xl font-bold text-stone-800">Description détaillée</h3>
+                            <h3 className="text-xl font-bold text-stone-800">Description detaillee</h3>
                           </div>
                           <div className="space-y-4 pl-0 md:pl-13">
                             <div>
                               <Label htmlFor="description" className="text-stone-700 font-medium mb-2 block">
-                                Décrivez votre projet *
+                                Decrivez votre projet *
                               </Label>
                               <Textarea
                                 id="description"
@@ -1145,12 +1135,12 @@ export default function Conception3D() {
                                 required
                                 rows={5}
                                 className="resize-none"
-                                placeholder="Décrivez votre projet : travaux envisagés, vos attentes, contraintes particulières, etc."
+                                placeholder="Decrivez votre projet : travaux envisages, vos attentes, contraintes particulieres, etc."
                               />
                             </div>
                             <div>
                               <Label htmlFor="disponibilite" className="text-stone-700 font-medium mb-2 block">
-                                Vos disponibilités pour une visite
+                                Vos disponibilites pour une visite
                               </Label>
                               <Textarea
                                 id="disponibilite"
@@ -1158,7 +1148,7 @@ export default function Conception3D() {
                                 onChange={(e) => handleChange("disponibilite", e.target.value)}
                                 rows={3}
                                 className="resize-none"
-                                placeholder="Ex: Disponible en semaine après 18h, ou le samedi matin"
+                                placeholder="Ex: Disponible en semaine apres 18h, ou le samedi matin"
                               />
                             </div>
                           </div>
@@ -1175,7 +1165,7 @@ export default function Conception3D() {
                           </div>
                           <div className="pl-0 md:pl-13">
                             <Label className="text-stone-700 font-medium mb-3 block">
-                              Ajoutez des photos de l'espace pour une estimation plus précise
+                              Ajoutez des photos de l'espace pour une estimation plus precise
                             </Label>
 
                             {formData.photos.length > 0 && (
@@ -1246,7 +1236,7 @@ export default function Conception3D() {
                           </Button>
 
                           <p className="text-xs text-center text-stone-500 mt-4">
-                            🔒 Vos informations sont confidentielles et ne seront jamais partagées
+                             Vos informations sont confidentielles et ne seront jamais partagees
                           </p>
                         </div>
                       </form>
@@ -1263,7 +1253,7 @@ export default function Conception3D() {
                         Discutez avec notre Assistant IA
                       </CardTitle>
                       <p className="text-sm text-stone-600 mt-2">
-                        Laissez-vous guider pour définir votre projet de scan 3D
+                        Laissez-vous guider pour definir votre projet de scan 3D
                       </p>
                     </CardHeader>
                     <CardContent className="p-6 md:p-8">
@@ -1271,8 +1261,8 @@ export default function Conception3D() {
 
                       <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                         <p className="text-sm text-amber-900">
-                          <strong>💡 Astuce :</strong> L'assistant vous aidera à clarifier vos besoins.
-                          Pour un devis précis, vous pourrez ensuite remplir le formulaire détaillé.
+                          <strong> Astuce :</strong> L'assistant vous aidera a clarifier vos besoins.
+                          Pour un devis precis, vous pourrez ensuite remplir le formulaire detaille.
                         </p>
                       </div>
                     </CardContent>
@@ -1284,7 +1274,7 @@ export default function Conception3D() {
         </div>
       </section>
 
-      {/* CTA - HARMONISÉ AVEC ACCUEIL */}
+      {/* CTA - HARMONISE AVEC ACCUEIL */}
       <section className="py-20 bg-gradient-to-r from-amber-900 via-amber-800 to-amber-900 relative overflow-hidden group">
         <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-700">
           <div className="absolute inset-0" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="1"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}></div>
@@ -1292,11 +1282,11 @@ export default function Conception3D() {
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 group-hover:scale-105 transition-transform duration-300">
-            Besoin également de travaux de rénovation ?
+            Besoin egalement de travaux de renovation ?
           </h2>
           <p className="text-xl text-amber-100 mb-10 leading-relaxed">
-            En plus du scan 3D et des plans, je réalise tous vos travaux de rénovation et d'aménagement intérieur.
-            Service complet disponible à Marseille et dans toutes les Bouches-du-Rhône.
+            En plus du scan 3D et des plans, je realise tous vos travaux de renovation et d'amenagement interieur.
+            Service complet disponible a Marseille et dans toutes les Bouches-du-Rhone.
           </p>
           <Link to={createPageUrl("Contact")}>
             <Button size="lg" className="bg-white text-amber-900 hover:bg-stone-100 px-10 py-6 text-lg shadow-2xl transform hover:scale-110 hover:rotate-2 transition-all duration-300">
@@ -1309,3 +1299,10 @@ export default function Conception3D() {
     </div>
   );
 }
+
+
+
+
+
+
+

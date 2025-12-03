@@ -52,11 +52,8 @@ import {
   ArrowRight,
   Clock,
   LinkIcon,
-  Zap,
-  Terminal,
   BookOpen,
-  Copy,
-  Bot
+  Copy
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import AdminProjetCard from "../components/admin/AdminProjetCard";
@@ -87,8 +84,9 @@ export default function Gestion() {
           const currentUser = await base44.auth.me();
           setUser(currentUser);
         } catch (error) {
-          console.log("User not found in base44, continuing with local auth");
-          setUser({ email: "Admin", full_name: "Administrateur" });
+          const storedEmail = localStorage.getItem("admin_email") || "admin@site.local";
+          const storedName = localStorage.getItem("admin_name") || "Administrateur";
+          setUser({ email: storedEmail, full_name: storedName });
         }
         setIsLoading(false);
       }
@@ -208,16 +206,15 @@ export default function Gestion() {
 
   const navigation = [
     { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, section: "main" },
-    { id: "divider-web", label: "Gestion Web", section: "divider" },
-    { id: "projets", label: "Projets & Prestations", icon: Globe, section: "web" },
-    { id: "assistant-client", label: "Assistant Client", icon: MessageSquare, section: "web" },
     { id: "divider-pratique", label: "Gestion Pratique", section: "divider" },
     { id: "assistant", label: "Assistant", icon: Lightbulb, section: "pratique" },
     { id: "planning", label: "Planning", icon: Calendar, section: "pratique" },
     { id: "listes", label: "Listes", icon: ListChecks, section: "pratique" },
-    { id: "n8n", label: "Centre n8n", icon: Zap, section: "pratique" },
+    { id: "divider-web", label: "Gestion Web", section: "divider" },
+    { id: "projets", label: "Projets & Prestations", icon: Globe, section: "web" },
+    { id: "assistant-client", label: "Assistant Client", icon: MessageSquare, section: "web" },
     { id: "divider-settings", label: "", section: "divider" },
-    { id: "settings", label: "Paramètres", icon: Settings, section: "settings" }
+    { id: "settings", label: "Parametres", icon: Settings, section: "settings" }
   ];
 
   const handleNavigation = useCallback((id) => {
@@ -263,17 +260,17 @@ export default function Gestion() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex">
+    <div className="min-h-screen flex">
       <GestionChatBot />
 
-      <aside className={`fixed lg:sticky top-0 left-0 h-screen bg-white border-r border-neutral-200 transition-all duration-300 z-50 ${sidebarOpen ? "w-64" : "w-0"} overflow-hidden`}>
+      <aside className={`fixed lg:sticky top-0 left-0 h-screen glass-dark text-slate-100 transition-all duration-300 z-50 shadow-apple ${sidebarOpen ? "w-64" : "w-0"} overflow-hidden`}>
         <div className="flex flex-col h-full w-64">
-          <div className="p-4 border-b border-neutral-200 flex-shrink-0">
+          <div className="p-4 border-b border-white/10 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-neutral-700 flex-shrink-0" />
+              <Shield className="w-5 h-5 text-slate-100 flex-shrink-0" />
               <div className="min-w-0 flex-1">
-                <h2 className="font-semibold text-neutral-900 truncate">Administration</h2>
-                <p className="text-xs text-neutral-500 truncate">{user?.full_name || user?.email || "Admin"}</p>
+                <h2 className="font-semibold text-slate-100 truncate">Administration</h2>
+                <p className="text-xs text-slate-300 truncate">{user?.full_name || user?.email || "Admin"}</p>
               </div>
             </div>
           </div>
@@ -297,7 +294,11 @@ export default function Gestion() {
                   <button
                     key={item.id}
                     onClick={() => handleNavigation(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? "bg-neutral-900 text-white shadow-sm" : "text-neutral-600 hover:bg-neutral-100"}`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                      isActive
+                        ? "bg-gradient-to-r from-blue-600 to-amber-500 text-white shadow-apple"
+                        : "text-slate-200 hover:bg-white/10"
+                    }`}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
                     <span className="text-sm font-medium truncate">{item.label}</span>
@@ -307,29 +308,29 @@ export default function Gestion() {
             </div>
           </nav>
 
-          <div className="p-4 border-t border-neutral-200 flex-shrink-0">
-            <Button onClick={handleLogout} variant="outline" className="w-full text-neutral-600 border-neutral-300 hover:bg-neutral-100" size="sm">
+          <div className="p-4 border-t border-white/10 flex-shrink-0">
+            <Button onClick={handleLogout} variant="outline" className="w-full text-slate-100 border-white/30 hover:bg-white/10" size="sm">
               <LogOut className="w-4 h-4 mr-2" />
-              Déconnexion
+              Deconnexion
             </Button>
           </div>
         </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b border-neutral-200 sticky top-0 z-40">
+        <header className="glass-dark sticky top-0 z-40 text-slate-100 border-b border-white/10">
           <div className="px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 flex-1 min-w-0">
-                <Button variant="ghost" size="icon" className="text-neutral-600 flex-shrink-0" onClick={() => setSidebarOpen(!sidebarOpen)}>
+                <Button variant="ghost" size="icon" className="text-slate-100 flex-shrink-0 hover:bg-white/10" onClick={() => setSidebarOpen(!sidebarOpen)}>
                   {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </Button>
 
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg sm:text-xl font-semibold text-neutral-900 truncate">
+                  <h1 className="text-lg sm:text-xl font-semibold text-white truncate">
                     {navigation.find((n) => n.id === activeSection)?.label || "Tableau de bord"}
                   </h1>
-                  <p className="text-xs sm:text-sm text-neutral-500 hidden sm:block">
+                  <p className="text-xs sm:text-sm text-slate-300 hidden sm:block">
                     {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
                   </p>
                 </div>
@@ -365,7 +366,6 @@ export default function Gestion() {
           {activeSection === "assistant" && <AssistantContent />}
           {activeSection === "planning" && <PlanningContent />}
           {activeSection === "listes" && <ListesContent />}
-          {activeSection === "n8n" && <N8nHubContent />}
           {activeSection === "settings" && <SettingsContent user={user} handleLogout={handleLogout} />}
         </div>
       </main>
@@ -417,23 +417,23 @@ function DashboardContent({ stats, setActiveSection }) {
   const urgentItems = activeItems.filter(i => i.urgence === "urgente");
   const categories = {
     courses: { label: "Courses", color: "#E3F2FD", icon: ShoppingCart },
-    materiaux: { label: "Matériaux", color: "#F3E5F5", icon: Package },
+    materiaux: { label: "Materiaux", color: "#F3E5F5", icon: Package },
     outils: { label: "Outils", color: "#FFF9C4", icon: Wrench },
-    a_retenir: { label: "À retenir", color: "#FFE0B2", icon: Lightbulb }
+    a_retenir: { label: "A retenir", color: "#FFE0B2", icon: Lightbulb }
   };
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl border border-stone-200/50 p-8 shadow-sm" style={{ background: 'linear-gradient(135deg, #FAFAFA 0%, #F5F5F5 100%)' }}>
-        <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+      <div className="relative overflow-hidden rounded-2xl p-8 glass-dark shadow-apple border border-white/10">
+        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, rgba(59,130,246,0.3) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-3">
-            <div className="w-14 h-14 bg-white/90 backdrop-blur-sm rounded-2xl flex items-center justify-center shadow-md border border-stone-200/50">
-              <LayoutDashboard className="w-7 h-7 text-stone-700" />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-apple border border-white/15 bg-gradient-to-br from-blue-600 to-amber-500">
+              <LayoutDashboard className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-stone-800">Tableau de bord</h2>
-              <p className="text-stone-600 text-sm mt-1">
+              <h2 className="text-3xl font-bold text-white">Tableau de bord</h2>
+              <p className="text-slate-200 text-sm mt-1">
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
@@ -442,19 +442,19 @@ function DashboardContent({ stats, setActiveSection }) {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 border-blue-200/50 shadow-lg hover:shadow-xl transition-shadow" style={{ background: 'linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 30%, #fff 100%)' }}>
-          <CardHeader className="border-b border-blue-200/50 p-5 bg-blue-50/40 backdrop-blur-sm">
+        <Card className="lg:col-span-1 glass border border-white/10 shadow-apple">
+          <CardHeader className="border-b border-white/10 p-5">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-blue-900 flex items-center gap-2 font-bold">
+              <CardTitle className="text-lg text-white flex items-center gap-2 font-bold">
                 <Calendar className="w-5 h-5" />Planning
               </CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setActiveSection("planning")} className="text-blue-700 hover:text-blue-900 hover:bg-blue-100">
+              <Button size="sm" variant="ghost" onClick={() => setActiveSection("planning")} className="text-slate-100 hover:bg-white/10">
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="w-full bg-white" style={{ height: '500px' }}>
+            <div className="w-full bg-[#0e1a33] border-b border-white/10" style={{ height: '500px' }}>
               <iframe
                 src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&mode=AGENDA"
                 style={{ border: 0 }}
@@ -466,38 +466,38 @@ function DashboardContent({ stats, setActiveSection }) {
                 className="w-full h-full"
               />
             </div>
-            <div className="p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-t border-blue-200">
-              <p className="text-xs text-blue-800 text-center flex items-center justify-center gap-2">
-                <Sparkles className="w-3 h-3" />Synchronisé avec Google Calendar
+            <div className="p-3 bg-gradient-to-r from-blue-600/60 via-blue-700/50 to-cyan-500/40 border-t border-white/10">
+              <p className="text-xs text-white text-center flex items-center justify-center gap-2">
+                <Sparkles className="w-3 h-3" />Synchronise avec Google Calendar
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1 border-amber-200/50 shadow-lg hover:shadow-xl transition-shadow" style={{ background: 'linear-gradient(135deg, #FFF9C4 0%, #FFF59D 30%, #fff 100%)' }}>
-          <CardHeader className="border-b border-amber-200/50 p-5 bg-amber-50/40 backdrop-blur-sm">
+        <Card className="lg:col-span-1 glass border border-white/10 shadow-apple">
+          <CardHeader className="border-b border-white/10 p-5">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-amber-900 flex items-center gap-2 font-bold">
+              <CardTitle className="text-lg text-white flex items-center gap-2 font-bold">
                 <ListChecks className="w-5 h-5" />Listes
               </CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setActiveSection("listes")} className="text-amber-700 hover:text-amber-900 hover:bg-amber-100">
+              <Button size="sm" variant="ghost" onClick={() => setActiveSection("listes")} className="text-slate-100 hover:bg-white/10">
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-5">
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="bg-white rounded-lg p-2 text-center border border-amber-200">
-                <div className="text-xl font-bold text-amber-900">{activeItems.length}</div>
-                <div className="text-xs text-amber-700">Actifs</div>
+              <div className="rounded-lg p-2 text-center border border-white/15 bg-gradient-to-br from-blue-700/40 to-blue-500/30 text-white">
+                <div className="text-xl font-bold">{activeItems.length}</div>
+                <div className="text-xs text-blue-100">Actifs</div>
               </div>
-              <div className="bg-red-50 rounded-lg p-2 text-center border border-red-200">
-                <div className="text-xl font-bold text-red-700">{urgentItems.length}</div>
-                <div className="text-xs text-red-600">Urgent</div>
+              <div className="rounded-lg p-2 text-center border border-white/15 bg-gradient-to-br from-red-600/40 to-red-500/30 text-white">
+                <div className="text-xl font-bold">{urgentItems.length}</div>
+                <div className="text-xs text-red-100">Urgent</div>
               </div>
-              <div className="bg-green-50 rounded-lg p-2 text-center border border-green-200">
-                <div className="text-xl font-bold text-green-700">{items.filter(i => i.fait).length}</div>
-                <div className="text-xs text-green-600">Fait</div>
+              <div className="rounded-lg p-2 text-center border border-white/15 bg-gradient-to-br from-emerald-600/40 to-cyan-500/30 text-white">
+                <div className="text-xl font-bold">{items.filter(i => i.fait).length}</div>
+                <div className="text-xs text-emerald-100">Fait</div>
               </div>
             </div>
 
@@ -540,14 +540,14 @@ function DashboardContent({ stats, setActiveSection }) {
             {activeItems.length === 0 && (
               <div className="text-center py-8">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-amber-300" />
-                <p className="text-sm text-amber-700">Toutes les listes sont à jour !</p>
+                <p className="text-sm text-amber-700">Toutes les listes sont a jour !</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1 border-orange-200/50 shadow-lg hover:shadow-xl transition-shadow" style={{ background: 'linear-gradient(135deg, #FFE0B2 0%, #FFCC80 30%, #fff 100%)' }}>
-          <CardHeader className="border-b border-orange-200/50 p-5 bg-orange-50/40 backdrop-blur-sm">
+        <Card className="lg:col-span-1 shadow-sm border-none bg-white">
+          <CardHeader className="border-b border-neutral-100 p-5 bg-neutral-50">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-orange-900 flex items-center gap-2 font-bold">
                 <Sparkles className="w-5 h-5" />Assistant
@@ -569,7 +569,7 @@ function DashboardContent({ stats, setActiveSection }) {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-orange-900">Discuter</p>
-                        <p className="text-xs text-orange-700">Pose tes questions à l'IA</p>
+                        <p className="text-xs text-orange-700">Pose tes questions a l'IA</p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
@@ -582,7 +582,7 @@ function DashboardContent({ stats, setActiveSection }) {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-blue-900">Planning</p>
-                        <p className="text-xs text-blue-700">Gérer mes événements</p>
+                        <p className="text-xs text-blue-700">Gerer mes evenements</p>
                       </div>
                       <ArrowRight className="w-4 h-4 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
@@ -609,9 +609,9 @@ function DashboardContent({ stats, setActiveSection }) {
                     <Lightbulb className="w-5 h-5 text-orange-700" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-orange-900 mb-1">💡 Astuce</p>
+                    <p className="text-sm font-semibold text-orange-900 mb-1"> Astuce</p>
                     <p className="text-xs text-orange-700 leading-relaxed">
-                      Utilise l'assistant pour créer rapidement des événements, gérer tes listes et suivre tes projets en langage naturel.
+                      Utilise l'assistant pour creer rapidement des evenements, gerer tes listes et suivre tes projets en langage naturel.
                     </p>
                   </div>
                 </div>
@@ -622,61 +622,29 @@ function DashboardContent({ stats, setActiveSection }) {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-stone-200 hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-stone-500 mb-1">Projets</p>
-                <p className="text-2xl font-bold text-stone-800">{stats.totalProjets}</p>
-              </div>
-              <div className="w-10 h-10 bg-stone-100 rounded-lg flex items-center justify-center">
-                <Globe className="w-5 h-5 text-stone-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-stone-200 hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-stone-500 mb-1">Prestations</p>
-                <p className="text-2xl font-bold text-stone-800">{stats.totalPrestations}</p>
-              </div>
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-5 h-5 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-stone-200 hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-stone-500 mb-1">Conv. Clients</p>
-                <p className="text-2xl font-bold text-stone-800">{stats.totalConversationsProjet}</p>
-              </div>
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-stone-200 hover:shadow-md transition-shadow">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-stone-500 mb-1">Sessions</p>
-                <p className="text-2xl font-bold text-stone-800">{stats.totalConversationsChantier}</p>
-              </div>
-              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-amber-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          { label: "Projets", value: stats.totalProjets, icon: Globe, gradient: "from-blue-600 to-blue-400" },
+          { label: "Prestations", value: stats.totalPrestations, icon: Briefcase, gradient: "from-amber-500 to-amber-300" },
+          { label: "Conv. Clients", value: stats.totalConversationsProjet, icon: MessageSquare, gradient: "from-emerald-500 to-cyan-400" },
+          { label: "Sessions", value: stats.totalConversationsChantier || 0, icon: Wrench, gradient: "from-indigo-500 to-blue-500" },
+        ].map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <Card key={idx} className="glass border border-white/10 shadow-apple">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-slate-200 mb-1">{item.label}</p>
+                    <p className="text-2xl font-bold text-white">{item.value}</p>
+                  </div>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white bg-gradient-to-br ${item.gradient}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
@@ -732,23 +700,24 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl border border-neutral-200/50 p-6 shadow-sm" style={{ background: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)' }}>
+      <div className="relative overflow-hidden rounded-xl border border-white/10 p-6 shadow-apple glass-dark">
+        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, rgba(59,130,246,0.4) 1px, transparent 1px)', backgroundSize: '28px 28px' }}></div>
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-neutral-900 to-neutral-700 rounded-lg flex items-center justify-center shadow-sm">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-amber-500 rounded-lg flex items-center justify-center shadow-apple border border-white/20">
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-neutral-800">Gestion du Portfolio</h2>
-            <p className="text-neutral-600 text-xs">Projets & Prestations</p>
+            <h2 className="text-xl font-bold text-white">Gestion du Portfolio</h2>
+            <p className="text-slate-200 text-xs">Projets & Prestations</p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-neutral-200">
-        <button onClick={() => setView("projets")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${view === "projets" ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-700"}`}>
+      <div className="flex items-center gap-2 border-b border-white/10">
+        <button onClick={() => setView("projets")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${view === "projets" ? "border-blue-400 text-white" : "border-transparent text-slate-300 hover:text-white"}`}>
           <Globe className="w-4 h-4 inline mr-2" />Projets Portfolio
         </button>
-        <button onClick={() => setView("prestations")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${view === "prestations" ? "border-neutral-900 text-neutral-900" : "border-transparent text-neutral-500 hover:text-neutral-700"}`}>
+        <button onClick={() => setView("prestations")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${view === "prestations" ? "border-amber-300 text-white" : "border-transparent text-slate-300 hover:text-white"}`}>
           <Briefcase className="w-4 h-4 inline mr-2" />Services & Prestations
         </button>
       </div>
@@ -772,7 +741,7 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
                 </div>
                 <div className="bg-white rounded-lg shadow-lg p-3 md:p-4">
                   <div className="text-xl md:text-3xl font-bold text-red-600">{projets.filter(p => !p.visible).length}</div>
-                  <div className="text-xs md:text-sm text-neutral-600">Masqués</div>
+                  <div className="text-xs md:text-sm text-neutral-600">Masques</div>
                 </div>
                 <div className="bg-white rounded-lg shadow-lg p-3 md:p-4">
                   <div className="text-xl md:text-3xl font-bold text-purple-600">{projets.filter(p => p.mis_en_avant).length}</div>
@@ -793,13 +762,13 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
               {filteredProjets.length === 0 ? (
                 <Alert className="bg-neutral-100">
                   <AlertDescription className="text-center py-8">
-                    {searchTerm ? "Aucun projet trouvé" : "Aucun projet. Créez-en un !"}
+                    {searchTerm ? "Aucun projet trouve" : "Aucun projet. Creez-en un !"}
                   </AlertDescription>
                 </Alert>
               ) : (
                 <>
                   <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-3 mb-4 text-xs md:text-sm">
-                    💡 Utilisez les flèches pour réorganiser
+                     Utilisez les fleches pour reorganiser
                   </div>
                   <DragDropContext onDragEnd={handleProjetDragEnd}>
                     <Droppable droppableId="projets">
@@ -844,7 +813,7 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
       {view === "prestations" && (
         <div>
           <div className="flex items-center justify-between mb-6">
-            <p className="text-sm text-neutral-500">Services affichés sur votre site web</p>
+            <p className="text-sm text-neutral-500">Services affiches sur votre site web</p>
             <Button onClick={() => { setEditingPrestation(null); setShowPrestationForm(true); }} className="bg-neutral-900 hover:bg-neutral-800 text-white">
               <Plus className="w-4 h-4 mr-2" />Nouvelle prestation
             </Button>
@@ -856,7 +825,7 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
 
           {prestations.length === 0 ? (
             <Alert className="bg-neutral-100">
-              <AlertDescription className="text-center py-8">Aucune prestation. Créez-en une !</AlertDescription>
+              <AlertDescription className="text-center py-8">Aucune prestation. Creez-en une !</AlertDescription>
             </Alert>
           ) : (
             <div className="space-y-3">
@@ -880,7 +849,7 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
                           </span>
                         ) : (
                           <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded flex items-center gap-1 whitespace-nowrap flex-shrink-0">
-                            <EyeOff className="w-3 h-3" /> Masqué
+                            <EyeOff className="w-3 h-3" /> Masque
                           </span>
                         )}
                       </div>
@@ -942,22 +911,22 @@ function PrestationForm({ prestation, onCancel, onSuccess }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label className="text-sm font-medium text-neutral-700">Titre *</Label>
-            <Input value={formData.titre} onChange={(e) => setFormData({ ...formData, titre: e.target.value })} placeholder="Ex: Rénovation de cuisine" required className="mt-1" />
+            <Input value={formData.titre} onChange={(e) => setFormData({ ...formData, titre: e.target.value })} placeholder="Ex: Renovation de cuisine" required className="mt-1" />
           </div>
 
           <div>
             <Label className="text-sm font-medium text-neutral-700">Description *</Label>
-            <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Décrivez la prestation..." required rows={4} className="mt-1" />
+            <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Decrivez la prestation..." required rows={4} className="mt-1" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium text-neutral-700">Prix indicatif</Label>
-              <Input value={formData.prix_indicatif} onChange={(e) => setFormData({ ...formData, prix_indicatif: e.target.value })} placeholder="Ex: À partir de 5000€" className="mt-1" />
+              <Input value={formData.prix_indicatif} onChange={(e) => setFormData({ ...formData, prix_indicatif: e.target.value })} placeholder="Ex: A partir de 5000" className="mt-1" />
             </div>
             <div>
-              <Label className="text-sm font-medium text-neutral-700">Durée estimée</Label>
-              <Input value={formData.duree_estimee} onChange={(e) => setFormData({ ...formData, duree_estimee: e.target.value })} placeholder="Ex: 2 à 3 semaines" className="mt-1" />
+              <Label className="text-sm font-medium text-neutral-700">Duree estimee</Label>
+              <Input value={formData.duree_estimee} onChange={(e) => setFormData({ ...formData, duree_estimee: e.target.value })} placeholder="Ex: 2 a 3 semaines" className="mt-1" />
             </div>
           </div>
 
@@ -969,7 +938,7 @@ function PrestationForm({ prestation, onCancel, onSuccess }) {
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onCancel} className="flex-1">Annuler</Button>
             <Button type="submit" className="flex-1 bg-neutral-900 hover:bg-neutral-800" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Enregistrement...</> : <>{prestation ? "Mettre à jour" : "Créer"}</>}
+              {saveMutation.isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Enregistrement...</> : <>{prestation ? "Mettre a jour" : "Creer"}</>}
             </Button>
           </div>
         </form>
@@ -1062,7 +1031,7 @@ function AssistantClientContent() {
     try {
       const conversationText = messages.map(msg => `${msg.role === 'user' ? 'Client' : 'Assistant'}: ${msg.content}`).join('\n\n');
       const response = await base44.integrations.Core.InvokeLLM({
-        prompt: `Analyse cette conversation et génère un résumé structuré pour devis.\n\n${conversationText}`,
+        prompt: `Analyse cette conversation et genere un resume structure pour devis.\n\n${conversationText}`,
         response_json_schema: {
           type: "object",
           properties: {
@@ -1145,7 +1114,7 @@ function AssistantClientContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-xl text-orange-900">{selectedConversation.metadata?.name || "Conversation"}</CardTitle>
-                    <p className="text-xs text-orange-700 mt-1">Créée le {new Date(selectedConversation.created_date).toLocaleDateString('fr-FR')}</p>
+                    <p className="text-xs text-orange-700 mt-1">Creee le {new Date(selectedConversation.created_date).toLocaleDateString('fr-FR')}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className="bg-orange-100 text-orange-800">{messages.length} messages</Badge>
@@ -1183,7 +1152,7 @@ function AssistantClientContent() {
                     </div>
                     <div className="p-4 border-t-2 bg-white" style={{ borderColor: '#FFE0B2' }}>
                       <div className="flex gap-3">
-                        <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={handleKeyPress} placeholder="Répondre au client..." className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
+                        <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={handleKeyPress} placeholder="Repondre au client..." className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
                         <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg" style={{ background: 'linear-gradient(135deg, #FFCC80, #FFB74D)' }}>
                           <Send className="w-5 h-5" />
                         </Button>
@@ -1197,7 +1166,7 @@ function AssistantClientContent() {
                     ) : summary ? (
                       <div className="space-y-4">
                         <div className="bg-orange-100 border border-orange-200 rounded-xl p-4">
-                          <h3 className="text-lg font-bold text-orange-900">Résumé pour Devis</h3>
+                          <h3 className="text-lg font-bold text-orange-900">Resume pour Devis</h3>
                           <p className="text-sm text-orange-700">Niveau: {summary.niveau_avancement}</p>
                         </div>
                         <div className="bg-white rounded-xl border p-4">
@@ -1215,7 +1184,7 @@ function AssistantClientContent() {
             </>
           ) : (
             <div className="flex items-center justify-center h-[600px]">
-              <div className="text-center"><MessageSquare className="w-16 h-16 mx-auto mb-4 text-stone-300" /><p className="text-lg font-medium text-stone-400">Sélectionnez une conversation</p></div>
+              <div className="text-center"><MessageSquare className="w-16 h-16 mx-auto mb-4 text-stone-300" /><p className="text-lg font-medium text-stone-400">Selectionnez une conversation</p></div>
             </div>
           )}
         </Card>
@@ -1235,7 +1204,7 @@ function AssistantContent() {
     if (messages.length === 0) {
       setMessages([{
         role: 'assistant',
-        content: "Salut Thomas 👋\n\nJe suis ton assistant de gestion. Je peux t'aider à :\n\n• Suivre l'état de tes chantiers\n• Gérer tes tâches prioritaires\n• Calculer tes charges URSSAF\n• Organiser ton planning\n\nQu'est-ce que je peux faire pour toi ?",
+        content: "Salut Thomas \n\nJe suis ton assistant de gestion. Je peux t'aider a :\n\n Suivre l'etat de tes chantiers\n Gerer tes taches prioritaires\n Calculer tes charges URSSAF\n Organiser ton planning\n\nQu'est-ce que je peux faire pour toi ?",
         noAction: true
       }]);
     }
@@ -1250,7 +1219,7 @@ function AssistantContent() {
 
     try {
       const res = await base44.functions.invoke('invokeAgent', { userMessage, context: "gestion" });
-      const msg = res.data?.message || res.data?.output || "✅ Action effectuée";
+      const msg = res.data?.message || res.data?.output || " Action effectuee";
       const actions = res.data?.actions || [];
       const hasRealActions = actions.some(a => a.type !== 'refresh' && a.status !== 'pending_frontend');
 
@@ -1264,7 +1233,7 @@ function AssistantContent() {
         }
       }
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "Désolé, une erreur s'est produite. Réessaye.", noAction: true }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Desole, une erreur s'est produite. Reessaye.", noAction: true }]);
     } finally {
       setIsLoading(false);
     }
@@ -1285,10 +1254,10 @@ function AssistantContent() {
               </div>
               {message.actions && message.actions.length > 0 && (
                 <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3 text-xs">
-                  <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="font-semibold text-green-900">Actions effectuées :</span></div>
+                  <div className="flex items-center gap-2 mb-2"><CheckCircle2 className="w-4 h-4 text-green-600" /><span className="font-semibold text-green-900">Actions effectuees :</span></div>
                   {message.actions.map((action, idx) => (
                     <div key={idx} className="text-green-800">
-                      {action.type === 'create' && '✨ Création'} {action.type === 'update' && '✏️ Modification'} {action.type === 'delete' && '🗑️ Suppression'} <strong>{action.entity}</strong>
+                      {action.type === 'create' && ' Creation'} {action.type === 'update' && ' Modification'} {action.type === 'delete' && ' Suppression'} <strong>{action.entity}</strong>
                     </div>
                   ))}
                 </div>
@@ -1308,7 +1277,7 @@ function AssistantContent() {
           <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
             <Lightbulb className="w-5 h-5 text-orange-700" />
           </div>
-          <div><h2 className="text-xl font-bold text-orange-900">Mon Assistant</h2><p className="text-orange-700 text-xs">Gestion intelligente de votre activité</p></div>
+          <div><h2 className="text-xl font-bold text-orange-900">Mon Assistant</h2><p className="text-orange-700 text-xs">Gestion intelligente de votre activite</p></div>
         </div>
       </div>
 
@@ -1336,7 +1305,7 @@ function AssistantContent() {
 
           <div className="p-4 border-t-2 border-orange-100 bg-white">
             <div className="flex gap-3">
-              <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())} placeholder="Ex: Où j'en suis sur le chantier Dupont ?" className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
+              <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())} placeholder="Ex: Ou j'en suis sur le chantier Dupont ?" className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
               <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg" style={{ background: 'linear-gradient(135deg, #FFCC80, #FFB74D)' }}>
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-orange-900" /> : <Send className="w-5 h-5 text-orange-900" />}
               </Button>
@@ -1375,12 +1344,12 @@ function PlanningContent() {
           <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
             <Calendar className="w-5 h-5 text-blue-700" />
           </div>
-          <div><h2 className="text-xl font-bold text-blue-900">Planning Google Calendar</h2><p className="text-blue-700 text-xs">💬 Utilisez le chatbot en bas à droite</p></div>
+          <div><h2 className="text-xl font-bold text-blue-900">Planning Google Calendar</h2><p className="text-blue-700 text-xs"> Utilisez le chatbot en bas a droite</p></div>
         </div>
       </div>
 
       {todayEvents.length > 0 && (
-        <Card className="border-blue-200 shadow-lg">
+        <Card className="border-blue-50 shadow-sm bg-white">
           <CardHeader className="p-3 bg-blue-50"><CardTitle className="text-sm font-semibold text-blue-900 flex items-center gap-2"><Clock className="w-4 h-4" />Aujourd'hui ({todayEvents.length})</CardTitle></CardHeader>
           <CardContent className="p-3">
             <div className="flex gap-2 overflow-x-auto">
@@ -1409,7 +1378,7 @@ function PlanningContent() {
             <iframe key={calendarKey} src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis" style={{ border: 0 }} width="100%" height="100%" frameBorder="0" scrolling="no" title="Google Calendar" className="w-full h-full" />
           </div>
           <div className="p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-t border-blue-200">
-            <p className="text-xs text-blue-800 text-center flex items-center justify-center gap-2"><Sparkles className="w-3 h-3" />Synchronisé automatiquement avec Google Calendar</p>
+            <p className="text-xs text-blue-800 text-center flex items-center justify-center gap-2"><Sparkles className="w-3 h-3" />Synchronise automatiquement avec Google Calendar</p>
           </div>
         </CardContent>
       </Card>
@@ -1481,9 +1450,9 @@ function ListesContent() {
 
   const categories = {
     courses: { label: "Courses", icon: ShoppingCart, color: "bg-blue-500", lightColor: "bg-blue-100", textColor: "text-blue-900" },
-    materiaux: { label: "Matériaux", icon: Package, color: "bg-purple-500", lightColor: "bg-purple-100", textColor: "text-purple-900" },
+    materiaux: { label: "Materiaux", icon: Package, color: "bg-purple-500", lightColor: "bg-purple-100", textColor: "text-purple-900" },
     outils: { label: "Outils", icon: Wrench, color: "bg-amber-500", lightColor: "bg-amber-100", textColor: "text-amber-900" },
-    a_retenir: { label: "À Retenir", icon: Lightbulb, color: "bg-yellow-500", lightColor: "bg-yellow-100", textColor: "text-yellow-900" },
+    a_retenir: { label: "A Retenir", icon: Lightbulb, color: "bg-yellow-500", lightColor: "bg-yellow-100", textColor: "text-yellow-900" },
     autre: { label: "Autre", icon: AlertCircle, color: "bg-stone-500", lightColor: "bg-stone-100", textColor: "text-stone-900" }
   };
 
@@ -1499,9 +1468,9 @@ function ListesContent() {
   const importantItems = items.filter(i => !i.fait && i.urgence === "importante");
 
   const getUrgenceIcon = (urgence) => {
-    if (urgence === "urgente") return "🔴";
-    if (urgence === "importante") return "🟠";
-    return "⚪";
+    if (urgence === "urgente") return "";
+    if (urgence === "importante") return "";
+    return "";
   };
 
   return (
@@ -1514,7 +1483,7 @@ function ListesContent() {
             <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
               <ListChecks className="w-5 h-5 text-yellow-700" />
             </div>
-            <div><h2 className="text-xl font-bold text-yellow-900">Mes Listes</h2><p className="text-yellow-700 text-xs">Courses, matériaux et tâches</p></div>
+            <div><h2 className="text-xl font-bold text-yellow-900">Mes Listes</h2><p className="text-yellow-700 text-xs">Courses, materiaux et taches</p></div>
           </div>
           
           <div className="flex bg-white/40 rounded-lg p-1 gap-1">
@@ -1530,8 +1499,8 @@ function ListesContent() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="border-neutral-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-neutral-500 mb-1">Total</div><div className="text-3xl font-bold text-neutral-900">{totalItems}</div></CardContent></Card>
-        <Card className="border-red-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-red-600 mb-1">🔴 Urgent</div><div className="text-3xl font-bold text-red-600">{urgentItems.length}</div></CardContent></Card>
-        <Card className="border-orange-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-orange-600 mb-1">🟠 Important</div><div className="text-3xl font-bold text-orange-600">{importantItems.length}</div></CardContent></Card>
+        <Card className="border-red-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-red-600 mb-1"> Urgent</div><div className="text-3xl font-bold text-red-600">{urgentItems.length}</div></CardContent></Card>
+        <Card className="border-orange-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-orange-600 mb-1"> Important</div><div className="text-3xl font-bold text-orange-600">{importantItems.length}</div></CardContent></Card>
         <Card className="border-green-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-green-600 mb-1">Fait</div><div className="text-3xl font-bold text-green-600">{doneItems}</div></CardContent></Card>
       </div>
 
@@ -1559,7 +1528,7 @@ function ListesContent() {
           {urgentItems.length > 0 && (
             <Card className="md:col-span-2 lg:col-span-2 border-red-300 shadow-lg bg-gradient-to-br from-red-50 to-white">
               <CardHeader className="border-b bg-red-100/50 p-4">
-                <CardTitle className="text-red-900 flex items-center gap-2">🔴 Urgent <Badge className="bg-red-600 text-white">{urgentItems.length}</Badge></CardTitle>
+                <CardTitle className="text-red-900 flex items-center gap-2"> Urgent <Badge className="bg-red-600 text-white">{urgentItems.length}</Badge></CardTitle>
               </CardHeader>
               <CardContent className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
                 {urgentItems.map((item) => (
@@ -1648,80 +1617,6 @@ function ListesContent() {
   );
 }
 
-function N8nHubContent() {
-  const [testMessage, setTestMessage] = useState("");
-  const [testResponse, setTestResponse] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const N8N_WEBHOOK_URL = "https://atelierdesespaces.app.n8n.cloud/webhook/741d7444-695c-46a3-92c1-ad6375fd7025";
-
-  useEffect(() => { window.scrollTo(0, 0); }, []);
-
-  const handleTest = async () => {
-    if (!testMessage.trim()) return;
-    setIsLoading(true);
-    setTestResponse(null);
-
-    try {
-      const now = new Date();
-      const response = await fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatInput: testMessage, context: "test", date_actuelle: { date_complete: now.toISOString() } })
-      });
-      const result = await response.json();
-      setTestResponse({ success: response.ok, status: response.status, data: result });
-    } catch (error) {
-      setTestResponse({ success: false, error: error.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl border border-purple-200/50 p-6 shadow-sm" style={{ background: 'linear-gradient(135deg, #EDE9FE 0%, #DDD6FE 100%)' }}>
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
-            <Zap className="w-5 h-5 text-purple-700" />
-          </div>
-          <div><h2 className="text-xl font-bold text-purple-900">Centre n8n</h2><p className="text-purple-700 text-xs">Test et monitoring</p></div>
-        </div>
-      </div>
-
-      <Card className="border-purple-200 shadow-lg">
-        <CardHeader className="border-b p-4 bg-purple-50"><CardTitle className="text-base text-purple-900 flex items-center gap-2"><Terminal className="w-5 h-5" />Testeur de Webhook</CardTitle></CardHeader>
-        <CardContent className="p-4 space-y-4">
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Message de test</Label>
-            <Textarea value={testMessage} onChange={(e) => setTestMessage(e.target.value)} placeholder="Ex: Ajoute lait et pain" className="min-h-[100px]" />
-          </div>
-          <Button onClick={handleTest} disabled={isLoading || !testMessage.trim()} className="w-full bg-purple-600 hover:bg-purple-700">
-            {isLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Test en cours...</> : <><Send className="w-4 h-4 mr-2" />Tester</>}
-          </Button>
-          {testResponse && (
-            <div className="border-t pt-4">
-              <div className="flex items-center gap-2 mb-3">
-                {testResponse.success ? <><CheckCircle2 className="w-5 h-5 text-green-600" /><span className="font-semibold text-green-900">Succès</span></> : <><AlertCircle className="w-5 h-5 text-red-600" /><span className="font-semibold text-red-900">Erreur</span></>}
-              </div>
-              <div className="bg-neutral-900 rounded-lg p-4 overflow-auto"><pre className="text-xs text-green-400">{JSON.stringify(testResponse.data || testResponse.error, null, 2)}</pre></div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-purple-200 shadow-lg">
-        <CardHeader className="border-b p-4 bg-purple-50"><CardTitle className="text-base text-purple-900">Ressources</CardTitle></CardHeader>
-        <CardContent className="p-4">
-          <div className="grid md:grid-cols-2 gap-3">
-            <Link to={createPageUrl("N8nAgent")}><Button variant="outline" className="w-full justify-start"><Bot className="w-4 h-4 mr-2" />Documentation</Button></Link>
-            <a href="https://atelierdesespaces.app.n8n.cloud" target="_blank"><Button variant="outline" className="w-full justify-start"><Zap className="w-4 h-4 mr-2" />Ouvrir n8n</Button></a>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function SettingsContent({ user, handleLogout }) {
   return (
     <div className="space-y-6">
@@ -1730,7 +1625,7 @@ function SettingsContent({ user, handleLogout }) {
         <CardContent className="space-y-4">
           <div>
             <Label className="block text-sm font-semibold text-neutral-700">Nom complet</Label>
-            <p className="text-neutral-600 mt-1">{user?.full_name || "Non renseigné"}</p>
+            <p className="text-neutral-600 mt-1">{user?.full_name || "Non renseigne"}</p>
           </div>
           <div>
             <Label className="block text-sm font-semibold text-neutral-700">Email</Label>
@@ -1740,11 +1635,11 @@ function SettingsContent({ user, handleLogout }) {
       </Card>
 
       <Card className="border-neutral-200 shadow-sm border-2 border-neutral-700">
-        <CardHeader className="bg-neutral-50"><CardTitle className="text-neutral-900">🔐 Sécurité</CardTitle></CardHeader>
+        <CardHeader className="bg-neutral-50"><CardTitle className="text-neutral-900"> Securite</CardTitle></CardHeader>
         <CardContent className="p-6">
-          <p className="text-neutral-700 mb-4">Ce système utilise l'authentification sécurisée de Base44.</p>
+          <p className="text-neutral-700 mb-4">Ce systeme utilise l'authentification securisee de Base44.</p>
           <Button onClick={handleLogout} variant="outline" className="text-red-600 border-red-600 hover:bg-red-50">
-            <LogOut className="w-4 h-4 mr-2" />Se déconnecter
+            <LogOut className="w-4 h-4 mr-2" />Se deconnecter
           </Button>
         </CardContent>
       </Card>

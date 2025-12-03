@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import { sendAssistantMessage } from "@/api/assistantClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Bot, Send, Loader2, Mic, MicOff } from "lucide-react";
@@ -8,6 +8,7 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const endRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -20,7 +21,7 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
     if (messages.length === 0) {
       setMessages([{
         role: 'assistant',
-        text: initialMessage || "Bonjour ! 👋 Comment puis-je vous aider aujourd'hui ?"
+        text: initialMessage || "Bonjour ! Comment puis-je vous aider aujourd'hui ?"
       }]);
     }
   }, [initialMessage]);
@@ -58,7 +59,7 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
 
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) {
-      alert("La reconnaissance vocale n'est pas supportée par votre navigateur");
+      alert("La reconnaissance vocale n'est pas supportee par votre navigateur");
       return;
     }
 
@@ -80,18 +81,22 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
     setLoading(true);
 
     try {
-      const res = await base44.functions.invoke('invokeAgent', {
-        userMessage: userMsg,
-        context: context
+      const res = await sendAssistantMessage({
+        message: userMsg,
+        conversationId,
+        context: { page: context },
       });
+      if (res.conversationId && !conversationId) {
+        setConversationId(res.conversationId);
+      }
 
-      const msg = res.data?.message || res.data?.output || "Message reçu";
+      const msg = res.reply || "Message recu";
       setMessages(m => [...m, { role: 'assistant', text: msg }]);
     } catch (err) {
       console.error('Erreur:', err);
       setMessages(m => [...m, { 
         role: 'assistant', 
-        text: "Désolé, une erreur s'est produite. Veuillez réessayer." 
+        text: "Desole, une erreur s'est produite. Veuillez reessayer." 
       }]);
     } finally {
       setLoading(false);
@@ -107,7 +112,7 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
           </div>
           <div className="flex-1">
             <h3 className="font-bold text-lg">Assistant Expert IA</h3>
-            <p className="text-xs text-amber-100">Conseils personnalisés pour votre projet</p>
+            <p className="text-xs text-amber-100">Conseils personnalises pour votre projet</p>
           </div>
         </div>
       </div>
@@ -157,7 +162,7 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
-            placeholder="Décrivez votre projet..."
+            placeholder="Decrivez votre projet..."
             rows={2}
             disabled={loading}
           />
@@ -170,7 +175,7 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
                   ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
                   : 'bg-amber-600 hover:bg-amber-700'
               }`}
-              title={isListening ? "Arrêter l'écoute" : "Parler"}
+              title={isListening ? "Arreter l'ecoute" : "Parler"}
             >
               {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </Button>
@@ -184,7 +189,7 @@ export default function AssistantChat({ context = "conseil", initialMessage }) {
           </div>
         </div>
         <p className="text-xs text-stone-500 mt-2">
-          💡 Plus de détails = meilleures recommandations • 🎤 Cliquez sur le micro pour parler
+           Plus de details = meilleures recommandations   Cliquez sur le micro pour parler
         </p>
       </div>
     </div>
