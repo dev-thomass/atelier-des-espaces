@@ -207,9 +207,9 @@ export default function Gestion() {
   const navigation = [
     { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, section: "main" },
     { id: "divider-pratique", label: "Gestion Pratique", section: "divider" },
-    { id: "assistant", label: "Assistant", icon: Lightbulb, section: "pratique" },
     { id: "planning", label: "Planning", icon: Calendar, section: "pratique" },
     { id: "listes", label: "Listes", icon: ListChecks, section: "pratique" },
+    { id: "assistant", label: "Assistant", icon: Lightbulb, section: "pratique" },
     { id: "divider-web", label: "Gestion Web", section: "divider" },
     { id: "projets", label: "Projets & Prestations", icon: Globe, section: "web" },
     { id: "assistant-client", label: "Assistant Client", icon: MessageSquare, section: "web" },
@@ -260,29 +260,35 @@ export default function Gestion() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div
+      className="min-h-screen flex"
+      style={{ backgroundColor: "var(--color-bg-body)", color: "var(--color-text-primary)" }}
+    >
       <GestionChatBot />
 
-      <aside className={`fixed lg:sticky top-0 left-0 h-screen glass-dark text-slate-100 transition-all duration-300 z-50 shadow-apple ${sidebarOpen ? "w-64" : "w-0"} overflow-hidden`}>
+      <aside
+        className={`fixed lg:sticky top-0 left-0 h-screen admin-sidebar transition-all duration-300 z-50 shadow-lg ${sidebarOpen ? "w-64" : "w-0"} overflow-hidden`}
+        style={{ borderRight: `1px solid var(--color-border-light)` }}
+      >
         <div className="flex flex-col h-full w-64">
-          <div className="p-4 border-b border-white/10 flex-shrink-0">
+          <div className="px-4 sm:px-6 py-4 border-b flex-shrink-0" style={{ borderColor: "var(--color-border-light)" }}>
             <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-slate-100 flex-shrink-0" />
+              <Shield className="w-5 h-5 flex-shrink-0" color="var(--color-badge-primary-text)" />
               <div className="min-w-0 flex-1">
-                <h2 className="font-semibold text-slate-100 truncate">Administration</h2>
-                <p className="text-xs text-slate-300 truncate">{user?.full_name || user?.email || "Admin"}</p>
+                <h2 className="font-semibold truncate" style={{ color: "var(--color-text-inverse)" }}>Administration</h2>
+                <p className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>{user?.full_name || user?.email || "Admin"}</p>
               </div>
             </div>
           </div>
 
           <nav className="flex-1 overflow-y-auto py-4">
-            <div className="space-y-1 px-2">
+            <div className="space-y-1 px-4 sm:px-6">
               {navigation.map((item) => {
                 if (item.section === "divider") {
                   return (
                     <div key={item.id} className="py-3 px-3">
-                      {item.label && <p className="text-xs font-medium text-neutral-400 uppercase tracking-wider">{item.label}</p>}
-                      {!item.label && <div className="border-t border-neutral-200" />}
+                      {item.label && <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>{item.label}</p>}
+                      {!item.label && <div className="border-t" style={{ borderColor: "var(--color-bg-sidebar-hover)" }} />}
                     </div>
                   );
                 }
@@ -294,11 +300,18 @@ export default function Gestion() {
                   <button
                     key={item.id}
                     onClick={() => handleNavigation(item.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all"
+                    style={
                       isActive
-                        ? "bg-gradient-to-r from-blue-600 to-amber-500 text-white shadow-apple"
-                        : "text-slate-200 hover:bg-white/10"
-                    }`}
+                        ? {
+                            backgroundColor: "var(--color-nav-item-bg-active)",
+                            color: "var(--color-nav-item-text-active)",
+                            boxShadow: "var(--shadow-md)",
+                          }
+                        : {
+                            color: "var(--color-nav-item-text)",
+                          }
+                    }
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
                     <span className="text-sm font-medium truncate">{item.label}</span>
@@ -308,8 +321,17 @@ export default function Gestion() {
             </div>
           </nav>
 
-          <div className="p-4 border-t border-white/10 flex-shrink-0">
-            <Button onClick={handleLogout} variant="outline" className="w-full text-slate-100 border-white/30 hover:bg-white/10" size="sm">
+          <div className="px-4 sm:px-6 py-4 border-t flex-shrink-0" style={{ borderColor: "var(--color-border-light)" }}>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="w-full btn-ghost"
+              size="sm"
+              style={{
+                color: "var(--color-text-inverse)",
+                borderColor: "var(--color-border-light)",
+              }}
+            >
               <LogOut className="w-4 h-4 mr-2" />
               Deconnexion
             </Button>
@@ -318,23 +340,37 @@ export default function Gestion() {
       </aside>
 
       <main className="flex-1 overflow-y-auto">
-        <header className="glass-dark sticky top-0 z-40 text-slate-100 border-b border-white/10">
-          <div className="px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <Button variant="ghost" size="icon" className="text-slate-100 flex-shrink-0 hover:bg-white/10" onClick={() => setSidebarOpen(!sidebarOpen)}>
-                  {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </Button>
+        <header
+        className="sticky top-0 z-40 border-b"
+        style={{
+          backgroundColor: "var(--color-bg-sidebar)",
+          borderColor: "var(--color-bg-sidebar-hover)",
+          boxShadow: "var(--shadow-sm)",
+          color: "var(--color-text-inverse)",
+        }}
+      >
+        <div className="px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="flex-shrink-0 btn-ghost"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                style={{ color: "var(--color-text-inverse)" }}
+              >
+                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </Button>
 
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-lg sm:text-xl font-semibold text-white truncate">
-                    {navigation.find((n) => n.id === activeSection)?.label || "Tableau de bord"}
-                  </h1>
-                  <p className="text-xs sm:text-sm text-slate-300 hidden sm:block">
-                    {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-                  </p>
-                </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-xl font-semibold truncate" style={{ color: "var(--color-text-inverse)" }}>
+                  {navigation.find((n) => n.id === activeSection)?.label || "Tableau de bord"}
+                </h1>
+                <p className="text-xs sm:text-sm hidden sm:block" style={{ color: "var(--color-text-muted)" }}>
+                  {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                </p>
               </div>
+            </div>
 
               <QuickAccessLinks activeSection={activeSection} onNavigate={handleNavigation} />
             </div>
@@ -379,10 +415,10 @@ export default function Gestion() {
 
 function QuickAccessLinks({ activeSection, onNavigate }) {
   const quickLinks = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, activeGradient: "linear-gradient(135deg, #F8F9FA, #E9ECEF)" },
-    { id: "planning", label: "Planning", icon: Calendar, activeGradient: "linear-gradient(135deg, #E3F2FD, #BBDEFB)" },
-    { id: "listes", label: "Listes", icon: ListChecks, activeGradient: "linear-gradient(135deg, #FFF9C4, #FFF59D)" },
-    { id: "assistant", label: "Assistant", icon: Lightbulb, activeGradient: "linear-gradient(135deg, #FFE0B2, #FFCC80)" }
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, color: "var(--color-primary-500)" },
+    { id: "planning", label: "Planning", icon: Calendar, color: "var(--color-secondary-500)" },
+    { id: "listes", label: "Listes", icon: ListChecks, color: "var(--color-accent-olive-500)" },
+    { id: "assistant", label: "Assistant", icon: Lightbulb, color: "var(--color-accent-warm-500)" }
   ];
 
   return (
@@ -393,10 +429,16 @@ function QuickAccessLinks({ activeSection, onNavigate }) {
         
         return (
           <button key={link.id} onClick={() => onNavigate(link.id)} className="group relative" title={link.label}>
-            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all ${isActive ? 'shadow-sm' : 'bg-neutral-50 hover:bg-neutral-100'}`}
-              style={isActive ? { background: link.activeGradient } : {}}>
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all"
+              style={
+                isActive
+                  ? { backgroundColor: link.color, color: "var(--color-text-inverse)", boxShadow: "var(--shadow-sm)" }
+                  : { backgroundColor: "var(--color-bg-surface)", color: "var(--color-text-secondary)", border: `1px solid var(--color-border-light)` }
+              }
+            >
               <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="text-xs font-medium text-neutral-700 hidden lg:inline">{link.label}</span>
+              <span className="text-xs font-medium hidden lg:inline">{link.label}</span>
             </div>
           </button>
         );
@@ -424,16 +466,32 @@ function DashboardContent({ stats, setActiveSection }) {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl p-8 glass-dark shadow-apple border border-white/10">
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, rgba(59,130,246,0.3) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+      <div
+        className="relative overflow-hidden rounded-2xl p-8 shadow-lg"
+        style={{
+          background: "linear-gradient(135deg, var(--color-primary-100), var(--color-accent-warm-200))",
+          border: `1px solid var(--color-border-light)`,
+          boxShadow: "var(--shadow-lg)",
+        }}
+      >
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgba(194,105,63,0.16) 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+          }}
+        ></div>
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-3">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-apple border border-white/15 bg-gradient-to-br from-blue-600 to-amber-500">
-              <LayoutDashboard className="w-7 h-7 text-white" />
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-apple"
+              style={{ backgroundColor: "var(--color-primary-500)", color: "var(--color-text-inverse)" }}
+            >
+              <LayoutDashboard className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-white">Tableau de bord</h2>
-              <p className="text-slate-200 text-sm mt-1">
+              <h2 className="text-3xl font-bold" style={{ color: "var(--color-text-primary)" }}>Tableau de bord</h2>
+              <p className="text-sm mt-1" style={{ color: "var(--color-text-secondary)" }}>
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
@@ -442,19 +500,25 @@ function DashboardContent({ stats, setActiveSection }) {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 glass border border-white/10 shadow-apple">
-          <CardHeader className="border-b border-white/10 p-5">
+        <Card className="lg:col-span-1 admin-card" style={{ borderColor: "var(--color-border-light)" }}>
+          <CardHeader className="p-5 border-b" style={{ borderColor: "var(--color-border-light)" }}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-white flex items-center gap-2 font-bold">
+              <CardTitle className="text-lg flex items-center gap-2 font-bold" style={{ color: "var(--color-text-primary)" }}>
                 <Calendar className="w-5 h-5" />Planning
               </CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setActiveSection("planning")} className="text-slate-100 hover:bg-white/10">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setActiveSection("planning")}
+                className="btn-tertiary"
+                style={{ color: "var(--color-secondary-600)" }}
+              >
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="w-full bg-[#0e1a33] border-b border-white/10" style={{ height: '500px' }}>
+            <div className="w-full" style={{ height: '500px', backgroundColor: "var(--color-bg-surface)" }}>
               <iframe
                 src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&mode=AGENDA"
                 style={{ border: 0 }}
@@ -466,38 +530,65 @@ function DashboardContent({ stats, setActiveSection }) {
                 className="w-full h-full"
               />
             </div>
-            <div className="p-3 bg-gradient-to-r from-blue-600/60 via-blue-700/50 to-cyan-500/40 border-t border-white/10">
-              <p className="text-xs text-white text-center flex items-center justify-center gap-2">
+            <div className="p-3 border-t" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-secondary-100)" }}>
+              <p className="text-xs text-center flex items-center justify-center gap-2" style={{ color: "var(--color-secondary-700)" }}>
                 <Sparkles className="w-3 h-3" />Synchronise avec Google Calendar
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1 glass border border-white/10 shadow-apple">
-          <CardHeader className="border-b border-white/10 p-5">
+        <Card className="lg:col-span-1 admin-card" style={{ borderColor: "var(--color-border-light)" }}>
+          <CardHeader className="p-5 border-b" style={{ borderColor: "var(--color-border-light)" }}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-white flex items-center gap-2 font-bold">
+              <CardTitle className="text-lg flex items-center gap-2 font-bold" style={{ color: "var(--color-text-primary)" }}>
                 <ListChecks className="w-5 h-5" />Listes
               </CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setActiveSection("listes")} className="text-slate-100 hover:bg-white/10">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setActiveSection("listes")}
+                className="btn-tertiary"
+                style={{ color: "var(--color-primary-600)" }}
+              >
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-5">
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="rounded-lg p-2 text-center border border-white/15 bg-gradient-to-br from-blue-700/40 to-blue-500/30 text-white">
-                <div className="text-xl font-bold">{activeItems.length}</div>
-                <div className="text-xs text-blue-100">Actifs</div>
+              <div
+                className="rounded-lg p-2 text-center border"
+                style={{
+                  backgroundColor: "var(--color-secondary-100)",
+                  borderColor: "var(--color-secondary-300)",
+                  color: "var(--color-secondary-700)",
+                }}
+              >
+                <div className="text-xl font-bold" style={{ color: "var(--color-secondary-700)" }}>{activeItems.length}</div>
+                <div className="text-xs" style={{ color: "var(--color-secondary-600)" }}>Actifs</div>
               </div>
-              <div className="rounded-lg p-2 text-center border border-white/15 bg-gradient-to-br from-red-600/40 to-red-500/30 text-white">
+              <div
+                className="rounded-lg p-2 text-center border"
+                style={{
+                  backgroundColor: "var(--color-warning-bg)",
+                  borderColor: "var(--color-warning-border)",
+                  color: "var(--color-warning-text)",
+                }}
+              >
                 <div className="text-xl font-bold">{urgentItems.length}</div>
-                <div className="text-xs text-red-100">Urgent</div>
+                <div className="text-xs" style={{ color: "var(--color-warning-text)" }}>Urgent</div>
               </div>
-              <div className="rounded-lg p-2 text-center border border-white/15 bg-gradient-to-br from-emerald-600/40 to-cyan-500/30 text-white">
+              <div
+                className="rounded-lg p-2 text-center border"
+                style={{
+                  backgroundColor: "var(--color-success-bg)",
+                  borderColor: "var(--color-success-border)",
+                  color: "var(--color-success-text)",
+                }}
+              >
                 <div className="text-xl font-bold">{items.filter(i => i.fait).length}</div>
-                <div className="text-xs text-emerald-100">Fait</div>
+                <div className="text-xs" style={{ color: "var(--color-success-text)" }}>Fait</div>
               </div>
             </div>
 
@@ -525,13 +616,16 @@ function DashboardContent({ stats, setActiveSection }) {
                 if (count === 0) return null;
                 const Icon = cat.icon;
                 return (
-                  <div key={key} className="flex items-center justify-between p-2 rounded-lg border transition-all hover:shadow-sm"
-                    style={{ backgroundColor: cat.color, borderColor: cat.color }}>
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-amber-900" />
-                      <span className="text-sm font-medium text-amber-900">{cat.label}</span>
-                    </div>
-                    <Badge className="bg-white/80 text-amber-900">{count}</Badge>
+                    <div
+                      key={key}
+                      className="flex items-center justify-between p-2 rounded-lg border transition-all hover:shadow-sm"
+                      style={{ backgroundColor: "var(--color-primary-100)", borderColor: "var(--color-primary-200)" }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4 text-amber-900" />
+                        <span className="text-sm font-medium text-amber-900">{cat.label}</span>
+                      </div>
+                      <Badge className="bg-white/80 text-amber-900">{count}</Badge>
                   </div>
                 );
               })}
@@ -546,13 +640,19 @@ function DashboardContent({ stats, setActiveSection }) {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1 shadow-sm border-none bg-white">
-          <CardHeader className="border-b border-neutral-100 p-5 bg-neutral-50">
+        <Card className="lg:col-span-1 admin-card" style={{ borderColor: "var(--color-border-light)" }}>
+          <CardHeader className="border-b p-5" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-primary-100)" }}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-orange-900 flex items-center gap-2 font-bold">
+              <CardTitle className="text-lg flex items-center gap-2 font-bold" style={{ color: "var(--color-primary-600)" }}>
                 <Sparkles className="w-5 h-5" />Assistant
               </CardTitle>
-              <Button size="sm" variant="ghost" onClick={() => setActiveSection("assistant")} className="text-orange-700 hover:text-orange-900 hover:bg-orange-100">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setActiveSection("assistant")}
+                className="btn-tertiary"
+                style={{ color: "var(--color-primary-600)" }}
+              >
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
@@ -560,57 +660,78 @@ function DashboardContent({ stats, setActiveSection }) {
           <CardContent className="p-5">
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-semibold text-orange-900 mb-3">Actions rapides</p>
+                <p className="text-sm font-semibold mb-3" style={{ color: "var(--color-text-secondary)" }}>Actions rapides</p>
                 <div className="space-y-2">
-                  <button onClick={() => setActiveSection("assistant")} className="w-full text-left p-3 bg-white rounded-xl border border-orange-200 hover:border-orange-400 hover:shadow-md transition-all group">
+                  <button
+                    onClick={() => setActiveSection("assistant")}
+                    className="w-full text-left p-3 rounded-xl border transition-all group"
+                    style={{ backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" }}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center group-hover:bg-orange-200 transition-colors">
-                        <MessageSquare className="w-5 h-5 text-orange-700" />
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                        style={{ backgroundColor: "var(--color-primary-100)" }}
+                      >
+                        <MessageSquare className="w-5 h-5" color="var(--color-primary-600)" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-orange-900">Discuter</p>
-                        <p className="text-xs text-orange-700">Pose tes questions a l'IA</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Discuter</p>
+                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Pose tes questions a l'IA</p>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" color="var(--color-primary-600)" />
                     </div>
                   </button>
 
-                  <button onClick={() => setActiveSection("planning")} className="w-full text-left p-3 bg-white rounded-xl border border-blue-200 hover:border-blue-400 hover:shadow-md transition-all group">
+                  <button
+                    onClick={() => setActiveSection("planning")}
+                    className="w-full text-left p-3 rounded-xl border transition-all group"
+                    style={{ backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-secondary-300)" }}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                        <Calendar className="w-5 h-5 text-blue-700" />
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                        style={{ backgroundColor: "var(--color-secondary-100)" }}
+                      >
+                        <Calendar className="w-5 h-5" color="var(--color-secondary-600)" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-blue-900">Planning</p>
-                        <p className="text-xs text-blue-700">Gerer mes evenements</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Planning</p>
+                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Gerer mes evenements</p>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" color="var(--color-secondary-600)" />
                     </div>
                   </button>
 
-                  <button onClick={() => setActiveSection("listes")} className="w-full text-left p-3 bg-white rounded-xl border border-amber-200 hover:border-amber-400 hover:shadow-md transition-all group">
+                  <button
+                    onClick={() => setActiveSection("listes")}
+                    className="w-full text-left p-3 rounded-xl border transition-all group"
+                    style={{ backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" }}
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center group-hover:bg-amber-200 transition-colors">
-                        <ListChecks className="w-5 h-5 text-amber-700" />
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
+                        style={{ backgroundColor: "var(--color-accent-warm-100)" }}
+                      >
+                        <ListChecks className="w-5 h-5" color="var(--color-primary-600)" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-amber-900">Listes</p>
-                        <p className="text-xs text-amber-700">Ajouter des items</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Listes</p>
+                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Ajouter des items</p>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" color="var(--color-primary-600)" />
                     </div>
                   </button>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-orange-200 p-4">
+              <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--color-accent-warm-100)", borderColor: "var(--color-accent-warm-300)" }}>
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Lightbulb className="w-5 h-5 text-orange-700" />
+                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <Lightbulb className="w-5 h-5" color="var(--color-primary-600)" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-orange-900 mb-1"> Astuce</p>
-                    <p className="text-xs text-orange-700 leading-relaxed">
+                    <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-text-primary)" }}> Astuce</p>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
                       Utilise l'assistant pour creer rapidement des evenements, gerer tes listes et suivre tes projets en langage naturel.
                     </p>
                   </div>
@@ -630,15 +751,18 @@ function DashboardContent({ stats, setActiveSection }) {
         ].map((item, idx) => {
           const Icon = item.icon;
           return (
-            <Card key={idx} className="glass border border-white/10 shadow-apple">
+            <Card key={idx} className="admin-card" style={{ borderColor: "var(--color-border-light)" }}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-slate-200 mb-1">{item.label}</p>
-                    <p className="text-2xl font-bold text-white">{item.value}</p>
+                    <p className="text-xs mb-1" style={{ color: "var(--color-text-tertiary)" }}>{item.label}</p>
+                    <p className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>{item.value}</p>
                   </div>
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white bg-gradient-to-br ${item.gradient}`}>
-                    <Icon className="w-5 h-5" />
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white"
+                    style={{ backgroundColor: idx === 0 ? "var(--color-primary-500)" : idx === 1 ? "var(--color-secondary-500)" : idx === 2 ? "var(--color-accent-warm-500)" : "var(--color-accent-olive-500)" }}
+                  >
+                    <Icon className="w-5 h-5" color="var(--color-text-inverse)" />
                   </div>
                 </div>
               </CardContent>
@@ -700,24 +824,38 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl border border-white/10 p-6 shadow-apple glass-dark">
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, rgba(59,130,246,0.4) 1px, transparent 1px)', backgroundSize: '28px 28px' }}></div>
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-amber-500 rounded-lg flex items-center justify-center shadow-apple border border-white/20">
-            <Globe className="w-5 h-5 text-white" />
+      <div
+        className="relative overflow-hidden rounded-xl border p-6 shadow-md"
+        style={{
+          background: "linear-gradient(135deg, var(--color-primary-100), var(--color-accent-warm-100))",
+          borderColor: "var(--color-border-light)",
+        }}
+      >
+        <div className="relative flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
+            style={{ backgroundColor: "var(--color-primary-200)" }}
+          >
+            <Globe className="w-5 h-5" color="var(--color-primary-100)" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Gestion du Portfolio</h2>
-            <p className="text-slate-200 text-xs">Projets & Prestations</p>
+            <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Gestion du Portfolio</h2>
+            <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Projets & Prestations</p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-white/10">
-        <button onClick={() => setView("projets")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${view === "projets" ? "border-blue-400 text-white" : "border-transparent text-slate-300 hover:text-white"}`}>
+      <div className="flex items-center gap-2 border-b" style={{ borderColor: "var(--color-border-light)" }}>
+        <button onClick={() => setView("projets")} className="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+          style={view === "projets"
+            ? { borderColor: "var(--color-primary-500)", color: "var(--color-text-primary)" }
+            : { borderColor: "transparent", color: "var(--color-text-secondary)" }}>
           <Globe className="w-4 h-4 inline mr-2" />Projets Portfolio
         </button>
-        <button onClick={() => setView("prestations")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${view === "prestations" ? "border-amber-300 text-white" : "border-transparent text-slate-300 hover:text-white"}`}>
+        <button onClick={() => setView("prestations")} className="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+          style={view === "prestations"
+            ? { borderColor: "var(--color-secondary-500)", color: "var(--color-text-primary)" }
+            : { borderColor: "transparent", color: "var(--color-text-secondary)" }}>
           <Briefcase className="w-4 h-4 inline mr-2" />Services & Prestations
         </button>
       </div>
@@ -731,22 +869,17 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
           ) : (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6">
-                <div className="bg-white rounded-lg shadow-lg p-3 md:p-4">
-                  <div className="text-xl md:text-3xl font-bold text-neutral-700">{projets.length}</div>
-                  <div className="text-xs md:text-sm text-neutral-600">Total</div>
-                </div>
-                <div className="bg-white rounded-lg shadow-lg p-3 md:p-4">
-                  <div className="text-xl md:text-3xl font-bold text-green-600">{projets.filter(p => p.visible).length}</div>
-                  <div className="text-xs md:text-sm text-neutral-600">Visibles</div>
-                </div>
-                <div className="bg-white rounded-lg shadow-lg p-3 md:p-4">
-                  <div className="text-xl md:text-3xl font-bold text-red-600">{projets.filter(p => !p.visible).length}</div>
-                  <div className="text-xs md:text-sm text-neutral-600">Masques</div>
-                </div>
-                <div className="bg-white rounded-lg shadow-lg p-3 md:p-4">
-                  <div className="text-xl md:text-3xl font-bold text-purple-600">{projets.filter(p => p.mis_en_avant).length}</div>
-                  <div className="text-xs md:text-sm text-neutral-600">En avant</div>
-                </div>
+                {[
+                  { label: "Total", value: projets.length, color: "var(--color-text-primary)" },
+                  { label: "Visibles", value: projets.filter(p => p.visible).length, color: "var(--color-success-text)" },
+                  { label: "Masques", value: projets.filter(p => !p.visible).length, color: "var(--color-error-text)" },
+                  { label: "En avant", value: projets.filter(p => p.mis_en_avant).length, color: "var(--color-primary-600)" },
+                ].map((tile, idx) => (
+                  <div key={idx} className="rounded-lg shadow-sm p-3 md:p-4" style={{ backgroundColor: "var(--color-bg-surface)", border: `1px solid var(--color-border-light)` }}>
+                    <div className="text-xl md:text-3xl font-bold" style={{ color: tile.color }}>{tile.value}</div>
+                    <div className="text-xs md:text-sm" style={{ color: "var(--color-text-secondary)" }}>{tile.label}</div>
+                  </div>
+                ))}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -754,7 +887,11 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                   <Input placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
                 </div>
-                <Button onClick={() => { setEditingProjet(null); setShowProjetForm(true); }} className="bg-neutral-900 hover:bg-neutral-800 whitespace-nowrap">
+                <Button
+                  onClick={() => { setEditingProjet(null); setShowProjetForm(true); }}
+                  className="btn-primary whitespace-nowrap"
+                  style={{ backgroundColor: "var(--color-primary-500)", color: "var(--color-btn-primary-text)" }}
+                >
                   <Plus className="w-4 h-4 mr-2" />Nouveau projet
                 </Button>
               </div>
@@ -813,8 +950,12 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
       {view === "prestations" && (
         <div>
           <div className="flex items-center justify-between mb-6">
-            <p className="text-sm text-neutral-500">Services affiches sur votre site web</p>
-            <Button onClick={() => { setEditingPrestation(null); setShowPrestationForm(true); }} className="bg-neutral-900 hover:bg-neutral-800 text-white">
+            <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Services affiches sur votre site web</p>
+            <Button
+              onClick={() => { setEditingPrestation(null); setShowPrestationForm(true); }}
+              className="btn-secondary"
+              style={{ backgroundColor: "var(--color-secondary-500)", color: "var(--color-btn-secondary-text)" }}
+            >
               <Plus className="w-4 h-4 mr-2" />Nouvelle prestation
             </Button>
           </div>
@@ -830,7 +971,11 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
           ) : (
             <div className="space-y-3">
               {prestations.map((prestation, index) => (
-                <div key={prestation.id} className="bg-white rounded-lg shadow-lg p-3 md:p-4 border-2 hover:border-neutral-900 transition-all">
+                <div
+                  key={prestation.id}
+                  className="bg-white rounded-lg shadow-lg p-3 md:p-4 border-2 transition-all hover:shadow-md"
+                  style={{ borderColor: "var(--color-border-light)" }}
+                >
                   <div className="flex gap-2 md:gap-3">
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <button onClick={() => movePrestationOrder(index, 'up')} disabled={index === 0} className="p-1.5 hover:bg-neutral-100 rounded disabled:opacity-30 border border-neutral-200">
@@ -1063,26 +1208,35 @@ function AssistantClientContent() {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl border border-orange-200/50 p-6 shadow-sm" style={{ background: 'linear-gradient(135deg, #FFE0B2 0%, #FFCC80 100%)' }}>
+      <div
+        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
+        style={{
+          background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))",
+          borderColor: "var(--color-border-light)",
+        }}
+      >
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
-            <MessageSquare className="w-5 h-5 text-orange-700" />
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm"
+            style={{ backgroundColor: "var(--color-accent-warm-300)" }}
+          >
+            <MessageSquare className="w-5 h-5" color="var(--color-accent-warm-100)" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-orange-900">Assistant Clients</h2>
-            <p className="text-orange-700 text-xs">Conversations avec vos prospects</p>
+            <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Assistant Clients</h2>
+            <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Conversations avec vos prospects</p>
           </div>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 border-orange-200 shadow-lg">
-          <CardHeader className="border-b p-4" style={{ background: 'linear-gradient(135deg, #FFE0B2, #FFCC80)' }}>
-            <CardTitle className="text-base text-orange-900 flex items-center gap-2">
+        <Card className="lg:col-span-1 border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
+          <CardHeader className="border-b p-4" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
+            <CardTitle className="text-base flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
               <MessageSquare className="w-5 h-5" />Conversations ({conversations.length})
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 max-h-[600px] overflow-y-auto">
+          <CardContent className="p-4 max-h-[600px] overflow-y-auto" style={{ backgroundColor: "var(--color-bg-surface)" }}>
             {loadingConversations ? (
               <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 text-orange-600 animate-spin" /></div>
             ) : conversations.length === 0 ? (
@@ -1096,10 +1250,11 @@ function AssistantClientContent() {
                   <button
                     key={conv.id}
                     onClick={() => handleSelectConversation(conv)}
-                    className={`w-full text-left p-3 rounded-lg transition-all ${selectedConversation?.id === conv.id ? 'bg-orange-100 border-2 border-orange-600' : 'bg-white border border-stone-200 hover:bg-stone-50'}`}
+                    className={`w-full text-left p-3 rounded-lg transition-all ${selectedConversation?.id === conv.id ? 'bg-[var(--color-accent-warm-100)] border-2' : 'bg-white border hover:bg-[var(--color-bg-surface-hover)]'}`}
+                    style={selectedConversation?.id === conv.id ? { borderColor: "var(--color-primary-500)", color: "var(--color-text-primary)" } : { borderColor: "var(--color-border-light)", color: "var(--color-text-primary)" }}
                   >
-                    <p className="font-semibold text-sm text-stone-800 truncate">{conv.metadata?.name || "Sans titre"}</p>
-                    <p className="text-xs text-stone-500 mt-1">{conv.messages?.filter(m => m.content)?.length || 0} messages</p>
+                    <p className="font-semibold text-sm truncate">{conv.metadata?.name || "Sans titre"}</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--color-text-tertiary)" }}>{conv.messages?.filter(m => m.content)?.length || 0} messages</p>
                   </button>
                 ))}
               </div>
@@ -1107,22 +1262,22 @@ function AssistantClientContent() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 border-orange-200 shadow-lg">
+        <Card className="lg:col-span-2 border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
           {selectedConversation ? (
             <>
-              <CardHeader className="border-b p-4" style={{ background: 'linear-gradient(135deg, #FFE0B2, #FFCC80)' }}>
+              <CardHeader className="border-b p-4" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl text-orange-900">{selectedConversation.metadata?.name || "Conversation"}</CardTitle>
-                    <p className="text-xs text-orange-700 mt-1">Creee le {new Date(selectedConversation.created_date).toLocaleDateString('fr-FR')}</p>
+                    <CardTitle className="text-xl" style={{ color: "var(--color-text-primary)" }}>{selectedConversation.metadata?.name || "Conversation"}</CardTitle>
+                    <p className="text-xs mt-1" style={{ color: "var(--color-text-secondary)" }}>Creee le {new Date(selectedConversation.created_date).toLocaleDateString('fr-FR')}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-orange-100 text-orange-800">{messages.length} messages</Badge>
+                    <Badge className="badge-secondary" style={{ backgroundColor: "var(--color-accent-warm-100)", color: "var(--color-primary-600)" }}>{messages.length} messages</Badge>
                     <div className="flex gap-1">
-                      <Button size="sm" variant={!showSummary ? "default" : "outline"} onClick={() => setShowSummary(false)} className={!showSummary ? "bg-orange-600 hover:bg-orange-700" : ""}>
+                      <Button size="sm" variant={!showSummary ? "default" : "outline"} onClick={() => setShowSummary(false)} className={!showSummary ? "btn-primary" : "btn-tertiary"}>
                         <MessageSquare className="w-4 h-4" />
                       </Button>
-                      <Button size="sm" variant={showSummary ? "default" : "outline"} onClick={() => { if (!summary && !generatingSummary) { generateDevisSummary(); } else { setShowSummary(true); }}} className={showSummary ? "bg-orange-600 hover:bg-orange-700" : ""} disabled={generatingSummary}>
+                      <Button size="sm" variant={showSummary ? "default" : "outline"} onClick={() => { if (!summary && !generatingSummary) { generateDevisSummary(); } else { setShowSummary(true); }}} className={showSummary ? "btn-primary" : "btn-tertiary"} disabled={generatingSummary}>
                         {generatingSummary ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
                       </Button>
                     </div>
@@ -1132,7 +1287,7 @@ function AssistantClientContent() {
               <CardContent className="p-0">
                 {!showSummary ? (
                   <>
-                    <div className="h-[500px] overflow-y-auto p-6 bg-orange-50/30">
+                    <div className="h-[500px] overflow-y-auto p-6" style={{ backgroundColor: "var(--color-accent-warm-100)" }}>
                       {messages.map((message, index) => (<MessageBubble key={index} message={message} />))}
                       {isLoading && (
                         <div className="flex gap-3 justify-start mb-4">
@@ -1150,10 +1305,10 @@ function AssistantClientContent() {
                       )}
                       <div ref={messagesEndRef} />
                     </div>
-                    <div className="p-4 border-t-2 bg-white" style={{ borderColor: '#FFE0B2' }}>
+                    <div className="p-4 border-t-2 bg-white" style={{ borderColor: 'var(--color-accent-warm-300)' }}>
                       <div className="flex gap-3">
                         <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={handleKeyPress} placeholder="Repondre au client..." className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
-                        <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg" style={{ background: 'linear-gradient(135deg, #FFCC80, #FFB74D)' }}>
+                        <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg btn-primary">
                           <Send className="w-5 h-5" />
                         </Button>
                       </div>
@@ -1165,12 +1320,12 @@ function AssistantClientContent() {
                       <div className="text-center"><AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-500" /><p className="text-red-700">{summary.error}</p></div>
                     ) : summary ? (
                       <div className="space-y-4">
-                        <div className="bg-orange-100 border border-orange-200 rounded-xl p-4">
-                          <h3 className="text-lg font-bold text-orange-900">Resume pour Devis</h3>
-                          <p className="text-sm text-orange-700">Niveau: {summary.niveau_avancement}</p>
+                        <div className="rounded-xl p-4" style={{ backgroundColor: "var(--color-accent-warm-100)", border: "1px solid var(--color-accent-warm-300)" }}>
+                          <h3 className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>Resume pour Devis</h3>
+                          <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Niveau: {summary.niveau_avancement}</p>
                         </div>
-                        <div className="bg-white rounded-xl border p-4">
-                          <h4 className="font-bold text-neutral-900 mb-2"><Briefcase className="w-5 h-5 inline text-orange-600" /> Projet</h4>
+                        <div className="bg-white rounded-xl border p-4" style={{ borderColor: "var(--color-border-light)" }}>
+                          <h4 className="font-bold mb-2" style={{ color: "var(--color-text-primary)" }}><Briefcase className="w-5 h-5 inline" color="var(--color-primary-500)" /> Projet</h4>
                           <p className="text-sm"><strong>Type:</strong> {summary.projet?.type}</p>
                           <p className="text-sm"><strong>Description:</strong> {summary.projet?.description_courte}</p>
                         </div>
@@ -1272,21 +1427,27 @@ function AssistantContent() {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl border border-orange-200/50 p-6 shadow-sm" style={{ background: 'linear-gradient(135deg, #FFE0B2 0%, #FFCC80 100%)' }}>
+      <div
+        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
+        style={{
+          background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))",
+          borderColor: "var(--color-border-light)",
+        }}
+      >
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
-            <Lightbulb className="w-5 h-5 text-orange-700" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm" style={{ backgroundColor: "var(--color-accent-warm-300)" }}>
+            <Lightbulb className="w-5 h-5" color="var(--color-accent-warm-100)" />
           </div>
-          <div><h2 className="text-xl font-bold text-orange-900">Mon Assistant</h2><p className="text-orange-700 text-xs">Gestion intelligente de votre activite</p></div>
+          <div><h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Mon Assistant</h2><p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Gestion intelligente de votre activite</p></div>
         </div>
       </div>
 
-      <Card className="border-orange-200 shadow-lg">
-        <CardHeader className="p-6" style={{ background: 'linear-gradient(135deg, #FFE0B2, #FFCC80)' }}>
-          <CardTitle className="text-xl text-orange-900">Assistant de Gestion</CardTitle>
+      <Card className="border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
+        <CardHeader className="p-6" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
+          <CardTitle className="text-xl" style={{ color: "var(--color-text-primary)" }}>Assistant de Gestion</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="h-[500px] overflow-y-auto p-6 bg-orange-50/30">
+          <div className="h-[500px] overflow-y-auto p-6" style={{ backgroundColor: "var(--color-accent-warm-100)" }}>
             {messages.map((message, index) => (<MessageBubble key={index} message={message} />))}
             {isLoading && (
               <div className="flex gap-3 justify-start mb-4">
@@ -1303,10 +1464,10 @@ function AssistantContent() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 border-t-2 border-orange-100 bg-white">
+          <div className="p-4 border-t-2 bg-white" style={{ borderColor: "var(--color-accent-warm-300)" }}>
             <div className="flex gap-3">
               <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())} placeholder="Ex: Ou j'en suis sur le chantier Dupont ?" className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
-              <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg" style={{ background: 'linear-gradient(135deg, #FFCC80, #FFB74D)' }}>
+              <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg btn-primary">
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-orange-900" /> : <Send className="w-5 h-5 text-orange-900" />}
               </Button>
             </div>
@@ -1336,15 +1497,24 @@ function PlanningContent() {
   const todayEvents = events.filter(e => new Date(e.start).toDateString() === new Date().toDateString()).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <PlanningChatBot onEventCreated={handleEventCreatedByChatbot} />
 
-      <div className="relative overflow-hidden rounded-xl border border-blue-200/50 p-6 shadow-sm" style={{ background: 'linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%)' }}>
+      <div
+        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
+        style={{
+          background: "linear-gradient(135deg, var(--color-secondary-100), var(--color-secondary-200))",
+          borderColor: "var(--color-border-light)",
+        }}
+      >
         <div className="relative z-10 flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
-            <Calendar className="w-5 h-5 text-blue-700" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm" style={{ backgroundColor: "var(--color-secondary-300)" }}>
+            <Calendar className="w-5 h-5" color="var(--color-secondary-100)" />
           </div>
-          <div><h2 className="text-xl font-bold text-blue-900">Planning Google Calendar</h2><p className="text-blue-700 text-xs"> Utilisez le chatbot en bas a droite</p></div>
+          <div>
+            <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Planning Google Calendar</h2>
+            <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Utilisez le chatbot en bas a droite</p>
+          </div>
         </div>
       </div>
 
@@ -1474,23 +1644,44 @@ function ListesContent() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ListesChatBot onItemCreated={handleItemCreatedByChatbot} />
 
-      <div className="relative overflow-hidden rounded-xl border border-yellow-200/50 p-6 shadow-sm" style={{ background: 'linear-gradient(135deg, #FFF9C4 0%, #FFF59D 100%)' }}>
+      <div
+        className="relative overflow-hidden rounded-xl border p-6 shadow-sm"
+        style={{
+          background: "linear-gradient(135deg, var(--color-accent-olive-100), var(--color-accent-olive-200))",
+          borderColor: "var(--color-border-light)",
+        }}
+      >
         <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/60 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-sm">
-              <ListChecks className="w-5 h-5 text-yellow-700" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm" style={{ backgroundColor: "var(--color-accent-olive-300)" }}>
+              <ListChecks className="w-5 h-5" color="var(--color-accent-olive-100)" />
             </div>
-            <div><h2 className="text-xl font-bold text-yellow-900">Mes Listes</h2><p className="text-yellow-700 text-xs">Courses, materiaux et taches</p></div>
+            <div>
+              <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Mes Listes</h2>
+              <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Courses, materiaux et taches</p>
+            </div>
           </div>
           
-          <div className="flex bg-white/40 rounded-lg p-1 gap-1">
-            <button onClick={() => setViewMode("dashboard")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${viewMode === "dashboard" ? "bg-white text-yellow-900 shadow-sm" : "text-yellow-800 hover:bg-white/50"}`}>
+          <div className="flex rounded-lg p-1 gap-1" style={{ backgroundColor: "var(--color-bg-surface)", border: `1px solid var(--color-border-light)` }}>
+            <button
+              onClick={() => setViewMode("dashboard")}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
+              style={viewMode === "dashboard"
+                ? { backgroundColor: "var(--color-primary-100)", color: "var(--color-text-primary)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--color-text-secondary)" }}
+            >
               <LayoutDashboard className="w-3.5 h-3.5" /><span className="hidden sm:inline">Dashboard</span>
             </button>
-            <button onClick={() => setViewMode("liste")} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${viewMode === "liste" ? "bg-white text-yellow-900 shadow-sm" : "text-yellow-800 hover:bg-white/50"}`}>
+            <button
+              onClick={() => setViewMode("liste")}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
+              style={viewMode === "liste"
+                ? { backgroundColor: "var(--color-secondary-100)", color: "var(--color-text-primary)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--color-text-secondary)" }}
+            >
               <ListChecks className="w-3.5 h-3.5" /><span className="hidden sm:inline">Liste</span>
             </button>
           </div>

@@ -34,13 +34,21 @@ export default function Layout({ children, currentPageName }) {
   // SI ADMIN : PAS DE HEADER, JUSTE LE CONTENU + FOOTER MINIMAL
   if (isAdmin) {
     return (
-      <div className="min-h-screen flex flex-col admin-surface bg-[radial-gradient(circle_at_20%_25%,rgba(59,130,246,0.12),transparent_38%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.12),transparent_32%),radial-gradient(circle_at_50%_80%,rgba(14,26,51,0.55),rgba(5,9,21,0.85))] bg-[#0b1529] text-slate-100">
+      <div className="admin-theme min-h-screen flex flex-col">
         <main className="flex-1 w-full">
           {children}
         </main>
         
         {/* Footer minimal pour pages admin */}
-        <footer className="glass-dark text-white py-6 border-t border-white/10">
+        <footer
+          className="py-6 border-t"
+          style={{
+            backgroundColor: "var(--color-bg-surface)",
+            borderColor: "var(--color-border-light)",
+            color: "var(--color-text-secondary)",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -50,22 +58,25 @@ export default function Layout({ children, currentPageName }) {
                   className="w-8 h-8 shadow-apple rounded-lg"
                 />
                 <div>
-                  <h3 className="text-sm font-bold text-white">L'Atelier des Espaces</h3>
-                  <p className="text-xs text-slate-300">Espace Administration</p>
+                  <h3 className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>L'Atelier des Espaces</h3>
+                  <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>Espace Administration</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 <Link
                   to={createPageUrl("Accueil")}
-                  className="text-sm text-amber-300 hover:text-amber-200 transition-colors flex items-center gap-2"
+                  className="text-sm transition-colors flex items-center gap-2"
+                  style={{
+                    color: "var(--color-secondary-600)",
+                  }}
                 >
                   <Globe className="w-4 h-4" />
                   Voir le site web
                 </Link>
               </div>
 
-              <p className="text-xs text-slate-400">
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                 &copy; {new Date().getFullYear()} - Tous droits reserves
               </p>
             </div>

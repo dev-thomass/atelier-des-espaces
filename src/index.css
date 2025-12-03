@@ -40,6 +40,135 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* ============================================
+       PALETTE ADMIN - L'ATELIER DES ESPACES
+       Style: Mediterraneen Premium / Artisan
+       ============================================ */
+
+    /* Fondations terre & sable */
+    --color-bg-body: #FAF8F5;
+    --color-bg-surface: #FFFFFF;
+    --color-bg-surface-hover: #F5F3F0;
+    --color-bg-sidebar: #2C2419;
+    --color-bg-sidebar-hover: #3D342A;
+
+    /* Textes */
+    --color-text-primary: #2C2419;
+    --color-text-secondary: #6B5E52;
+    --color-text-tertiary: #9C8D7F;
+    --color-text-muted: #BFB3A6;
+    --color-text-inverse: #FAF8F5;
+
+    /* Bordures */
+    --color-border-light: #E8E3DC;
+    --color-border-medium: #D4CCC0;
+    --color-border-dark: #A89885;
+
+    /* Couleurs primaires (terre cuite & ocre) */
+    --color-primary-100: #FAF2ED;
+    --color-primary-200: #F2DCCA;
+    --color-primary-300: #E6B89C;
+    --color-primary-400: #D69264;
+    --color-primary-500: #C2693F;
+    --color-primary-600: #A8502D;
+    --color-primary-700: #7D3B20;
+
+    /* Couleurs secondaires (bleu calanques) */
+    --color-secondary-100: #EBF4F7;
+    --color-secondary-200: #C7E1EA;
+    --color-secondary-300: #89B8CC;
+    --color-secondary-400: #4A8DA8;
+    --color-secondary-500: #2C6380;
+    --color-secondary-600: #1E4A5F;
+    --color-secondary-700: #0F2E3D;
+
+    /* Accent chaud (cuivre/bronze) */
+    --color-accent-warm-100: #FDF6EF;
+    --color-accent-warm-200: #F9E4CC;
+    --color-accent-warm-300: #E5BA8F;
+    --color-accent-warm-400: #C99158;
+    --color-accent-warm-500: #B87333;
+
+    /* Accent vegetal (olivier) */
+    --color-accent-olive-100: #F3F5ED;
+    --color-accent-olive-200: #DFE5CA;
+    --color-accent-olive-300: #B5C399;
+    --color-accent-olive-400: #8A9F6B;
+    --color-accent-olive-500: #6B7F4C;
+
+    /* Etats systeme */
+    --color-success-bg: #EFF6EC;
+    --color-success-border: #B8D4A8;
+    --color-success-text: #3D6B2F;
+    --color-success-icon: #5A8E47;
+
+    --color-warning-bg: #FDF6E8;
+    --color-warning-border: #E5C78F;
+    --color-warning-text: #8B5A1F;
+    --color-warning-icon: #C2873D;
+
+    --color-error-bg: #FBEEED;
+    --color-error-border: #E6A89C;
+    --color-error-text: #A8371A;
+    --color-error-icon: #D64A2F;
+
+    --color-info-bg: #EBF4F7;
+    --color-info-border: #89B8CC;
+    --color-info-text: #1E4A5F;
+    --color-info-icon: #2C6380;
+
+    /* Composants UI */
+    --color-btn-primary-bg: #C2693F;
+    --color-btn-primary-bg-hover: #A8502D;
+    --color-btn-primary-text: #FFFFFF;
+
+    --color-btn-secondary-bg: #2C6380;
+    --color-btn-secondary-bg-hover: #1E4A5F;
+    --color-btn-secondary-text: #FFFFFF;
+
+    --color-btn-tertiary-bg: #F5F3F0;
+    --color-btn-tertiary-bg-hover: #E8E3DC;
+    --color-btn-tertiary-text: #2C2419;
+
+    --color-btn-ghost-bg: transparent;
+    --color-btn-ghost-bg-hover: #F5F3F0;
+    --color-btn-ghost-text: #6B5E52;
+
+    --color-badge-default-bg: #E8E3DC;
+    --color-badge-default-text: #2C2419;
+
+    --color-badge-primary-bg: #FAF2ED;
+    --color-badge-primary-border: #E6B89C;
+    --color-badge-primary-text: #A8502D;
+
+    --color-badge-secondary-bg: #EBF4F7;
+    --color-badge-secondary-border: #89B8CC;
+    --color-badge-secondary-text: #1E4A5F;
+
+    --color-table-header-bg: #F5F3F0;
+    --color-table-header-text: #2C2419;
+    --color-table-row-hover: #FAF8F5;
+    --color-table-border: #E8E3DC;
+
+    --color-input-bg: #FFFFFF;
+    --color-input-border: #D4CCC0;
+    --color-input-border-focus: #C2693F;
+    --color-input-text: #2C2419;
+    --color-input-placeholder: #BFB3A6;
+
+    --color-nav-item-text: #BFB3A6;
+    --color-nav-item-text-hover: #FAF8F5;
+    --color-nav-item-bg-active: #C2693F;
+    --color-nav-item-text-active: #FFFFFF;
+
+    --shadow-sm: 0 1px 2px rgba(44, 36, 25, 0.06);
+    --shadow-md: 0 4px 8px rgba(44, 36, 25, 0.08);
+    --shadow-lg: 0 12px 24px rgba(44, 36, 25, 0.12);
+    --shadow-card: 0 2px 8px rgba(44, 36, 25, 0.05);
+
+    --color-focus-ring: #C2693F;
+    --color-focus-ring-offset: #FAF8F5;
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -90,6 +219,196 @@
     background-color: #0b1529;
     font-family: "Space Grotesk", "Inter", system-ui, -apple-system, sans-serif;
     min-height: 100vh;
+  }
+
+  /* Admin theme wrapper */
+  .admin-theme {
+    background-color: var(--color-bg-body);
+    color: var(--color-text-primary);
+  }
+
+  .admin-theme h1,
+  .admin-theme h2,
+  .admin-theme h3,
+  .admin-theme h4,
+  .admin-theme h5,
+  .admin-theme h6 {
+    color: var(--color-text-primary);
+  }
+
+  .admin-theme .text-secondary {
+    color: var(--color-text-secondary);
+  }
+
+  .admin-theme .text-tertiary {
+    color: var(--color-text-tertiary);
+  }
+
+  .admin-theme .admin-card,
+  .admin-theme .card,
+  .admin-theme .glass,
+  .admin-theme .glass-card {
+    background-color: var(--color-bg-surface);
+    border: 1px solid var(--color-border-light);
+    box-shadow: var(--shadow-card);
+    color: var(--color-text-primary);
+  }
+
+  .admin-theme .admin-card:hover,
+  .admin-theme .card:hover {
+    border-color: var(--color-primary-300);
+    box-shadow: var(--shadow-md);
+  }
+
+  .admin-theme .glass-dark {
+    background-color: var(--color-bg-sidebar);
+    color: var(--color-text-inverse);
+    border: 1px solid rgba(250, 248, 245, 0.12);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .admin-theme .glass-dark a,
+  .admin-theme .glass-dark p,
+  .admin-theme .glass-dark span {
+    color: var(--color-text-inverse);
+  }
+
+  .admin-theme .btn-primary {
+    background-color: var(--color-btn-primary-bg);
+    color: var(--color-btn-primary-text);
+  }
+
+  .admin-theme .btn-primary:hover {
+    background-color: var(--color-btn-primary-bg-hover);
+  }
+
+  .admin-theme .btn-secondary {
+    background-color: var(--color-btn-secondary-bg);
+    color: var(--color-btn-secondary-text);
+  }
+
+  .admin-theme .btn-secondary:hover {
+    background-color: var(--color-btn-secondary-bg-hover);
+  }
+
+  .admin-theme .btn-tertiary {
+    background-color: var(--color-btn-tertiary-bg);
+    color: var(--color-btn-tertiary-text);
+  }
+
+  .admin-theme .btn-tertiary:hover {
+    background-color: var(--color-btn-tertiary-bg-hover);
+  }
+
+  .admin-theme .btn-ghost {
+    background-color: var(--color-btn-ghost-bg);
+    color: var(--color-btn-ghost-text);
+  }
+
+  .admin-theme .btn-ghost:hover {
+    background-color: var(--color-btn-ghost-bg-hover);
+  }
+
+  .admin-theme .badge-default {
+    background-color: var(--color-badge-default-bg);
+    color: var(--color-badge-default-text);
+  }
+
+  .admin-theme .badge-primary {
+    background-color: var(--color-badge-primary-bg);
+    border: 1px solid var(--color-badge-primary-border);
+    color: var(--color-badge-primary-text);
+  }
+
+  .admin-theme .badge-secondary {
+    background-color: var(--color-badge-secondary-bg);
+    border: 1px solid var(--color-badge-secondary-border);
+    color: var(--color-badge-secondary-text);
+  }
+
+  .admin-theme .alert-success {
+    background-color: var(--color-success-bg);
+    border: 1px solid var(--color-success-border);
+    color: var(--color-success-text);
+  }
+
+  .admin-theme .alert-warning {
+    background-color: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
+    color: var(--color-warning-text);
+  }
+
+  .admin-theme .alert-error {
+    background-color: var(--color-error-bg);
+    border: 1px solid var(--color-error-border);
+    color: var(--color-error-text);
+  }
+
+  .admin-theme .alert-info {
+    background-color: var(--color-info-bg);
+    border: 1px solid var(--color-info-border);
+    color: var(--color-info-text);
+  }
+
+  .admin-theme table thead th {
+    background-color: var(--color-table-header-bg);
+    color: var(--color-table-header-text);
+    font-weight: 600;
+    border-bottom: 2px solid var(--color-border-medium);
+  }
+
+  .admin-theme table tbody tr {
+    border-bottom: 1px solid var(--color-table-border);
+  }
+
+  .admin-theme table tbody tr:hover {
+    background-color: var(--color-table-row-hover);
+  }
+
+  .admin-theme table tbody tr.selected {
+    background-color: var(--color-primary-100);
+    border-left: 3px solid var(--color-primary-500);
+  }
+
+  .admin-theme input,
+  .admin-theme textarea,
+  .admin-theme select {
+    background-color: var(--color-input-bg);
+    border: 1px solid var(--color-input-border);
+    color: var(--color-input-text);
+  }
+
+  .admin-theme input::placeholder,
+  .admin-theme textarea::placeholder {
+    color: var(--color-input-placeholder);
+  }
+
+  .admin-theme input:focus,
+  .admin-theme textarea:focus,
+  .admin-theme select:focus {
+    border-color: var(--color-input-border-focus);
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  .admin-theme .admin-sidebar {
+    background-color: var(--color-bg-sidebar);
+    color: var(--color-text-inverse);
+  }
+
+  .admin-theme .admin-sidebar a {
+    color: var(--color-nav-item-text);
+  }
+
+  .admin-theme .admin-sidebar a:hover {
+    color: var(--color-nav-item-text-hover);
+    background-color: var(--color-bg-sidebar-hover);
+  }
+
+  .admin-theme .admin-sidebar a.active {
+    background-color: var(--color-nav-item-bg-active);
+    color: var(--color-nav-item-text-active);
   }
 }
 
