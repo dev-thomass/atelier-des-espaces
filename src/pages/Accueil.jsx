@@ -1,8 +1,8 @@
-
-import React, { useState, useEffect, useRef } from "react";
+﻿
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,43 +10,40 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, CheckCircle2, Award, Users, Clock, Sparkles, X, ChevronLeft, ChevronRight, MapPin, Briefcase } from "lucide-react";
+import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { useSEO } from "@/hooks/use-seo";
 
-// Hook personnalisé pour les animations au scroll - OPTIMISÉ
-const useScrollAnimation = (options = {}) => {
-  const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (options.once !== false) {
-            observer.unobserve(element);
-          }
-        } else if (options.once === false) {
-          setIsVisible(false);
-        }
-      },
-      {
-        threshold: options.threshold || 0.1,
-        rootMargin: options.rootMargin || '100px'
-      }
-    );
-
-    observer.observe(element);
-
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
-  }, [options.threshold, options.rootMargin, options.once]);
-
-  return [elementRef, isVisible];
+const LOCAL_BUSINESS_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "HomeAndConstructionBusiness",
+  name: "L'Atelier des Espaces",
+  url: "https://atelierdesespaces.fr",
+  image: "https://atelierdesespaces.fr/logo.png",
+  telephone: "06 95 07 10 84",
+  email: "contact@atelierdesespaces.fr",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Marseille",
+    addressRegion: "Bouches-du-Rhone",
+    addressCountry: "FR"
+  },
+  areaServed: [
+    "Marseille",
+    "Aix-en-Provence",
+    "Aubagne",
+    "Allauch",
+    "La Ciotat",
+    "Bouches-du-Rhone"
+  ],
+  serviceType: [
+    "Renovation interieure",
+    "Amenagement interieur",
+    "Conception 3D",
+    "Platrerie",
+    "Peinture",
+    "Carrelage",
+    "Parquet"
+  ]
 };
 
 export default function Accueil() {
@@ -54,65 +51,37 @@ export default function Accueil() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Animation refs - OPTIMISÉS avec threshold plus élevé
-  const [heroRef, heroVisible] = useScrollAnimation({ threshold: 0.1 });
-  const [avantagesRef, avantagesVisible] = useScrollAnimation({ threshold: 0.15 });
-  const [zoneRef, zoneVisible] = useScrollAnimation({ threshold: 0.15 });
-  const [projetsRef, projetsVisible] = useScrollAnimation({ threshold: 0.15 });
-  const [conceptionRef, conceptionVisible] = useScrollAnimation({ threshold: 0.15 });
-  const [prestationsRef, prestationsVisible] = useScrollAnimation({ threshold: 0.15 });
+  const [heroRef, heroVisible] = useScrollAnimation({ threshold: 0.1, rootMargin: "100px" });
+  const [avantagesRef, avantagesVisible] = useScrollAnimation({ threshold: 0.15, rootMargin: "100px" });
+  const [zoneRef, zoneVisible] = useScrollAnimation({ threshold: 0.15, rootMargin: "100px" });
+  const [projetsRef, projetsVisible] = useScrollAnimation({ threshold: 0.15, rootMargin: "100px" });
+  const [conceptionRef, conceptionVisible] = useScrollAnimation({ threshold: 0.15, rootMargin: "100px" });
+  const [prestationsRef, prestationsVisible] = useScrollAnimation({ threshold: 0.15, rootMargin: "100px" });
 
-  // SEO Meta Tags
-  useEffect(() => {
-    document.title = "L'Atelier des Espaces - Artisan Rénovation & Aménagement Intérieur Marseille | Bouches-du-Rhône";
-    
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute("content", "Artisan multiservice spécialisé en rénovation, aménagement et décoration intérieure à Marseille, Aix-en-Provence, Aubagne. Conception 3D, plâtrerie, peinture, carrelage, parquet. Devis gratuit.");
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "description";
-      meta.content = "Artisan multiservice spécialisé en rénovation, aménagement et décoration intérieure à Marseille, Aix-en-Provence, Aubagne. Conception 3D, plâtrerie, peinture, carrelage, parquet. Devis gratuit.";
-      document.head.appendChild(meta);
-    }
+  const seoKeywords = "artisan rénovation marseille, aménagement intérieur marseille, rénovation cuisine marseille, rénovation salle de bain marseille, décoration intérieur marseille, artisan multiservice marseille, conception 3D marseille, plâtrerie marseille, menuiserie marseille, peinture marseille, carrelage marseille, parquet marseille, artisan aix-en-provence, rénovation aubagne, artisan allauch, rénovation la ciotat, artisan bouches-du-rhône, second œuvre marseille, travaux intérieur marseille";
 
-    const metaKeywords = document.querySelector('meta[name="keywords"]');
-    const keywords = "artisan rénovation marseille, aménagement intérieur marseille, rénovation cuisine marseille, rénovation salle de bain marseille, décoration intérieur marseille, artisan multiservice marseille, conception 3D marseille, plâtrerie marseille, menuiserie marseille, peinture marseille, carrelage marseille, parquet marseille, artisan aix-en-provence, rénovation aubagne, artisan allauch, rénovation la ciotat, artisan bouches-du-rhône, second œuvre marseille, travaux intérieur marseille";
-    if (metaKeywords) {
-      metaKeywords.setAttribute("content", keywords);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "keywords";
-      meta.content = keywords;
-      document.head.appendChild(meta);
-    }
-
-    const updateOgTag = (property, content) => {
-      let ogTag = document.querySelector(`meta[property="${property}"]`);
-      if (ogTag) {
-        ogTag.setAttribute("content", content);
-      } else {
-        ogTag = document.createElement('meta');
-        ogTag.setAttribute("property", property);
-        ogTag.setAttribute("content", content);
-        document.head.appendChild(ogTag);
-      }
-    };
-
-    updateOgTag("og:title", "L'Atelier des Espaces - Artisan Rénovation Intérieur Marseille");
-    updateOgTag("og:description", "Artisan passionné pour vos projets de rénovation et aménagement intérieur à Marseille et dans les Bouches-du-Rhône. Devis gratuit.");
-    updateOgTag("og:type", "website");
-  }, []);
+  useSEO({
+    title: "L'Atelier des Espaces - Artisan Rénovation & Aménagement Intérieur Marseille | Bouches-du-Rhône",
+    description: "Artisan multiservice spécialisé en rénovation, aménagement et décoration intérieure à Marseille, Aix-en-Provence, Aubagne. Conception 3D, plâtrerie, peinture, carrelage, parquet. Devis gratuit.",
+    keywords: seoKeywords,
+    og: {
+      title: "L'Atelier des Espaces - Artisan Rénovation Intérieur Marseille",
+      description: "Artisan passionné pour vos projets de rénovation et aménagement intérieur à Marseille et dans les Bouches-du-Rhône. Devis gratuit.",
+      type: "website"
+    },
+    jsonLd: LOCAL_BUSINESS_JSON_LD
+  });
 
   // OPTIMISATION: Chargement des données avec staleTime pour éviter les re-fetch
   const { data: prestations = [], isLoading: isPrestationsLoading } = useQuery({
     queryKey: ['prestations-featured'],
-    queryFn: () => base44.entities.Prestation.filter({ visible: true }, 'ordre', 3),
+    queryFn: () => api.entities.Prestation.filter({ visible: true }, 'ordre', 6),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const { data: projets = [], isLoading: isProjetsLoading } = useQuery({
     queryKey: ['projets-all'],
-    queryFn: () => base44.entities.Projet.filter({ visible: true }, 'ordre'),
+    queryFn: () => api.entities.Projet.filter({ visible: true }, 'ordre'),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
@@ -174,10 +143,10 @@ export default function Accueil() {
 
   return (
     <div className="bg-stone-50">
-      {/* Hero Section - RÉDUIT ET AFFINÉ */}
+      {/* Hero Section - PLEIN ÉCRAN */}
       <section
         ref={heroRef}
-        className="relative min-h-screen -mt-20 md:-mt-24 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20"
+        className="relative min-h-[calc(100vh+6rem)] -mt-24 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900"
       >
         {/* Nappe de degrade etendue pour englober la barre de navigation */}
         <div className="absolute -top-32 left-0 right-0 h-[180%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
@@ -227,10 +196,42 @@ export default function Accueil() {
           </Link>
         </div>
 
-        {/* Scroll indicator minimaliste */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 border-2 border-white/30 rounded-full flex items-start justify-center p-2">
-            <div className="w-1 h-2 bg-white rounded-full animate-pulse"></div>
+        {/* Transition vague animée */}
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
+          <div className="wave-container relative h-[100px] md:h-[150px]">
+            {/* Vague 1 - arrière-plan */}
+            <svg
+              className="wave-svg wave-1 absolute bottom-0 left-0 w-[200%] h-full"
+              viewBox="0 0 1440 120"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,40 C240,100 480,0 720,40 C960,80 1200,20 1440,60 C1680,100 1920,0 2160,40 C2400,80 2640,20 2880,60 L2880,120 L0,120 Z"
+                fill="rgba(255,255,255,0.25)"
+              />
+            </svg>
+            {/* Vague 2 - milieu */}
+            <svg
+              className="wave-svg wave-2 absolute bottom-0 left-0 w-[200%] h-full"
+              viewBox="0 0 1440 120"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,60 C180,20 360,80 540,50 C720,20 900,90 1080,60 C1260,30 1440,80 1620,50 C1800,20 1980,90 2160,60 C2340,30 2520,80 2700,50 L2880,120 L0,120 Z"
+                fill="rgba(255,255,255,0.5)"
+              />
+            </svg>
+            {/* Vague 3 - premier plan */}
+            <svg
+              className="wave-svg wave-3 absolute bottom-0 left-0 w-[200%] h-full"
+              viewBox="0 0 1440 120"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,80 C120,100 240,60 360,80 C480,100 600,60 720,80 C840,100 960,60 1080,80 C1200,100 1320,60 1440,80 C1560,100 1680,60 1800,80 C1920,100 2040,60 2160,80 C2280,100 2400,60 2520,80 C2640,100 2760,60 2880,80 L2880,120 L0,120 Z"
+                fill="#ffffff"
+              />
+            </svg>
           </div>
         </div>
       </section>
@@ -499,12 +500,12 @@ export default function Accueil() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             {[
               {
-                url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/5b10319e0_plan3D.png",
+                url: "/plan3d.png",
                 title: "Modélisation 3D",
                 desc: "Visualisez votre projet en 3D avant le début des travaux"
               },
               {
-                url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/c02f03180_Scan3D.jpg",
+                url: "/scan3d.png",
                 title: "Scan 3D de l'espace",
                 desc: "Relevé précis de vos espaces pour une conception optimale"
               }
@@ -549,7 +550,7 @@ export default function Accueil() {
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-12">
             {isPrestationsLoading ? (
-              [1, 2, 3].map((i) => (
+              [1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i} className="border-none shadow-xl bg-white group h-full">
                   <CardContent className="p-6 md:p-8 flex flex-col h-full">
                     <Skeleton className="w-12 h-12 md:w-14 md:h-14 rounded-xl mb-4 md:mb-6" />
@@ -749,8 +750,51 @@ export default function Accueil() {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
+
+        /* Animation des vagues */
+        .wave-svg {
+          will-change: transform;
+        }
+
+        .wave-1 {
+          animation: waveSlide1 12s linear infinite;
+        }
+        .wave-2 {
+          animation: waveSlide2 8s linear infinite;
+        }
+        .wave-3 {
+          animation: waveSlide3 6s linear infinite;
+        }
+
+        @keyframes waveSlide1 {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+
+        @keyframes waveSlide2 {
+          0% {
+            transform: translateX(-50%);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes waveSlide3 {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
       `}</style>
     </div>
   );
 }
+
 

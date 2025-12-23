@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import {
   Activity
 } from "lucide-react";
 import { toast } from "sonner";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
@@ -151,7 +151,7 @@ export default function N8nInterface() {
         },
         body: JSON.stringify({
           timestamp: new Date().toISOString(),
-          source: 'base44_app',
+          source: 'api_app',
           event: eventType,
           payload: payload
         })
@@ -173,20 +173,20 @@ export default function N8nInterface() {
     try {
       switch(entity) {
         case 'Chantier':
-          return await base44.entities.Chantier.create(data);
+          return await api.entities.Chantier.create(data);
         case 'Tache':
-          return await base44.entities.Tache.create(data);
+          return await api.entities.Tache.create(data);
         case 'Event':
-          return await base44.entities.Event.create(data);
+          return await api.entities.Event.create(data);
         case 'ComptaURSSAF':
           // Calculer le montant si manquant
           if (data.ca_encaisse && !data.montant_urssaf) {
             const taux = data.taux_urssaf || 22;
             data.montant_urssaf = (data.ca_encaisse * taux / 100);
           }
-          return await base44.entities.ComptaURSSAF.create(data);
+          return await api.entities.ComptaURSSAF.create(data);
         case 'ListeCourse':
-          return await base44.entities.ListeCourse.create(data);
+          return await api.entities.ListeCourse.create(data);
         default:
           throw new Error(`Entity ${entity} not supported`);
       }
@@ -589,3 +589,4 @@ export default function N8nInterface() {
     </div>
   );
 }
+

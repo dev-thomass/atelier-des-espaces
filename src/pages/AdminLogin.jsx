@@ -1,30 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { api } from "@/api/apiClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, Key, Lock, AlertCircle, Mail, User } from "lucide-react";
-
-// Authentification simple: un code unique suffit.
-// Change cette constante pour mettre ton propre code.
-const ADMIN_CODE = "atelier2025";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("admin_authenticated") === "true";
-    if (isAuthenticated) {
-      navigate(createPageUrl("Gestion"));
-    }
+    const checkAuth = async () => {
+      try {
+        await api.auth.me();
+        navigate(createPageUrl("Gestion"));
+      } catch {
+        // Not authenticated
+      }
+    };
+    checkAuth();
   }, [navigate]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -33,14 +36,16 @@ export default function AdminLogin() {
       return;
     }
 
-    if (code.trim() === ADMIN_CODE) {
-      localStorage.setItem("admin_authenticated", "true");
-      if (email) localStorage.setItem("admin_email", email);
-      if (name) localStorage.setItem("admin_name", name);
+    setIsSubmitting(true);
+    try {
+      await api.auth.login({ code: code.trim(), email, name });
       navigate(createPageUrl("Gestion"));
-    } else {
-      setError("Code incorrect.");
+    } catch (err) {
+      console.error(err);
+      setError("Code incorrect ou serveur indisponible.");
       setCode("");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -135,9 +140,10 @@ export default function AdminLogin() {
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-blue-600 via-amber-500 to-emerald-500 hover:opacity-90 text-white py-3 text-base shadow-apple rounded-xl border border-white/20"
+              disabled={isSubmitting}
             >
               <Lock className="w-5 h-5 mr-2" />
-              Se connecter
+              {isSubmitting ? "Connexion..." : "Se connecter"}
             </Button>
           </form>
 

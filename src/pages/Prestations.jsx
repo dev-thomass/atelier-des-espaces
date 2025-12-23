@@ -1,6 +1,6 @@
-
-import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+﻿
+import React, { useState } from "react";
+import { api } from "@/api/apiClient";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,82 +8,31 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Clock, X, ChevronLeft, ChevronRight, ZoomIn, Sparkles, Briefcase } from "lucide-react";
+import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { useSEO } from "@/hooks/use-seo";
 
-// Hook d'animation au scroll
-const useScrollAnimation = (options = {}) => {
-  const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (options.once !== false) {
-            observer.unobserve(element);
-          }
-        }
-      },
-      {
-        threshold: options.threshold || 0.05,
-        rootMargin: options.rootMargin || '50px'
-      }
-    );
-
-    observer.observe(element);
-
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
-  }, [options.threshold, options.rootMargin, options.once]);
-
-  return [elementRef, isVisible];
-};
 
 export default function Prestations() {
   const [selectedProjet, setSelectedProjet] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [heroRef, heroVisible] = useScrollAnimation({ threshold: 0.05 });
 
-  // SEO Meta Tags
-  useEffect(() => {
-    document.title = "Nos Prestations - Rénovation, Aménagement, Second Œuvre Marseille | L'Atelier des Espaces";
-    
-    let metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute("content", "Découvrez nos prestations d'artisan multiservice : rénovation cuisine, salle de bain, peinture, carrelage, parquet, plâtrerie, menuiserie. Intervention à Marseille, Aix-en-Provence, Aubagne, Bouches-du-Rhône.");
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "description";
-      meta.content = "Découvrez nos prestations d'artisan multiservice : rénovation cuisine, salle de bain, peinture, carrelage, parquet, plâtrerie, menuiserie. Intervention à Marseille, Aix-en-Provence, Aubagne, Bouches-du-Rhône.";
-      document.head.appendChild(meta);
-    }
+  const seoKeywords = "prestations rénovation marseille, travaux intérieur marseille, rénovation cuisine marseille, rénovation salle de bain marseille, peinture intérieure marseille, pose carrelage marseille, pose parquet marseille, plâtrerie marseille, menuiserie marseille, second œuvre marseille, finitions marseille, artisan tous corps d'état marseille, aménagement sur mesure marseille";
 
-    let metaKeywords = document.querySelector('meta[name="keywords"]');
-    const keywords = "prestations rénovation marseille, travaux intérieur marseille, rénovation cuisine marseille, rénovation salle de bain marseille, peinture intérieure marseille, pose carrelage marseille, pose parquet marseille, plâtrerie marseille, menuiserie marseille, second œuvre marseille, finitions marseille, artisan tous corps d'état marseille, aménagement sur mesure marseille";
-    if (metaKeywords) {
-      metaKeywords.setAttribute("content", keywords);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "keywords";
-      meta.content = keywords;
-      document.head.appendChild(meta);
-    }
-  }, []);
+  useSEO({
+    title: "Nos Prestations - Rénovation, Aménagement, Second Œuvre Marseille | L'Atelier des Espaces",
+    description: "Découvrez nos prestations d'artisan multiservice : rénovation cuisine, salle de bain, peinture, carrelage, parquet, plâtrerie, menuiserie. Intervention à Marseille, Aix-en-Provence, Aubagne, Bouches-du-Rhône.",
+    keywords: seoKeywords
+  });
 
   const { data: prestations = [], isLoading } = useQuery({
     queryKey: ['prestations'],
-    queryFn: () => base44.entities.Prestation.filter({ visible: true }, 'ordre'),
+    queryFn: () => api.entities.Prestation.filter({ visible: true }, 'ordre'),
   });
 
   const { data: projets = [] } = useQuery({
     queryKey: ['projets-all'],
-    queryFn: () => base44.entities.Projet.filter({ visible: true }, 'ordre'),
+    queryFn: () => api.entities.Projet.filter({ visible: true }, 'ordre'),
   });
 
   const handleProjetClick = (projet) => {
@@ -136,7 +85,7 @@ export default function Prestations() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Hero Section - RÉDUIT ET AFFINÉ */}
-      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20">
+      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20 pb-24 md:pb-28">
         <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
         {/* Grille subtile */}
         <div className="absolute inset-0 opacity-[0.03]">
@@ -158,14 +107,17 @@ export default function Prestations() {
           heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
         }`}>
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full mb-6">
+          <Badge className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-100 border border-amber-200/30 rounded-full mb-6">
             <Briefcase className="w-4 h-4 text-amber-300" />
             <span className="text-sm font-medium text-white">Nos Services</span>
-          </div>
+          </Badge>
 
           {/* Titre */}
           <h1 className="text-4xl md:text-6xl font-bold mb-5 text-white">
-            Prestations de Qualité
+            <span className="block text-white">Prestations de</span>
+            <span className="block bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
+              Qualite
+            </span>
           </h1>
 
           {/* Sous-titre */}
@@ -173,6 +125,57 @@ export default function Prestations() {
             Artisan multiservice pour tous vos travaux d'aménagement et de rénovation<br />
             à <span className="text-white font-semibold">Marseille</span>, <span className="text-white font-semibold">Aix-en-Provence</span> et dans les <span className="text-white font-semibold">Bouches-du-Rhône</span>
           </p>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {[
+              "Devis gratuit",
+              "Tous corps d'etat",
+              "Intervention locale",
+            ].map((item) => (
+              <Badge key={item} className="bg-white/10 text-amber-100 border border-amber-200/30 text-xs px-3 py-1">
+                {item}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        {/* Transition vague animée */}
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
+          <div className="wave-container relative h-[70px] md:h-[110px]">
+            {/* Vague 1 - arrière-plan */}
+            <svg
+              className="wave-svg wave-1 absolute bottom-0 left-0 w-[200%] h-full"
+              viewBox="0 0 1440 120"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,40 C240,100 480,0 720,40 C960,80 1200,20 1440,60 C1680,100 1920,0 2160,40 C2400,80 2640,20 2880,60 L2880,120 L0,120 Z"
+                fill="rgba(250,250,249,0.25)"
+              />
+            </svg>
+            {/* Vague 2 - milieu */}
+            <svg
+              className="wave-svg wave-2 absolute bottom-0 left-0 w-[200%] h-full"
+              viewBox="0 0 1440 120"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,60 C180,20 360,80 540,50 C720,20 900,90 1080,60 C1260,30 1440,80 1620,50 C1800,20 1980,90 2160,60 C2340,30 2520,80 2700,50 L2880,120 L0,120 Z"
+                fill="rgba(250,250,249,0.5)"
+              />
+            </svg>
+            {/* Vague 3 - premier plan */}
+            <svg
+              className="wave-svg wave-3 absolute bottom-0 left-0 w-[200%] h-full"
+              viewBox="0 0 1440 120"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,80 C120,100 240,60 360,80 C480,100 600,60 720,80 C840,100 960,60 1080,80 C1200,100 1320,60 1440,80 C1560,100 1680,60 1800,80 C1920,100 2040,60 2160,80 C2280,100 2400,60 2520,80 C2640,100 2760,60 2880,80 L2880,120 L0,120 Z"
+                fill="#fafaf9"
+              />
+            </svg>
+          </div>
         </div>
       </section>
 
@@ -469,8 +472,51 @@ export default function Prestations() {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
+
+        /* Animation des vagues */
+        .wave-svg {
+          will-change: transform;
+        }
+
+        .wave-1 {
+          animation: waveSlide1 12s linear infinite;
+        }
+        .wave-2 {
+          animation: waveSlide2 8s linear infinite;
+        }
+        .wave-3 {
+          animation: waveSlide3 6s linear infinite;
+        }
+
+        @keyframes waveSlide1 {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+
+        @keyframes waveSlide2 {
+          0% {
+            transform: translateX(-50%);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes waveSlide3 {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
       `}</style>
     </div>
   );
 }
+
 

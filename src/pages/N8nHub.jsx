@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ import {
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 
 const N8N_WEBHOOK_URL = "https://atelierdesespaces.app.n8n.cloud/webhook/741d7444-695c-46a3-92c1-ad6375fd7025";
 
@@ -264,19 +264,19 @@ export default function N8nHub() {
         let result;
         switch (entityType) {
           case 'Chantier':
-            result = await base44.entities.Chantier.create(entityData);
+            result = await api.entities.Chantier.create(entityData);
             break;
           case 'Tache':
-            result = await base44.entities.Tache.create(entityData);
+            result = await api.entities.Tache.create(entityData);
             break;
           case 'Event':
-            result = await base44.entities.Event.create(entityData);
+            result = await api.entities.Event.create(entityData);
             break;
           case 'ListeCourse':
-            result = await base44.entities.ListeCourse.create(entityData);
+            result = await api.entities.ListeCourse.create(entityData);
             break;
           case 'ComptaURSSAF':
-            result = await base44.entities.ComptaURSSAF.create(entityData);
+            result = await api.entities.ComptaURSSAF.create(entityData);
             break;
           default:
             errors.push({ entity, error: `Type d'entité non supporté: ${entityType}` });
@@ -306,7 +306,7 @@ export default function N8nHub() {
         ? { chatInput: data }
         : {
             timestamp: new Date().toISOString(),
-            source: 'base44_hub',
+            source: 'api_hub',
             ...data
           };
 
@@ -917,3 +917,4 @@ export default function N8nHub() {
     </div>
   );
 }
+

@@ -1,6 +1,6 @@
-
+﻿
 import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,7 +84,7 @@ export default function GestionChatBot() {
     setLoading(true);
 
     try {
-      const res = await base44.functions.invoke('invokeAgent', {
+      const res = await api.functions.invoke('invokeAgent', {
         userMessage: userMsg,
         context: "gestion"
       });
@@ -202,3 +202,4 @@ export default function GestionChatBot() {
     </Card>
   );
 }
+

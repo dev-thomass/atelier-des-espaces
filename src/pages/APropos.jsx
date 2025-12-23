@@ -1,75 +1,25 @@
 
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Award, Heart, Lightbulb, Target, ArrowRight, Zap, Hammer, Wrench, Ruler } from "lucide-react";
+import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { useSEO } from "@/hooks/use-seo";
 
-// Hook d'animation au scroll
-const useScrollAnimation = (options = {}) => {
-  const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (options.once !== false) {
-            observer.unobserve(element);
-          }
-        }
-      },
-      {
-        threshold: options.threshold || 0.05,
-        rootMargin: options.rootMargin || '50px'
-      }
-    );
-
-    observer.observe(element);
-
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
-  }, [options.threshold, options.rootMargin, options.once]);
-
-  return [elementRef, isVisible];
-};
 
 export default function APropos() {
   const [heroRef, heroVisible] = useScrollAnimation({ threshold: 0.05 });
 
-  // SEO Meta Tags
-  useEffect(() => {
-    document.title = "À Propos - Artisan Passionné Rénovation Intérieur Marseille | L'Atelier des Espaces";
-    
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute("content", "Découvrez mon parcours d'artisan passionné par la rénovation et l'aménagement intérieur. CAP électricien, expérience en rénovation complète. Valeurs, expertise et engagement au service de vos projets à Marseille et dans les Bouches-du-Rhône.");
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "description";
-      meta.content = "Découvrez mon parcours d'artisan passionné par la rénovation et l'aménagement intérieur. CAP électricien, expérience en rénovation complète. Valeurs, expertise et engagement au service de vos projets à Marseille et dans les Bouches-du-Rhône.";
-      document.head.appendChild(meta);
-    }
+  const seoKeywords = "artisan marseille, artisan passionné marseille, rénovateur marseille, spécialiste rénovation marseille, expert aménagement intérieur marseille, artisan qualifié marseille, professionnel rénovation marseille, artisan bouches-du-rhône, cap électricien marseille, rénovation complète marseille";
 
-    const metaKeywords = document.querySelector('meta[name="keywords"]');
-    const keywords = "artisan marseille, artisan passionné marseille, rénovateur marseille, spécialiste rénovation marseille, expert aménagement intérieur marseille, artisan qualifié marseille, professionnel rénovation marseille, artisan bouches-du-rhône, cap électricien marseille, rénovation complète marseille";
-    if (metaKeywords) {
-      metaKeywords.setAttribute("content", keywords);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "keywords";
-      meta.content = keywords;
-      document.head.appendChild(meta);
-    }
-  }, []);
+  useSEO({
+    title: "À Propos - Artisan Passionné Rénovation Intérieur Marseille | L'Atelier des Espaces",
+    description: "Découvrez mon parcours d'artisan passionné par la rénovation et l'aménagement intérieur. CAP électricien, expérience en rénovation complète. Valeurs, expertise et engagement au service de vos projets à Marseille et dans les Bouches-du-Rhône.",
+    keywords: seoKeywords
+  });
 
   const valeurs = [
     {
@@ -120,7 +70,7 @@ export default function APropos() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Hero Section - RÉDUIT ET AFFINÉ */}
-      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20">
+      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20 pb-24 md:pb-28">
         <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
         {/* Grille subtile */}
         <div className="absolute inset-0 opacity-[0.03]">
@@ -140,14 +90,17 @@ export default function APropos() {
           heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
         }`}>
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full mb-6">
+          <Badge className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-100 border border-amber-200/30 rounded-full mb-6">
             <Heart className="w-4 h-4 text-amber-300" />
             <span className="text-sm font-medium text-white">À Propos</span>
-          </div>
+          </Badge>
 
           {/* Titre */}
           <h1 className="text-4xl md:text-6xl font-bold mb-5 text-white">
-            L'Art de la Rénovation
+            <span className="block text-white">L'Art de la</span>
+            <span className="block bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
+              Renovation
+            </span>
           </h1>
 
           {/* Sous-titre */}
@@ -159,6 +112,34 @@ export default function APropos() {
             Artisan électricien qualifié et passionné de rénovation,<br />
             je transforme vos espaces avec expertise et créativité
           </p>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {[
+              "Artisan qualifie",
+              "Finitions soignees",
+              "Accompagnement",
+            ].map((item) => (
+              <Badge key={item} className="bg-white/10 text-amber-100 border border-amber-200/30 text-xs px-3 py-1">
+                {item}
+              </Badge>
+            ))}
+          </div>
+
+        </div>
+
+        {/* Transition vague animée */}
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
+          <div className="wave-container relative h-[70px] md:h-[110px]">
+            <svg className="wave-svg wave-1 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,40 C240,100 480,0 720,40 C960,80 1200,20 1440,60 C1680,100 1920,0 2160,40 C2400,80 2640,20 2880,60 L2880,120 L0,120 Z" fill="rgba(250,250,249,0.25)" />
+            </svg>
+            <svg className="wave-svg wave-2 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,60 C180,20 360,80 540,50 C720,20 900,90 1080,60 C1260,30 1440,80 1620,50 C1800,20 1980,90 2160,60 C2340,30 2520,80 2700,50 L2880,120 L0,120 Z" fill="rgba(250,250,249,0.5)" />
+            </svg>
+            <svg className="wave-svg wave-3 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,80 C120,100 240,60 360,80 C480,100 600,60 720,80 C840,100 960,60 1080,80 C1200,100 1320,60 1440,80 C1560,100 1680,60 1800,80 C1920,100 2040,60 2160,80 C2280,100 2400,60 2520,80 C2640,100 2760,60 2880,80 L2880,120 L0,120 Z" fill="#fafaf9" />
+            </svg>
+          </div>
         </div>
       </section>
 
@@ -452,8 +433,32 @@ export default function APropos() {
           </Link>
         </div>
       </section>
+      <style jsx>{`
+        .wave-svg {
+          will-change: transform;
+        }
+        .wave-1 {
+          animation: waveSlide1 12s linear infinite;
+        }
+        .wave-2 {
+          animation: waveSlide2 8s linear infinite;
+        }
+        .wave-3 {
+          animation: waveSlide3 6s linear infinite;
+        }
+        @keyframes waveSlide1 {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes waveSlide2 {
+          0% { transform: translateX(-50%); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes waveSlide3 {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 }
-
-

@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
-const INVOKE_AGENT_URL = "https://votre-app.base44.com/api/functions/invokeAgent";
+const INVOKE_AGENT_URL = "https://votre-app.api.com/api/functions/invokeAgent";
 
 export default function N8nAgent() {
   const [activeExample, setActiveExample] = useState(null);
@@ -260,7 +260,7 @@ export default function N8nAgent() {
               <CardContent className="space-y-6">
                 <Alert className="bg-amber-50 border-amber-300">
                   <AlertDescription>
-                    <strong>💡 Simple :</strong> Un seul appel à <code>base44.functions.invoke('invokeAgent')</code>
+                    <strong>💡 Simple :</strong> Un seul appel à <code>api.functions.invoke('invokeAgent')</code>
                   </AlertDescription>
                 </Alert>
 
@@ -268,7 +268,7 @@ export default function N8nAgent() {
                   <h3 className="font-bold text-stone-800 mb-3">Code Frontend (React)</h3>
                   <div className="bg-stone-50 border border-stone-200 p-4 rounded-lg space-y-3">
                     <pre className="bg-stone-900 text-green-400 p-3 rounded text-xs overflow-auto">
-{`import { base44 } from "@/api/base44Client";
+{`import { api } from "@/api/apiClient";
 
 const sendMessage = async (userMessage) => {
   try {
@@ -279,10 +279,9 @@ const sendMessage = async (userMessage) => {
     };
 
     // Appel DIRECT à l'agent maître
-    const response = await base44.functions.invoke('invokeAgent', payload);
+    const response = await api.functions.invoke('invokeAgent', payload);
 
     const result = response.data;
-    console.log("Réponse:", result);
 
     // Sauvegarder conversationId pour la suite
     if (result.conversationId) {
@@ -300,7 +299,7 @@ const sendMessage = async (userMessage) => {
                       size="sm"
                       variant="outline"
                       className="mt-2"
-                      onClick={() => copyToClipboard(`import { base44 } from "@/api/base44Client";\n\nconst sendMessage = async (userMessage) => {\n  try {\n    const payload = {\n      userMessage: userMessage,\n      context: "listes",\n      conversationId: conversationId\n    };\n\n    const response = await base44.functions.invoke('invokeAgent', payload);\n    const result = response.data;\n    \n    if (result.conversationId) {\n      setConversationId(result.conversationId);\n    }\n    \n    return result;\n  } catch (error) {\n    console.error('Erreur:', error);\n    throw error;\n  }\n};`)}
+                      onClick={() => copyToClipboard(`import { api } from "@/api/apiClient";\n\nconst sendMessage = async (userMessage) => {\n  try {\n    const payload = {\n      userMessage: userMessage,\n      context: "listes",\n      conversationId: conversationId\n    };\n\n    const response = await api.functions.invoke('invokeAgent', payload);\n    const result = response.data;\n    \n    if (result.conversationId) {\n      setConversationId(result.conversationId);\n    }\n    \n    return result;\n  } catch (error) {\n    console.error('Erreur:', error);\n    throw error;\n  }\n};`)}
                     >
                       <Copy className="w-3 h-3 mr-2" />
                       Copier le code
@@ -360,7 +359,7 @@ const sendMessage = async (userMessage) => {
               <CardContent className="space-y-4">
                 <p className="text-stone-700">
                   L'agent maître appelle n8n <strong>uniquement</strong> s'il a besoin d'intégrations
-                  externes non disponibles dans Base44.
+                  externes non disponibles dans api.
                 </p>
 
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
@@ -580,3 +579,4 @@ const sendMessage = async (userMessage) => {
     </div>
   );
 }
+

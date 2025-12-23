@@ -1,5 +1,7 @@
 // Client pour appeler le proxy Groq local (voir server.js).
 // Il attend une route POST /api/chat qui retourne {reply, summary, conversationId}.
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+
 export async function sendAssistantMessage({
   message,
   conversationId,
@@ -11,7 +13,7 @@ export async function sendAssistantMessage({
     throw new Error("Message vide");
   }
 
-  const res = await fetch("/api/chat", {
+  const res = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

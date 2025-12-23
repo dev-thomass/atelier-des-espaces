@@ -1,16 +1,11 @@
-
+﻿
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Ruler,
   CheckCircle2,
@@ -22,9 +17,6 @@ import {
   Clock,
   ArrowRight,
   ZoomIn,
-  Upload,
-  X,
-  Loader2,
   Bot,
   Mail,
   Phone,
@@ -33,43 +25,10 @@ import {
   Mic, // Added Mic icon for voice input
   MicOff // Added MicOff icon for voice input
 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
+import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { useSEO } from "@/hooks/use-seo";
 
-// Hook d'animation au scroll
-const useScrollAnimation = (options = {}) => {
-  const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (options.once !== false) {
-            observer.unobserve(element);
-          }
-        }
-      },
-      {
-        threshold: options.threshold || 0.05,
-        rootMargin: options.rootMargin || '50px'
-      }
-    );
-
-    observer.observe(element);
-
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
-  }, [options.threshold, options.rootMargin, options.once]);
-
-  return [elementRef, isVisible];
-};
 
 // Composant de Message - AMELIORE AVEC DETAILS N8N
 function MessageBubble({ message }) {
@@ -218,17 +177,14 @@ function AssistantChat() {
         conversationId: conversationId
       };
 
-      console.log(" Envoi direct a l'agent maitre:", payload);
 
       // Appel DIRECT a l'agent maitre (plus de passage par n8n)
-      const response = await base44.functions.invoke('invokeAgent', payload);
+      const response = await api.functions.invoke('invokeAgent', payload);
       
       const result = response.data;
-      console.log(" Reponse de l'agent maitre:", result);
 
       if (result.conversationId && !conversationId) {
         setConversationId(result.conversationId);
-        console.log(" Conversation ID sauvegarde:", result.conversationId);
       }
 
       // Extraire le message et les actions
@@ -391,166 +347,17 @@ function AssistantChat() {
 }
 
 export default function Conception3D() {
+  const assetBaseUrl = import.meta.env.BASE_URL || "/";
   const [heroRef, heroVisible] = useScrollAnimation({ threshold: 0.05 });
 
-  const [formData, setFormData] = useState({
-    nom: "",
-    email: "",
-    telephone: "",
-    adresse: "",
-    typeProjet: "",
-    typeBien: "",
-    surface: "",
-    nombrePieces: "",
-    budget: "",
-    delai: "",
-    description: "",
-    photos: [],
-    disponibilite: ""
+  const seoKeywords = "conception 3D marseille, scan 3D marseille, plans 3D marseille, modelisation 3D marseille, releve 3D marseille, plans detailles marseille, architecte interieur marseille, design interieur 3D marseille, visualisation 3D marseille, plans renovation marseille, mesures precises marseille";
+
+  useSEO({
+    title: "Conception & Modelisation 3D - Plans Detailles Marseille | L'Atelier des Espaces",
+    description: "Services de conception 3D, scan 3D professionnel et plans detailles pour vos projets de renovation et amenagement a Marseille, Aix-en-Provence, Aubagne. Visualisez votre projet avant travaux.",
+    keywords: seoKeywords
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState(null);
-  const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
-  // SEO Meta Tags
-  useEffect(() => {
-    document.title = "Conception & Modelisation 3D - Plans Detailles Marseille | L'Atelier des Espaces";
-
-    let metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute("content", "Services de conception 3D, scan 3D professionnel et plans detailles pour vos projets de renovation et amenagement a Marseille, Aix-en-Provence, Aubagne. Visualisez votre projet avant travaux.");
-    } else {
-      metaDescription = document.createElement('meta');
-      metaDescription.name = "description";
-      metaDescription.content = "Services de conception 3D, scan 3D professionnel et plans detailles pour vos projets de renovation et amenagement a Marseille, Aix-en-Provence, Aubagne. Visualisez votre projet avant travaux.";
-      document.head.appendChild(metaDescription);
-    }
-
-    let metaKeywords = document.querySelector('meta[name="keywords"]');
-    const keywords = "conception 3D marseille, scan 3D marseille, plans 3D marseille, modelisation 3D marseille, releve 3D marseille, plans detailles marseille, architecte interieur marseille, design interieur 3D marseille, visualisation 3D marseille, plans renovation marseille, mesures precises marseille";
-    if (metaKeywords) {
-      metaKeywords.setAttribute("content", keywords);
-    } else {
-      metaKeywords = document.createElement('meta');
-      metaKeywords.name = "keywords";
-      metaKeywords.content = keywords;
-      document.head.appendChild(metaKeywords);
-    }
-  }, []);
-
-  const handlePhotoUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    setUploadingPhotos(true);
-    setError(null);
-
-    try {
-      const uploadPromises = files.map(file =>
-        base44.integrations.Core.UploadFile({ file })
-      );
-
-      const results = await Promise.all(uploadPromises);
-      const photoUrls = results.map(result => result.file_url);
-
-      setFormData(prevData => ({
-        ...prevData,
-        photos: [...prevData.photos, ...photoUrls]
-      }));
-    } catch (err) {
-      console.error("Error uploading photos:", err);
-      setError("Erreur lors de l'upload des photos. Veuillez reessayer.");
-    } finally {
-      setUploadingPhotos(false);
-    }
-  };
-
-  const removePhoto = (index) => {
-    const newPhotos = formData.photos.filter((_, i) => i !== index);
-    setFormData({ ...formData, photos: newPhotos });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    setIsSuccess(false);
-
-    try {
-      // Construire le corps de l'email
-      const photosSection = formData.photos.length > 0
-        ? `<h3>Photos jointes (${formData.photos.length}) :</h3>
-           ${formData.photos.map((url, index) => `<p><a href="${url}">${url.split('/').pop()}</a></p>`).join('')}`
-        : '';
-
-      await base44.integrations.Core.SendEmail({
-        to: "thomasromeo.bonnardel@gmail.com",
-        subject: `Demande Scan 3D - ${formData.typeProjet} - ${formData.nom}`,
-        body: `
-          <h2>Nouvelle demande de Scan 3D - ${formData.typeProjet}</h2>
-
-          <h3>Informations de contact :</h3>
-          <p><strong>Nom :</strong> ${formData.nom}</p>
-          <p><strong>Email :</strong> ${formData.email}</p>
-          <p><strong>Telephone :</strong> ${formData.telephone}</p>
-          <p><strong>Adresse du projet :</strong> ${formData.adresse}</p>
-
-          <hr>
-
-          <h3>Details du projet :</h3>
-          <p><strong>Type de prestation :</strong> ${formData.typeProjet}</p>
-          <p><strong>Type de bien :</strong> ${formData.typeBien}</p>
-          <p><strong>Surface approximative :</strong> ${formData.surface}</p>
-          <p><strong>Nombre de pieces concernees :</strong> ${formData.nombrePieces}</p>
-          <p><strong>Budget approximatif :</strong> ${formData.budget}</p>
-          <p><strong>Delai souhaite :</strong> ${formData.delai}</p>
-
-          <hr>
-
-          <h3>Description du projet :</h3>
-          <p>${formData.description.replace(/\n/g, '<br>')}</p>
-
-          <hr>
-
-          <h3>Disponibilite pour visite :</h3>
-          <p>${formData.disponibilite.replace(/\n/g, '<br>')}</p>
-
-          <hr>
-
-          ${photosSection}
-        `
-      });
-
-      setIsSuccess(true);
-      setFormData({
-        nom: "",
-        email: "",
-        telephone: "",
-        adresse: "",
-        typeProjet: "",
-        typeBien: "",
-        surface: "",
-        nombrePieces: "",
-        budget: "",
-        delai: "",
-        description: "",
-        photos: [],
-        disponibilite: ""
-      });
-
-      setTimeout(() => setIsSuccess(false), 5000);
-    } catch (err) {
-      console.error("Error sending email:", err);
-      setError("Une erreur s'est produite lors de l'envoi de votre demande. Veuillez reessayer.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
-  };
 
   const avantages = [
     {
@@ -577,12 +384,12 @@ export default function Conception3D() {
 
   const visualisations3D = [
     {
-      url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/5b10319e2_plan3D.png",
+      url: `${assetBaseUrl}plan3d.png`,
       titre: "Plan 3D",
       description: "Modelisation complete de votre espace"
     },
     {
-      url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/c02f03180_Scan3D.jpg",
+      url: `${assetBaseUrl}scan3d.png`,
       titre: "Scan 3D",
       description: "Vue realiste de l'espace existing"
     }
@@ -590,23 +397,23 @@ export default function Conception3D() {
 
   const planImages = [
     {
-      url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/cc20e1196_Plandetaill1.jpg",
+      url: `${assetBaseUrl}conception/cc20e1196_Plandetaill1.png`,
       titre: "Vue d'ensemble"
     },
     {
-      url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/536ebddd1_Plandetaill2.jpg",
+      url: `${assetBaseUrl}conception/536ebddd1_Plandetaill2.png`,
       titre: "Plan detaille"
     },
     {
-      url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/fd02cd6b1_Plandetaill3.jpg",
+      url: `${assetBaseUrl}conception/fd02cd6b1_Plandetaill3.png`,
       titre: "Mesures precises"
     },
     {
-      url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/3f9d221aa_Plandetaill4.jpg",
+      url: `${assetBaseUrl}conception/3f9d221aa_Plandetaill4.png`,
       titre: "Plans par piece"
     },
     {
-      url: "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/e16b4360b_Plandetaill5.jpg",
+      url: `${assetBaseUrl}conception/e16b4360b_Plandetaill5.png`,
       titre: "Details techniques"
     }
   ];
@@ -621,7 +428,9 @@ export default function Conception3D() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Hero Section - UNIFORMISE ET AFFINE */}
-      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20">`n        <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />`n        {/* Grille 3D stylisee - Plus subtile */}
+      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20 pb-24 md:pb-28">
+        <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
+        {/* Grille 3D stylisee - Plus subtile */}
         <div className="absolute inset-0 opacity-[0.04]">
           <div className="absolute inset-0" style={{
             backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
@@ -640,16 +449,16 @@ export default function Conception3D() {
           heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
         }`}>
           {/* Badge tech */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full mb-6">
+          <Badge className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-100 border border-amber-200/30 rounded-full mb-6">
             <Box className="w-4 h-4 text-amber-300" />
             <span className="text-sm font-medium text-white">Technologie 3D</span>
-          </div>
+          </Badge>
 
           {/* Titre */}
           <h1 className="text-4xl md:text-6xl font-bold mb-5 tracking-tight">
             <span className="block text-white">Conception 3D</span>
-            <span className="block bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
-              & Scan Professionnel
+            <span className="block text-white">
+              & Scan <span className="bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">Professionnel</span>
             </span>
           </h1>
 
@@ -659,20 +468,32 @@ export default function Conception3D() {
             <strong className="text-white">plans 3D detailles</strong> et notre <strong className="text-white">technologie de scan</strong>
           </p>
 
-          {/* Features */}
-          <div className="flex flex-wrap gap-4 justify-center items-center text-sm text-stone-400">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-amber-400" />
-              <span>Plans precis</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-amber-400" />
-              <span>Rendu realiste</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-amber-400" />
-              <span>Scan 3D</span>
-            </div>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {[
+              "Plan 3D",
+              "Scan 3D",
+              "Precision",
+            ].map((item) => (
+              <Badge key={item} className="bg-white/10 text-amber-100 border border-amber-200/30 text-xs px-3 py-1">
+                {item}
+              </Badge>
+            ))}
+          </div>
+
+        </div>
+
+        {/* Transition vague animée */}
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
+          <div className="wave-container relative h-[70px] md:h-[110px]">
+            <svg className="wave-svg wave-1 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,40 C240,100 480,0 720,40 C960,80 1200,20 1440,60 C1680,100 1920,0 2160,40 C2400,80 2640,20 2880,60 L2880,120 L0,120 Z" fill="rgba(255,255,255,0.25)" />
+            </svg>
+            <svg className="wave-svg wave-2 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,60 C180,20 360,80 540,50 C720,20 900,90 1080,60 C1260,30 1440,80 1620,50 C1800,20 1980,90 2160,60 C2340,30 2520,80 2700,50 L2880,120 L0,120 Z" fill="rgba(255,255,255,0.5)" />
+            </svg>
+            <svg className="wave-svg wave-3 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,80 C120,100 240,60 360,80 C480,100 600,60 720,80 C840,100 960,60 1080,80 C1200,100 1320,60 1440,80 C1560,100 1680,60 1800,80 C1920,100 2040,60 2160,80 C2280,100 2400,60 2520,80 C2640,100 2760,60 2880,80 L2880,120 L0,120 Z" fill="#ffffff" />
+            </svg>
           </div>
         </div>
       </section>
@@ -796,15 +617,18 @@ export default function Conception3D() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
             {planImages.map((plan, index) => (
-              <Card key={index} className="border-none shadow-xl overflow-hidden group cursor-pointer">
+              <Card
+                key={index}
+                className="border-none shadow-xl overflow-hidden group cursor-pointer w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-12px)] max-w-[540px]"
+              >
                 <a
                   href={plan.url}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <div className="relative h-48 md:h-96 bg-white flex items-center justify-center p-2 md:p-4 overflow-hidden">
+                  <div className="relative h-44 md:h-[320px] bg-white flex items-center justify-center p-2 md:p-4 overflow-hidden">
                     <img
                       src={plan.url}
                       alt={plan.titre}
@@ -843,437 +667,6 @@ export default function Conception3D() {
         </div>
       </section>
 
-      {/* NOUVELLE SECTION FORMULAIRE AVEC TABS */}
-      <section className="py-16 md:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-4 gap-8 md:gap-12">
-            {/* Sidebar Contact - COMPACT ET TRANSLUCIDE */}
-            <div className="lg:col-span-1 space-y-6">
-              <Card className="border-none shadow-xl bg-gradient-to-br from-amber-900/95 to-amber-800/95 backdrop-blur-sm text-white sticky top-24">
-                <CardContent className="p-4 md:p-6">
-                  <h3 className="text-lg md:text-xl font-bold mb-4">Contact</h3>
-                  <div className="space-y-3">
-                    {infos.map((info, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
-                          <info.icon className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-amber-100 text-xs mb-0.5">{info.label}</div>
-                          <div className="text-xs break-words">{info.value}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-6 pt-4 border-t border-white/20">
-                    <ul className="space-y-1.5 text-xs">
-                      {[
-                        "Devis gratuit",
-                        "Reponse rapide",
-                        "Visite sur place",
-                        "Plans precis"
-                      ].map((item, index) => (
-                        <li key={index} className="flex items-center gap-2">
-                          <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Content avec Tabs */}
-            <div className="lg:col-span-3">
-              <Tabs defaultValue="form" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="form" className="flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    <span>Formulaire detaille</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="assistant" className="flex items-center gap-2">
-                    <Bot className="w-4 h-4" />
-                    <span>Assistant IA</span>
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* Tab Formulaire */}
-                <TabsContent value="form">
-                  <Card className="border-none shadow-xl">
-                    <CardHeader className="border-b border-stone-100">
-                      <CardTitle className="text-2xl md:text-3xl font-bold text-stone-800">
-                        Demander un devis Scan 3D & Plans
-                      </CardTitle>
-                      <p className="text-sm text-stone-600 mt-2">
-                        Remplissez ce formulaire pour une estimation precise
-                      </p>
-                    </CardHeader>
-                    <CardContent className="p-6 md:p-8">
-                      {isSuccess && (
-                        <Alert className="mb-6 bg-green-50 border-green-500">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-800 text-sm md:text-base">
-                            Votre demande a ete envoyee ! Je vous recontacterai rapidement pour planifier une visite.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-
-                      {error && (
-                        <Alert className="mb-6 bg-red-50 border-red-500">
-                          <AlertDescription className="text-red-800 text-sm md:text-base">
-                            {error}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-
-                      <form onSubmit={handleSubmit} className="space-y-8">
-                        <div>
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              1
-                            </div>
-                            <h3 className="text-xl font-bold text-stone-800">Vos coordonnees</h3>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-13">
-                            <div>
-                              <Label htmlFor="nom" className="text-stone-700 font-medium mb-2 block">
-                                Nom complet *
-                              </Label>
-                              <Input
-                                id="nom"
-                                value={formData.nom}
-                                onChange={(e) => handleChange("nom", e.target.value)}
-                                required
-                                placeholder="Votre nom"
-                                className="h-11"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="telephone" className="text-stone-700 font-medium mb-2 block">
-                                Telephone *
-                              </Label>
-                              <Input
-                                id="telephone"
-                                type="tel"
-                                value={formData.telephone}
-                                onChange={(e) => handleChange("telephone", e.target.value)}
-                                required
-                                placeholder="06 XX XX XX XX"
-                                className="h-11"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="email" className="text-stone-700 font-medium mb-2 block">
-                                Email *
-                              </Label>
-                              <Input
-                                id="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => handleChange("email", e.target.value)}
-                                required
-                                placeholder="votre@email.fr"
-                                className="h-11"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="adresse" className="text-stone-700 font-medium mb-2 block">
-                                Adresse du projet *
-                              </Label>
-                              <Input
-                                id="adresse"
-                                value={formData.adresse}
-                                onChange={(e) => handleChange("adresse", e.target.value)}
-                                required
-                                placeholder="Ville et code postal"
-                                className="h-11"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-stone-200"></div>
-
-                        <div>
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              2
-                            </div>
-                            <h3 className="text-xl font-bold text-stone-800">Details du projet</h3>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-13">
-                            <div>
-                              <Label className="text-stone-700 font-medium mb-2 block">
-                                Type de prestation *
-                              </Label>
-                              <Select value={formData.typeProjet} onValueChange={(value) => handleChange("typeProjet", value)} required>
-                                <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Selectionnez" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Scan 3D uniquement">Scan 3D uniquement</SelectItem>
-                                  <SelectItem value="Scan 3D + Plans 2D">Scan 3D + Plans 2D</SelectItem>
-                                  <SelectItem value="Scan 3D + Plans detailles">Scan 3D + Plans detailles</SelectItem>
-                                  <SelectItem value="Modelisation 3D complete">Modelisation 3D complete</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label className="text-stone-700 font-medium mb-2 block">
-                                Type de bien *
-                              </Label>
-                              <Select value={formData.typeBien} onValueChange={(value) => handleChange("typeBien", value)} required>
-                                <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Selectionnez" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Appartement">Appartement</SelectItem>
-                                  <SelectItem value="Maison">Maison</SelectItem>
-                                  <SelectItem value="Local commercial">Local commercial</SelectItem>
-                                  <SelectItem value="Bureau">Bureau</SelectItem>
-                                  <SelectItem value="Autre">Autre</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label htmlFor="surface" className="text-stone-700 font-medium mb-2 block">
-                                Surface a scanner *
-                              </Label>
-                              <Input
-                                id="surface"
-                                value={formData.surface}
-                                onChange={(e) => handleChange("surface", e.target.value)}
-                                required
-                                placeholder="Ex: 60 m"
-                                className="h-11"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="nombrePieces" className="text-stone-700 font-medium mb-2 block">
-                                Nombre de pieces a scanner *
-                              </Label>
-                              <Input
-                                id="nombrePieces"
-                                value={formData.nombrePieces}
-                                onChange={(e) => handleChange("nombrePieces", e.target.value)}
-                                required
-                                placeholder="Ex: 3 pieces"
-                                className="h-11"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-stone-200"></div>
-
-                        <div>
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              3
-                            </div>
-                            <h3 className="text-xl font-bold text-stone-800">Budget et delai</h3>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-13">
-                            <div>
-                              <Label className="text-stone-700 font-medium mb-2 block">
-                                Budget approximatif
-                              </Label>
-                              <Select value={formData.budget} onValueChange={(value) => handleChange("budget", value)}>
-                                <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Selectionnez" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Moins de 500">Moins de 500</SelectItem>
-                                  <SelectItem value="500 - 1 000">500 - 1 000</SelectItem>
-                                  <SelectItem value="1 000 - 2 000">1 000 - 2 000</SelectItem>
-                                  <SelectItem value="2 000 - 5 000">2 000 - 5 000</SelectItem>
-                                  <SelectItem value="Plus de 5 000">Plus de 5 000</SelectItem>
-                                  <SelectItem value="A definir">A definir</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label className="text-stone-700 font-medium mb-2 block">
-                                Delai souhaite pour le scan
-                              </Label>
-                              <Select value={formData.delai} onValueChange={(value) => handleChange("delai", value)}>
-                                <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Selectionnez" />
-                                &nbsp;</SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Urgent (cette semaine)">Urgent (cette semaine)</SelectItem>
-                                  <SelectItem value="1 a 2 semaines">1 a 2 semaines</SelectItem>
-                                  <SelectItem value="2 a 4 semaines">2 a 4 semaines</SelectItem>
-                                  <SelectItem value="Plus de 1 mois">Plus de 1 mois</SelectItem>
-                                  <SelectItem value="Flexible">Flexible</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-stone-200"></div>
-
-                        <div>
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              4
-                            </div>
-                            <h3 className="text-xl font-bold text-stone-800">Description detaillee</h3>
-                          </div>
-                          <div className="space-y-4 pl-0 md:pl-13">
-                            <div>
-                              <Label htmlFor="description" className="text-stone-700 font-medium mb-2 block">
-                                Decrivez votre projet *
-                              </Label>
-                              <Textarea
-                                id="description"
-                                value={formData.description}
-                                onChange={(e) => handleChange("description", e.target.value)}
-                                required
-                                rows={5}
-                                className="resize-none"
-                                placeholder="Decrivez votre projet : travaux envisages, vos attentes, contraintes particulieres, etc."
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="disponibilite" className="text-stone-700 font-medium mb-2 block">
-                                Vos disponibilites pour une visite
-                              </Label>
-                              <Textarea
-                                id="disponibilite"
-                                value={formData.disponibilite}
-                                onChange={(e) => handleChange("disponibilite", e.target.value)}
-                                rows={3}
-                                className="resize-none"
-                                placeholder="Ex: Disponible en semaine apres 18h, ou le samedi matin"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-stone-200"></div>
-
-                        <div>
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              5
-                            </div>
-                            <h3 className="text-xl font-bold text-stone-800">Photos (optionnel)</h3>
-                          </div>
-                          <div className="pl-0 md:pl-13">
-                            <Label className="text-stone-700 font-medium mb-3 block">
-                              Ajoutez des photos de l'espace pour une estimation plus precise
-                            </Label>
-
-                            {formData.photos.length > 0 && (
-                              <div className="grid grid-cols-3 md:grid-cols-4 gap-3 mb-4">
-                                {formData.photos.map((photo, index) => (
-                                  <div key={index} className="relative group">
-                                    <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-24 object-cover rounded-lg border-2 border-stone-200" />
-                                    <button
-                                      type="button"
-                                      onClick={() => removePhoto(index)}
-                                      className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer hover:border-amber-700 hover:bg-amber-50 transition-all duration-300">
-                              <div className="flex flex-col items-center justify-center">
-                                {uploadingPhotos ? (
-                                  <>
-                                    <Loader2 className="w-10 h-10 text-amber-700 animate-spin mb-3" />
-                                    <p className="text-sm text-stone-600 font-medium">Upload en cours...</p>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Upload className="w-10 h-10 text-stone-400 mb-3" />
-                                    <p className="text-base text-stone-700 font-medium mb-1">
-                                      Cliquez pour ajouter des photos
-                                    </p>
-                                    <p className="text-xs text-stone-500">
-                                      JPG, PNG (max 5 Mo par photo)
-                                    </p>
-                                  </>
-                                )}
-                              </div>
-                              <input
-                                type="file"
-                                className="hidden"
-                                accept="image/*"
-                                multiple
-                                onChange={handlePhotoUpload}
-                                disabled={uploadingPhotos || isSubmitting}
-                              />
-                            </label>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-stone-200 pt-6">
-                          <Button
-                            type="submit"
-                            className="w-full bg-amber-700 hover:bg-amber-800 text-white py-6 text-lg font-semibold shadow-xl transform hover:scale-[1.02] transition-all duration-300"
-                            disabled={isSubmitting || uploadingPhotos}
-                          >
-                            {isSubmitting ? (
-                              <>
-                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                Envoi en cours...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="w-5 h-5 mr-2" />
-                                Envoyer ma demande de devis
-                              </>
-                            )}
-                          </Button>
-
-                          <p className="text-xs text-center text-stone-500 mt-4">
-                             Vos informations sont confidentielles et ne seront jamais partagees
-                          </p>
-                        </div>
-                      </form>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Tab Assistant IA */}
-                <TabsContent value="assistant">
-                  <Card className="border-none shadow-xl">
-                    <CardHeader className="border-b border-stone-100">
-                      <CardTitle className="text-2xl md:text-3xl font-bold text-stone-800 flex items-center gap-3">
-                        <Bot className="w-8 h-8 text-amber-700" />
-                        Discutez avec notre Assistant IA
-                      </CardTitle>
-                      <p className="text-sm text-stone-600 mt-2">
-                        Laissez-vous guider pour definir votre projet de scan 3D
-                      </p>
-                    </CardHeader>
-                    <CardContent className="p-6 md:p-8">
-                      <AssistantChat />
-
-                      <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                        <p className="text-sm text-amber-900">
-                          <strong> Astuce :</strong> L'assistant vous aidera a clarifier vos besoins.
-                          Pour un devis precis, vous pourrez ensuite remplir le formulaire detaille.
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* CTA - HARMONISE AVEC ACCUEIL */}
       <section className="py-20 bg-gradient-to-r from-amber-900 via-amber-800 to-amber-900 relative overflow-hidden group">
         <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity duration-700">
@@ -1281,27 +674,50 @@ export default function Conception3D() {
         </div>
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 group-hover:scale-105 transition-transform duration-300">
-            Besoin egalement de travaux de renovation ?
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-10 group-hover:scale-105 transition-transform duration-300">
+            Pret a transformer votre interieur ?
           </h2>
           <p className="text-xl text-amber-100 mb-10 leading-relaxed">
-            En plus du scan 3D et des plans, je realise tous vos travaux de renovation et d'amenagement interieur.
-            Service complet disponible a Marseille et dans toutes les Bouches-du-Rhone.
+            Contactez-moi pour un devis gratuit et personnalise
           </p>
           <Link to={createPageUrl("Contact")}>
             <Button size="lg" className="bg-white text-amber-900 hover:bg-stone-100 px-10 py-6 text-lg shadow-2xl transform hover:scale-110 hover:rotate-2 transition-all duration-300">
-              Demander un devis travaux
+              Demander un devis gratuit
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </Link>
         </div>
       </section>
+
+      <style jsx>{`
+        .wave-svg {
+          will-change: transform;
+        }
+        .wave-1 {
+          animation: waveSlide1 12s linear infinite;
+        }
+        .wave-2 {
+          animation: waveSlide2 8s linear infinite;
+        }
+        .wave-3 {
+          animation: waveSlide3 6s linear infinite;
+        }
+        @keyframes waveSlide1 {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes waveSlide2 {
+          0% { transform: translateX(-50%); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes waveSlide3 {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 }
-
-
-
 
 
 

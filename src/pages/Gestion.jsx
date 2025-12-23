@@ -1,8 +1,8 @@
-
+﻿
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,44 +81,37 @@ export default function Gestion() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const isAuthenticated = localStorage.getItem("admin_authenticated") === "true";
-      if (!isAuthenticated) {
-        navigate(createPageUrl("AdminLogin"));
-      } else {
-        try {
-          const currentUser = await base44.auth.me();
-          setUser(currentUser);
-        } catch (error) {
-          const storedEmail = localStorage.getItem("admin_email") || "admin@site.local";
-          const storedName = localStorage.getItem("admin_name") || "Administrateur";
-          setUser({ email: storedEmail, full_name: storedName });
-        }
+      try {
+        const currentUser = await api.auth.me();
+        setUser(currentUser);
         setIsLoading(false);
+      } catch (error) {
+        navigate(createPageUrl("AdminLogin"));
       }
     };
     checkAuth();
   }, [navigate]);
 
   const handleLogout = async () => {
-    localStorage.removeItem("admin_authenticated");
+    api.auth.logout();
     navigate(createPageUrl("Accueil"));
   };
 
   const { data: projets = [] } = useQuery({
     queryKey: ['admin-projets'],
-    queryFn: () => base44.entities.Projet.list('ordre'),
+    queryFn: () => api.entities.Projet.list('ordre'),
   });
 
   const { data: prestations = [] } = useQuery({
     queryKey: ['admin-prestations'],
-    queryFn: () => base44.entities.Prestation.list('ordre'),
+    queryFn: () => api.entities.Prestation.list('ordre'),
   });
 
   const { data: conversationsProjet = [] } = useQuery({
     queryKey: ['admin-conversations-projet'],
     queryFn: async () => {
       try {
-        return await base44.agents.listConversations({ agent_name: "assistant_projet" }) || [];
+        return await api.agents.listConversations({ agent_name: "assistant_projet" }) || [];
       } catch (error) {
         return [];
       }
@@ -129,7 +122,7 @@ export default function Gestion() {
     queryKey: ['admin-conversations-chantier'],
     queryFn: async () => {
       try {
-        return await base44.agents.listConversations({ agent_name: "assistant_suivi_chantier" }) || [];
+        return await api.agents.listConversations({ agent_name: "assistant_suivi_chantier" }) || [];
       } catch (error) {
         return [];
       }
@@ -137,12 +130,12 @@ export default function Gestion() {
   });
 
   const deleteProjetMutation = useMutation({
-    mutationFn: (id) => base44.entities.Projet.delete(id),
+    mutationFn: (id) => api.entities.Projet.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-projets'] }),
   });
 
   const updateProjetMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Projet.update(id, data),
+    mutationFn: ({ id, data }) => api.entities.Projet.update(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-projets'] }),
   });
 
@@ -182,7 +175,7 @@ export default function Gestion() {
     items.splice(destIndex, 0, reorderedItem);
 
     items.forEach((projet, index) => {
-      updates.push(base44.entities.Projet.update(projet.id, { ordre: index }));
+      updates.push(api.entities.Projet.update(projet.id, { ordre: index }));
     });
 
     await Promise.all(updates);
@@ -197,8 +190,8 @@ export default function Gestion() {
     const projet2 = filteredProjets[newIndex];
 
     await Promise.all([
-      base44.entities.Projet.update(projet1.id, { ordre: newIndex }),
-      base44.entities.Projet.update(projet2.id, { ordre: index })
+      api.entities.Projet.update(projet1.id, { ordre: newIndex }),
+      api.entities.Projet.update(projet2.id, { ordre: index })
     ]);
 
     queryClient.invalidateQueries({ queryKey: ['admin-projets'] });
@@ -460,7 +453,7 @@ function DashboardContent({ stats, setActiveSection }) {
 
   const { data: items = [] } = useQuery({
     queryKey: ['liste-courses'],
-    queryFn: () => base44.entities.ListeCourse.list('ordre'),
+    queryFn: () => api.entities.ListeCourse.list('ordre'),
   });
 
   const activeItems = items.filter(i => !i.fait);
@@ -767,12 +760,12 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Prestation.delete(id),
+    mutationFn: (id) => api.entities.Prestation.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-prestations'] }),
   });
 
   const toggleVisibilityMutation = useMutation({
-    mutationFn: ({ id, visible }) => base44.entities.Prestation.update(id, { visible }),
+    mutationFn: ({ id, visible }) => api.entities.Prestation.update(id, { visible }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-prestations'] }),
   });
 
@@ -781,8 +774,8 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
     if (newIndex < 0 || newIndex >= prestations.length) return;
 
     await Promise.all([
-      base44.entities.Prestation.update(prestations[index].id, { ordre: newIndex }),
-      base44.entities.Prestation.update(prestations[newIndex].id, { ordre: index })
+      api.entities.Prestation.update(prestations[index].id, { ordre: newIndex }),
+      api.entities.Prestation.update(prestations[newIndex].id, { ordre: index })
     ]);
 
     queryClient.invalidateQueries({ queryKey: ['admin-prestations'] });
@@ -1004,9 +997,9 @@ function PrestationForm({ prestation, onCancel, onSuccess }) {
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       if (prestation) {
-        return base44.entities.Prestation.update(prestation.id, data);
+        return api.entities.Prestation.update(prestation.id, data);
       } else {
-        return base44.entities.Prestation.create(data);
+        return api.entities.Prestation.create(data);
       }
     },
     onSuccess: () => {
@@ -1093,7 +1086,7 @@ function AssistantClientContent() {
     const loadConversations = async () => {
       try {
         setLoadingConversations(true);
-        const convs = await base44.agents.listConversations({ agent_name: "assistant_projet" });
+        const convs = await api.agents.listConversations({ agent_name: "assistant_projet" });
         const nonEmptyConvs = convs.filter(conv => {
           const messageCount = conv.messages?.filter(m => m.content)?.length || 0;
           return messageCount > 1;
@@ -1110,7 +1103,7 @@ function AssistantClientContent() {
 
   useEffect(() => {
     if (!selectedConversation) return;
-    const unsubscribe = base44.agents.subscribeToConversation(selectedConversation.id, (data) => {
+    const unsubscribe = api.agents.subscribeToConversation(selectedConversation.id, (data) => {
       setMessages(data.messages.filter(m => m.content));
       setIsLoading(false);
     });
@@ -1130,7 +1123,7 @@ function AssistantClientContent() {
     setInputMessage("");
     setIsLoading(true);
     try {
-      await base44.agents.addMessage(selectedConversation, { role: "user", content: userMessage });
+      await api.agents.addMessage(selectedConversation, { role: "user", content: userMessage });
     } catch (error) {
       console.error("Error sending message:", error);
       setIsLoading(false);
@@ -1150,7 +1143,7 @@ function AssistantClientContent() {
     setShowSummary(true);
     try {
       const conversationText = messages.map(msg => `${msg.role === 'user' ? 'Client' : 'Assistant'}: ${msg.content}`).join('\n\n');
-      const response = await base44.integrations.Core.InvokeLLM({
+      const response = await api.integrations.Core.InvokeLLM({
         prompt: `Analyse cette conversation et genere un resume structure pour devis.\n\n${conversationText}`,
         response_json_schema: {
           type: "object",
@@ -1337,7 +1330,7 @@ function AssistantContent() {
     setIsLoading(true);
 
     try {
-      const res = await base44.functions.invoke('invokeAgent', { userMessage, context: "gestion" });
+      const res = await api.functions.invoke('invokeAgent', { userMessage, context: "gestion" });
       const msg = res.data?.message || res.data?.output || " Action effectuee";
       const actions = res.data?.actions || [];
       const hasRealActions = actions.some(a => a.type !== 'refresh' && a.status !== 'pending_frontend');
@@ -1499,7 +1492,7 @@ function PlanningContent() {
 
   const { data: events = [] } = useQuery({
     queryKey: ['events'],
-    queryFn: () => base44.entities.Event.list('start'),
+    queryFn: () => api.entities.Event.list('start'),
   });
 
   const handleEventCreatedByChatbot = () => {
@@ -1571,7 +1564,7 @@ function ListesContent() {
 
   const { data: items = [] } = useQuery({
     queryKey: ['liste-courses'],
-    queryFn: () => base44.entities.ListeCourse.list('ordre'),
+    queryFn: () => api.entities.ListeCourse.list('ordre'),
   });
 
   const handleItemCreatedByChatbot = () => {
@@ -1579,17 +1572,17 @@ function ListesContent() {
   };
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.ListeCourse.create(data),
+    mutationFn: (data) => api.entities.ListeCourse.create(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ListeCourse.update(id, data),
+    mutationFn: ({ id, data }) => api.entities.ListeCourse.update(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.ListeCourse.delete(id),
+    mutationFn: (id) => api.entities.ListeCourse.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
   });
 
@@ -1962,3 +1955,4 @@ function ThemeToggle() {
     </Button>
   );
 }
+

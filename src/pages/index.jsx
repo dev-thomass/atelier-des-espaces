@@ -8,6 +8,7 @@ const Accueil = lazy(() => import("./Accueil"));
 const Prestations = lazy(() => import("./Prestations"));
 const APropos = lazy(() => import("./APropos"));
 const Contact = lazy(() => import("./Contact"));
+const Confirmation = lazy(() => import("./Confirmation"));
 const Conception3D = lazy(() => import("./Conception3D"));
 const Admin = lazy(() => import("./Admin"));
 const AdminLogin = lazy(() => import("./AdminLogin"));
@@ -26,6 +27,8 @@ const PAGES = {
     APropos: APropos,
     
     Contact: Contact,
+
+    Confirmation: Confirmation,
     
     Conception3D: Conception3D,
     
@@ -73,6 +76,7 @@ function PagesContent() {
           <Route path={createPageUrl("Prestations")} element={<Prestations />} />
           <Route path={createPageUrl("APropos")} element={<APropos />} />
           <Route path={createPageUrl("Contact")} element={<Contact />} />
+          <Route path={createPageUrl("Confirmation")} element={<Confirmation />} />
           <Route path={createPageUrl("Conception3D")} element={<Conception3D />} />
           <Route path={createPageUrl("Admin")} element={<Admin />} />
           <Route path={createPageUrl("AdminLogin")} element={<AdminLogin />} />

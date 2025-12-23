@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,21 +42,21 @@ export default function ListeCoursesWidget() {
 
   const { data: items = [] } = useQuery({
     queryKey: ['liste-courses'],
-    queryFn: () => base44.entities.ListeCourse.list('ordre'),
+    queryFn: () => api.entities.ListeCourse.list('ordre'),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.ListeCourse.create(data),
+    mutationFn: (data) => api.entities.ListeCourse.create(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ListeCourse.update(id, data),
+    mutationFn: ({ id, data }) => api.entities.ListeCourse.update(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.ListeCourse.delete(id),
+    mutationFn: (id) => api.entities.ListeCourse.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
   });
 

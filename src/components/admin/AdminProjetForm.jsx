@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { X, Upload, Loader2, CheckCircle2, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
@@ -54,7 +54,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
     setError(null);
 
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await api.integrations.Core.UploadFile({ file });
       
       if (isMain) {
         handleChange("image_url", file_url);
@@ -132,9 +132,9 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
 
     try {
       if (projet) {
-        await base44.entities.Projet.update(projet.id, formData);
+        await api.entities.Projet.update(projet.id, formData);
       } else {
-        await base44.entities.Projet.create(formData);
+        await api.entities.Projet.create(formData);
       }
       onSuccess();
     } catch (err) {
@@ -494,3 +494,4 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
     </Card>
   );
 }
+

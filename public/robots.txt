@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /adminlogin
+Disallow: /gestion
+Disallow: /n8n
+Disallow: /n8nagent
+Disallow: /n8ntest
+Disallow: /n8nchatbot
+Disallow: /n8ninterface
+
+Sitemap: https://atelierdesespaces.fr/sitemap.xml

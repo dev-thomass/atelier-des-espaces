@@ -1,10 +1,12 @@
-
+﻿
 
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { base44 } from "@/api/base44Client";
 import { Home, User, Mail, Phone, MapPin, Briefcase, Box, Menu, X, Shield, ArrowLeft, Globe, LayoutDashboard, Calendar, Wrench, Zap } from "lucide-react";
+
+const ASSET_BASE_URL = import.meta.env.BASE_URL || "/";
+
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -35,7 +37,13 @@ export default function Layout({ children, currentPageName }) {
   if (isAdmin) {
     return (
       <div className="admin-theme min-h-screen flex flex-col">
-        <main className="flex-1 w-full">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-white focus:text-stone-900 focus:shadow-lg"
+        >
+          Aller au contenu
+        </a>
+        <main id="main-content" tabIndex={-1} className="flex-1 w-full">
           {children}
         </main>
         
@@ -53,7 +61,7 @@ export default function Layout({ children, currentPageName }) {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <img 
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/2828a036b_Designsanstitre1.png"
+                  src={`${ASSET_BASE_URL}logo.png`}
                   alt="L'Atelier des Espaces"
                   className="w-8 h-8 shadow-apple rounded-lg"
                 />
@@ -88,7 +96,6 @@ export default function Layout({ children, currentPageName }) {
 
   // TOUT LE RESTE EST POUR LE SITE PUBLIC
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [heroHeight, setHeroHeight] = useState(520);
 
@@ -125,18 +132,6 @@ export default function Layout({ children, currentPageName }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [heroHeight, path, pageName]);
 
-  useEffect(() => {
-    const checkUser = async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch (error) {
-        setUser(null);
-      }
-    };
-    checkUser();
-  }, []);
-
   const navigation = [
     { name: "Accueil", url: createPageUrl("Accueil"), icon: Home },
     { name: "Prestations", url: createPageUrl("Prestations"), icon: Briefcase },
@@ -148,7 +143,13 @@ export default function Layout({ children, currentPageName }) {
   const isActive = (url) => location.pathname === url;
 
   return (
-    <div className="relative min-h-screen bg-transparent overflow-hidden">
+    <div className="relative min-h-screen bg-transparent overflow-x-hidden">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-white focus:text-stone-900 focus:shadow-lg"
+      >
+        Aller au contenu
+      </a>
       {/* Fond anime identique a l'accueil pour toutes les pages publiques */}
       <div
         id="layout-hero-overlay"
@@ -193,11 +194,11 @@ export default function Layout({ children, currentPageName }) {
             : 'bg-transparent border-transparent shadow-none'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[96vw] mx-auto px-3 sm:px-4 lg:px-6">
           <div className="flex justify-between items-center h-20">
             <Link to={createPageUrl("Accueil")} className="flex items-center gap-3 group">
               <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/2828a036b_Designsanstitre1.png"
+                src={`${ASSET_BASE_URL}logo.png`}
                 alt="L'Atelier des Espaces"
                 className="w-12 h-12 transform group-hover:scale-105 transition-transform duration-300"
               />
@@ -282,7 +283,9 @@ export default function Layout({ children, currentPageName }) {
         )}
       </nav>
 
-      <main className="relative z-10 pt-20">{children}</main>
+      <main id="main-content" tabIndex={-1} className="relative z-10 pt-20">
+        {children}
+      </main>
 
       {/* Footer */}
       <footer className="bg-gradient-to-r from-stone-900 via-amber-900 to-stone-900 text-white py-12">
@@ -291,7 +294,7 @@ export default function Layout({ children, currentPageName }) {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <img 
-                  src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/6901ebfc5e146f4dd7ae429a/2828a036b_Designsanstitre1.png"
+                  src={`${ASSET_BASE_URL}logo.png`}
                   alt="L'Atelier des Espaces"
                   className="w-10 h-10"
                 />
@@ -355,6 +358,7 @@ export default function Layout({ children, currentPageName }) {
     </div>
   );
 }
+
 
 
 

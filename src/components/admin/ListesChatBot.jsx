@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+﻿import React, { useState, useEffect, useRef } from "react";
+import { api } from "@/api/apiClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,7 +85,7 @@ export default function ListesChatBot({ onItemCreated }) {
     setLoading(true);
 
     try {
-      const res = await base44.functions.invoke('invokeAgent', {
+      const res = await api.functions.invoke('invokeAgent', {
         userMessage: userMsg,
         context: "listes",
         conversationId: convId

@@ -1,5 +1,7 @@
-
+﻿
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, Upload, X, Loader2, MessageSquare, Bot, FileText, Mic, MicOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { base44 } from "@/api/base44Client";
+import { api } from "@/api/apiClient";
 import { sendAssistantMessage } from "@/api/assistantClient";
+import { useScrollAnimation } from "@/hooks/use-scroll-animation";
+import { useSEO } from "@/hooks/use-seo";
+import { createPageUrl } from "@/utils";
 
 const SYSTEM_PROMPT = `Tu es l'assistant projet de [Ton Entreprise], spécialisé en rénovation et aménagement.
 
@@ -52,41 +57,6 @@ Quand tu as TOUTES les infos (y compris coordonnées) :
 
 IMPORTANT : Réponds UNIQUEMENT en JSON valide, rien d'autre.`;
 
-// Hook d'animation au scroll
-const useScrollAnimation = (options = {}) => {
-  const elementRef = useRef(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          if (options.once !== false) {
-            observer.unobserve(element);
-          }
-        }
-      },
-      {
-        threshold: options.threshold || 0.05,
-        rootMargin: options.rootMargin || '50px'
-      }
-    );
-
-    observer.observe(element);
-
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
-  }, [options.threshold, options.rootMargin, options.once]);
-
-  return [elementRef, isVisible];
-};
 
 // Composant de Message - AMELIORE AVEC DETAILS N8N
 function MessageBubble({ message }) {
@@ -228,6 +198,7 @@ function AssistantChat({ contactInfo }) {
   const sendToAssistant = async (userMessage) => {
     try {
       const ctx = {
+        agent_name: "assistant_projet",
         page: "contact",
         ...contactInfo,
       };
@@ -317,6 +288,12 @@ function AssistantChat({ contactInfo }) {
             </div>
           )}
         </div>
+        {isLoading && (
+          <div className="mt-2 text-xs text-amber-100 flex items-center gap-2" role="status" aria-live="polite">
+            <span className="inline-flex h-2 w-2 rounded-full bg-amber-200 animate-pulse"></span>
+            Assistant en train d'ecrire...
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -347,10 +324,6 @@ function AssistantChat({ contactInfo }) {
             <div className="font-semibold mb-2">Résumé du projet</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div><span className="font-medium">Type projet :</span> {summary.typeProjet || "A préciser"}</div>
-              <div><span className="font-medium">Type bien :</span> {summary.typeBien || "A préciser"}</div>
-              <div><span className="font-medium">Surface :</span> {summary.surface || "A préciser"}</div>
-              <div><span className="font-medium">Budget :</span> {summary.budget || "A préciser"}</div>
-              <div><span className="font-medium">Délai :</span> {summary.delai || "A préciser"}</div>
               <div><span className="font-medium">Adresse :</span> {summary.adresse || "A préciser"}</div>
             </div>
             {summary.description && <div className="mt-2"><span className="font-medium">Description :</span> {summary.description}</div>}
@@ -429,6 +402,10 @@ function AssistantChat({ contactInfo }) {
 
 export default function Contact() {
   const [heroRef, heroVisible] = useScrollAnimation({ threshold: 0.05 });
+  const navigate = useNavigate();
+  const gridRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const stickyCardRef = useRef(null);
   
   const [formData, setFormData] = useState({
     nom: "",
@@ -436,44 +413,95 @@ export default function Contact() {
     telephone: "",
     adresse: "",
     typeProjet: "",
-    typeBien: "",
-    surface: "",
-    nombrePieces: "",
-    budget: "",
-    delai: "",
     description: "",
-    photos: [],
-    disponibilite: ""
+    photos: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
 
-  // SEO Meta Tags
-  useEffect(() => {
-    document.title = "Contact & Devis Gratuit - Artisan Rénovation Marseille | L'Atelier des Espaces";
-    
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute("content", "Contactez votre artisan multiservice pour un devis gratuit de rénovation et aménagement intérieur. Intervention rapide à Marseille, Aix-en-Provence, Aubagne, Allauch, La Ciotat. Disponible 7j/7j.");
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "description";
-      meta.content = "Contactez votre artisan multiservice pour un devis gratuit de rénovation et aménagement intérieur. Intervention rapide à Marseille, Aix-en-Provence, Aubagne, Allauch, La Ciotat. Disponible 7j/7j.";
-      document.head.appendChild(meta);
-    }
+  const seoKeywords = "contact artisan marseille, devis gratuit rénovation marseille, devis aménagement intérieur marseille, artisan rapide marseille, devis travaux marseille, contact rénovation marseille, demande devis marseille, artisan disponible marseille, devis cuisine marseille, devis salle de bain marseille";
 
-    const metaKeywords = document.querySelector('meta[name="keywords"]');
-    const keywords = "contact artisan marseille, devis gratuit rénovation marseille, devis aménagement intérieur marseille, artisan rapide marseille, devis travaux marseille, contact rénovation marseille, demande devis marseille, artisan disponible marseille, devis cuisine marseille, devis salle de bain marseille";
-    if (metaKeywords) {
-      metaKeywords.setAttribute("content", keywords);
-    } else {
-      const meta = document.createElement('meta');
-      meta.name = "keywords";
-      meta.content = keywords;
-      document.head.appendChild(meta);
-    }
+  useSEO({
+    title: "Contact & Devis Gratuit - Artisan Rénovation Marseille | L'Atelier des Espaces",
+    description: "Contactez votre artisan multiservice pour un devis gratuit de rénovation et aménagement intérieur. Intervention rapide à Marseille, Aix-en-Provence, Aubagne, Allauch, La Ciotat. Disponible 7j/7j.",
+    keywords: seoKeywords
+  });
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    const sidebar = sidebarRef.current;
+    const card = stickyCardRef.current;
+    if (!grid || !sidebar || !card) return;
+
+    let frame = null;
+
+    const resetStyles = () => {
+      card.style.position = "";
+      card.style.top = "";
+      card.style.bottom = "";
+      card.style.left = "";
+      card.style.width = "";
+      card.style.zIndex = "";
+      sidebar.style.minHeight = "";
+    };
+
+    const updatePosition = () => {
+      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+      if (!isDesktop) {
+        resetStyles();
+        return;
+      }
+
+      const scrollY = window.scrollY;
+      const header = document.querySelector("nav");
+      const headerOffset = header ? Math.round(header.getBoundingClientRect().height + 16) : 96;
+      const gridRect = grid.getBoundingClientRect();
+      const gridTop = gridRect.top + scrollY;
+      const gridBottom = gridTop + grid.offsetHeight;
+      const sidebarRect = sidebar.getBoundingClientRect();
+      const cardHeight = card.offsetHeight;
+      const maxScroll = gridBottom - cardHeight - headerOffset;
+
+      sidebar.style.minHeight = `${cardHeight}px`;
+
+      if (scrollY < gridTop - headerOffset) {
+        resetStyles();
+        return;
+      }
+
+      if (scrollY >= maxScroll) {
+        card.style.position = "absolute";
+        card.style.top = "auto";
+        card.style.bottom = "0px";
+        card.style.left = "0px";
+        card.style.width = "100%";
+        return;
+      }
+
+      card.style.position = "fixed";
+      card.style.top = `${headerOffset}px`;
+      card.style.left = `${sidebarRect.left}px`;
+      card.style.width = `${sidebarRect.width}px`;
+      card.style.bottom = "auto";
+      card.style.zIndex = "40";
+    };
+
+    const onScroll = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updatePosition);
+    };
+
+    updatePosition();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      resetStyles();
+    };
   }, []);
 
   const handlePhotoUpload = async (e) => {
@@ -485,7 +513,7 @@ export default function Contact() {
 
     try {
       const uploadPromises = files.map(file => 
-        base44.integrations.Core.UploadFile({ file })
+        api.integrations.Core.UploadFile({ file })
       );
       
       const results = await Promise.all(uploadPromises);
@@ -520,7 +548,7 @@ export default function Contact() {
            ${formData.photos.map((url, index) => `<p><a href="${url}">Photo ${index + 1}</a></p>`).join('')}`
         : '';
 
-      await base44.integrations.Core.SendEmail({
+      await api.integrations.Core.SendEmail({
         to: "thomasromeo.bonnardel@gmail.com",
         subject: `Demande détaillée - ${formData.typeProjet} - ${formData.nom}`,
         body: `
@@ -536,11 +564,6 @@ export default function Contact() {
           
           <h3>Détails du projet :</h3>
           <p><strong>Type de projet :</strong> ${formData.typeProjet}</p>
-          <p><strong>Type de bien :</strong> ${formData.typeBien}</p>
-          <p><strong>Surface approximative :</strong> ${formData.surface}</p>
-          <p><strong>Nombre de pièces concernées :</strong> ${formData.nombrePieces}</p>
-          <p><strong>Budget approximatif :</strong> ${formData.budget}</p>
-          <p><strong>Délai souhaité :</strong> ${formData.delai}</p>
           
           <hr>
           
@@ -549,33 +572,26 @@ export default function Contact() {
           
           <hr>
           
-          <h3>Disponibilité pour visite :</h3>
-          <p>${formData.disponibilite.replace(/\n/g, '<br>')}</p>
-          
-          <hr>
-          
           ${photosSection}
-        `
+        `,
+        replyTo: formData.email || undefined
       });
       
-      setIsSuccess(true);
+      const confirmationPayload = {
+        nom: formData.nom,
+        typeProjet: formData.typeProjet
+      };
+
       setFormData({
         nom: "",
         email: "",
         telephone: "",
         adresse: "",
         typeProjet: "",
-        typeBien: "",
-        surface: "",
-        nombrePieces: "",
-        budget: "",
-        delai: "",
         description: "",
-        photos: [],
-        disponibilite: ""
+        photos: []
       });
-
-      setTimeout(() => setIsSuccess(false), 5000);
+      navigate(createPageUrl("Confirmation"), { state: confirmationPayload });
     } catch (err) {
       console.error("Failed to send email:", err);
       setError("Une erreur s'est produite lors de l'envoi du message. Veuillez réessayer.");
@@ -598,7 +614,7 @@ export default function Contact() {
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Hero Section - UNIFORMISÉ ET AFFINÉ */}
-      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20">
+      <section ref={heroRef} className="relative min-h-[60vh] -mt-12 md:-mt-16 flex items-center justify-center overflow-hidden bg-gradient-to-br from-stone-950 via-stone-900 to-amber-900 pt-16 md:pt-20 pb-24 md:pb-28">
         <div className="absolute -top-24 left-0 right-0 h-[140%] bg-gradient-to-b from-stone-950 via-stone-900/80 to-stone-900/0 pointer-events-none" />
         {/* Grille subtile */}
         <div className="absolute inset-0 opacity-[0.03]">
@@ -618,14 +634,17 @@ export default function Contact() {
           heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
         }`}>
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full mb-6">
+          <Badge className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-100 border border-amber-200/30 rounded-full mb-6">
             <MessageSquare className="w-4 h-4 text-amber-300" />
             <span className="text-sm font-medium text-white">Contact</span>
-          </div>
+          </Badge>
 
           {/* Titre */}
           <h1 className="text-4xl md:text-6xl font-bold mb-5 text-white">
-            Parlons de Votre Projet
+            <span className="block text-white">Parlons de Votre</span>
+            <span className="block bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
+              Projet
+            </span>
           </h1>
 
           {/* Sous-titre */}
@@ -633,34 +652,64 @@ export default function Contact() {
             Devis gratuit et sans engagement pour tous vos projets<br />
             de rénovation et d'aménagement intérieur
           </p>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {[
+              "Devis gratuit",
+              "Reponse rapide",
+              "7j/7j",
+            ].map((item) => (
+              <Badge key={item} className="bg-white/10 text-amber-100 border border-amber-200/30 text-xs px-3 py-1">
+                {item}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        {/* Transition vague animée */}
+        <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
+          <div className="wave-container relative h-[70px] md:h-[110px]">
+            <svg className="wave-svg wave-1 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,40 C240,100 480,0 720,40 C960,80 1200,20 1440,60 C1680,100 1920,0 2160,40 C2400,80 2640,20 2880,60 L2880,120 L0,120 Z" fill="rgba(250,250,249,0.25)" />
+            </svg>
+            <svg className="wave-svg wave-2 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,60 C180,20 360,80 540,50 C720,20 900,90 1080,60 C1260,30 1440,80 1620,50 C1800,20 1980,90 2160,60 C2340,30 2520,80 2700,50 L2880,120 L0,120 Z" fill="rgba(250,250,249,0.5)" />
+            </svg>
+            <svg className="wave-svg wave-3 absolute bottom-0 left-0 w-[200%] h-full" viewBox="0 0 1440 120" preserveAspectRatio="none">
+              <path d="M0,80 C120,100 240,60 360,80 C480,100 600,60 720,80 C840,100 960,60 1080,80 C1200,100 1320,60 1440,80 C1560,100 1680,60 1800,80 C1920,100 2040,60 2160,80 C2280,100 2400,60 2520,80 C2640,100 2760,60 2880,80 L2880,120 L0,120 Z" fill="#fafaf9" />
+            </svg>
+          </div>
         </div>
       </section>
 
       {/* Contact Section avec Tabs */}
       <section className="py-16 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-4 gap-8 md:gap-12">
+          <div ref={gridRef} className="grid lg:grid-cols-5 gap-8 md:gap-12">
             {/* Contact Info Sidebar - SIDEBAR TRANSLUCIDE */}
-            <div className="lg:col-span-1 space-y-6">
-              <Card className="border-none shadow-xl bg-gradient-to-br from-amber-900/95 to-amber-800/95 backdrop-blur-sm text-white sticky top-24">
-                <CardContent className="p-4 md:p-6">
-                  <h3 className="text-lg md:text-xl font-bold mb-4">Contact</h3>
+            <div ref={sidebarRef} className="lg:col-span-2 space-y-6 relative">
+              <Card
+                ref={stickyCardRef}
+                className="border-none shadow-2xl bg-gradient-to-br from-amber-900/95 to-amber-800/95 backdrop-blur-sm text-white rounded-2xl"
+              >
+                <CardContent className="p-6 md:p-8">
+                  <h3 className="text-xl md:text-2xl font-bold mb-5">Contact</h3>
                   <div className="space-y-3">
                     {infos.map((info, index) => (
                       <div key={index} className="flex items-start gap-2">
-                        <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
-                          <info.icon className="w-4 h-4" />
+                        <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
+                          <info.icon className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-semibold text-amber-100 text-xs mb-0.5">{info.label}</div>
-                          <div className="text-xs break-words">{info.value}</div>
+                          <div className="font-semibold text-amber-100 text-sm mb-0.5">{info.label}</div>
+                          <div className="text-sm break-words">{info.value}</div>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   <div className="mt-6 pt-4 border-t border-white/20">
-                    <ul className="space-y-1.5 text-xs">
+                    <ul className="space-y-2 text-sm">
                       {[
                         "Devis gratuit",
                         "Réponse rapide",
@@ -668,7 +717,7 @@ export default function Contact() {
                         "Conseil personnalisé"
                       ].map((item, index) => (
                         <li key={index} className="flex items-center gap-2">
-                          <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+                          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                           <span>{item}</span>
                         </li>
                       ))}
@@ -704,15 +753,6 @@ export default function Contact() {
                       </p>
                     </CardHeader>
                     <CardContent className="p-6 md:p-8">
-                      {isSuccess && (
-                        <Alert className="mb-6 bg-green-50 border-green-500">
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
-                          <AlertDescription className="text-green-800">
-                            Votre message a été envoyé ! Je vous répondrai rapidement.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-
                       {error && (
                         <Alert className="mb-6 bg-red-50 border-red-500">
                           <AlertDescription className="text-red-800">
@@ -818,49 +858,6 @@ export default function Contact() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div>
-                              <Label className="text-stone-700 font-medium mb-2 block">
-                                Type de bien *
-                              </Label>
-                              <Select value={formData.typeBien} onValueChange={(value) => handleChange("typeBien", value)} required>
-                                <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Sélectionnez" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Appartement">Appartement</SelectItem>
-                                  <SelectItem value="Maison">Maison</SelectItem>
-                                  <SelectItem value="Local commercial">Local commercial</SelectItem>
-                                  <SelectItem value="Bureau">Bureau</SelectItem>
-                                  <SelectItem value="Autre">Autre</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label htmlFor="surface" className="text-stone-700 font-medium mb-2 block">
-                                Surface approximative *
-                              </Label>
-                              <Input
-                                id="surface"
-                                value={formData.surface}
-                                onChange={(e) => handleChange("surface", e.target.value)}
-                                required
-                                placeholder="Ex: 60 m²"
-                                className="h-11"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="nombrePieces" className="text-stone-700 font-medium mb-2 block">
-                                Nombre de pièces *
-                              </Label>
-                              <Input
-                                id="nombrePieces"
-                                value={formData.nombrePieces}
-                                onChange={(e) => handleChange("nombrePieces", e.target.value)}
-                                required
-                                placeholder="Ex: 3 pièces"
-                                className="h-11"
-                              />
-                            </div>
                           </div>
                         </div>
 
@@ -870,55 +867,6 @@ export default function Contact() {
                           <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
                               3
-                            </div>
-                            <h3 className="text-xl font-bold text-stone-800">Budget et délai</h3>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-0 md:pl-13">
-                            <div>
-                              <Label className="text-stone-700 font-medium mb-2 block">
-                                Budget approximatif
-                              </Label>
-                              <Select value={formData.budget} onValueChange={(value) => handleChange("budget", value)}>
-                                <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Sélectionnez" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Moins de 1 000€">Moins de 1 000€</SelectItem>
-                                  <SelectItem value="1 000€ - 5 000€">1 000€ - 5 000€</SelectItem>
-                                  <SelectItem value="5 000€ - 10 000€">5 000€ - 10 000€</SelectItem>
-                                  <SelectItem value="10 000€ - 20 000€">10 000€ - 20 000€</SelectItem>
-                                  <SelectItem value="20 000€ - 50 000€">20 000€ - 50 000€</SelectItem>
-                                  <SelectItem value="Plus de 50 000€">Plus de 50 000€</SelectItem>
-                                  <SelectItem value="À définir">À définir</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label className="text-stone-700 font-medium mb-2 block">
-                                Délai souhaité
-                              </Label>
-                              <Select value={formData.delai} onValueChange={(value) => handleChange("delai", value)}>
-                                <SelectTrigger className="h-11">
-                                  <SelectValue placeholder="Sélectionnez" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Urgent (moins de 1 mois)">Urgent (moins de 1 mois)</SelectItem>
-                                  <SelectItem value="1 à 3 mois">1 à 3 mois</SelectItem>
-                                  <SelectItem value="3 à 6 mois">3 à 6 mois</SelectItem>
-                                  <SelectItem value="Plus de 6 mois">Plus de 6 mois</SelectItem>
-                                  <SelectItem value="Flexible">Flexible</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-stone-200"></div>
-
-                        <div>
-                          <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              4
                             </div>
                             <h3 className="text-xl font-bold text-stone-800">Description détaillée</h3>
                           </div>
@@ -937,19 +885,6 @@ export default function Contact() {
                                 placeholder="Décrivez vos travaux envisagés, vos attentes, contraintes particulières..."
                               />
                             </div>
-                            <div>
-                              <Label htmlFor="disponibilite" className="text-stone-700 font-medium mb-2 block">
-                                Vos disponibilités pour une visite
-                              </Label>
-                              <Textarea
-                                id="disponibilite"
-                                value={formData.disponibilite}
-                                onChange={(e) => handleChange("disponibilite", e.target.value)}
-                                rows={3}
-                                className="resize-none"
-                                placeholder="Ex: Disponible en semaine après 18h, ou le samedi matin"
-                              />
-                            </div>
                           </div>
                         </div>
 
@@ -958,7 +893,7 @@ export default function Contact() {
                         <div>
                           <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 bg-amber-700 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                              5
+                              4
                             </div>
                             <h3 className="text-xl font-bold text-stone-800">Photos (optionnel)</h3>
                           </div>
@@ -1062,10 +997,7 @@ export default function Contact() {
                         telephone: formData.telephone,
                         adresse: formData.adresse,
                         typeProjet: formData.typeProjet,
-                        typeBien: formData.typeBien,
-                        surface: formData.surface,
-                        budget: formData.budget,
-                        delai: formData.delai,
+                        description: formData.description,
                       }} />
                       
                       <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
@@ -1082,6 +1014,34 @@ export default function Contact() {
           </div>
         </div>
       </section>
+
+      <style jsx>{`
+        .wave-svg {
+          will-change: transform;
+        }
+        .wave-1 {
+          animation: waveSlide1 12s linear infinite;
+        }
+        .wave-2 {
+          animation: waveSlide2 8s linear infinite;
+        }
+        .wave-3 {
+          animation: waveSlide3 6s linear infinite;
+        }
+        @keyframes waveSlide1 {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes waveSlide2 {
+          0% { transform: translateX(-50%); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes waveSlide3 {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   );
 }
+

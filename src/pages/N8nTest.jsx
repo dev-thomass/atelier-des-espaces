@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const N8N_WEBHOOK_URL = "https://atelierdesespaces.app.n8n.cloud/webhook/741d744
 
 // Informations API Base44
 const APP_ID = "6901ebfc5e146f4dd7ae429a";
-const API_BASE_URL = "https://api.base44.com/v1";
+const API_BASE_URL = "https://api.api.com/v1";
 
 // Function to create page URLs (placeholder, adjust based on actual routing setup)
 // This function needs to be adapted to your project's specific routing implementation.
@@ -51,7 +51,7 @@ async function sendToN8n(data) {
       },
       body: JSON.stringify({
         timestamp: new Date().toISOString(),
-        source: 'base44_app',
+        source: 'api_app',
         ...data
       })
     });
@@ -313,7 +313,7 @@ export default function N8nTest() {
                 <Alert>
                   <AlertDescription>
                     <ol className="space-y-2 text-sm">
-                      <li>1️⃣ Va sur : <code className="bg-stone-100 px-2 py-1 rounded">https://base44.com/apps/{APP_ID}/settings</code></li>
+                      <li>1️⃣ Va sur : <code className="bg-stone-100 px-2 py-1 rounded">https://api.com/apps/{APP_ID}/settings</code></li>
                       <li>2️⃣ Cherche la section <strong>"API Tokens"</strong> ou <strong>"Developer"</strong></li>
                       <li>3️⃣ Clique sur <strong>"Create New Token"</strong></li>
                       <li>4️⃣ Nom du token : <code className="bg-stone-100 px-2 py-1 rounded">n8n Integration</code></li>
@@ -328,7 +328,7 @@ export default function N8nTest() {
                     📋 Format du token :
                   </p>
                   <code className="text-xs bg-white p-2 rounded block">
-                    base44_1234567890abcdefghijklmnopqrstuvwxyz
+                    api_1234567890abcdefghijklmnopqrstuvwxyz
                   </code>
                 </div>
               </CardContent>
@@ -631,7 +631,7 @@ export default function N8nTest() {
                     <pre className="bg-stone-900 text-green-400 p-3 rounded-lg text-xs overflow-auto">
                       {`{
   "timestamp": "2025-01-06T10:30:00Z",
-  "source": "base44_app",
+  "source": "api_app",
   "event": "chantier_created",
   "payload": {
     "id": "123",
@@ -718,3 +718,4 @@ export default function N8nTest() {
     </div>
   );
 }
+
