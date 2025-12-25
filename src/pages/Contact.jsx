@@ -210,11 +210,29 @@ function AssistantChat({ contactInfo }) {
         systemPrompt: SYSTEM_PROMPT,
       });
 
+      const nextConversationId = result.conversationId || conversationId;
       if (!conversationId && result.conversationId) {
         setConversationId(result.conversationId);
       }
       if (result.summary) {
         setSummary(result.summary);
+        if (nextConversationId) {
+          try {
+            await api.leads.createPublic({
+              source: "assistant",
+              conversation_id: nextConversationId,
+              name: result.summary?.coordonnees?.nom || contactInfo?.nom || null,
+              email: result.summary?.coordonnees?.email || contactInfo?.email || null,
+              phone: result.summary?.coordonnees?.telephone || contactInfo?.telephone || null,
+              address: result.summary?.adresse || contactInfo?.adresse || null,
+              project_type: result.summary?.typeProjet || contactInfo?.typeProjet || result.summary?.typeBien || null,
+              description: result.summary?.description || contactInfo?.description || null,
+              summary: result.summary,
+            });
+          } catch (error) {
+            console.error("Erreur sauvegarde formulaire assistant:", error);
+          }
+        }
       }
 
       return {
@@ -543,6 +561,21 @@ export default function Contact() {
     setError(null);
     
     try {
+      try {
+        await api.leads.createPublic({
+          source: "form",
+          nom: formData.nom,
+          email: formData.email,
+          telephone: formData.telephone,
+          adresse: formData.adresse,
+          typeProjet: formData.typeProjet,
+          description: formData.description,
+          photos: formData.photos,
+        });
+      } catch (leadError) {
+        console.error("Erreur sauvegarde formulaire:", leadError);
+      }
+
       const photosSection = formData.photos.length > 0 
         ? `<h3>Photos jointes (${formData.photos.length}) :</h3>
            ${formData.photos.map((url, index) => `<p><a href="${url}">Photo ${index + 1}</a></p>`).join('')}`

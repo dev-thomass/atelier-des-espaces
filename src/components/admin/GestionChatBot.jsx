@@ -6,8 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Send, Loader2, Sparkles, Mic, MicOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function GestionChatBot() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -16,6 +19,8 @@ export default function GestionChatBot() {
   const endRef = useRef(null); // This ref is still present but its effect is removed
   const recognitionRef = useRef(null);
   const queryClient = useQueryClient();
+  const headerGradient = "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-300))";
+  const actionGradient = "linear-gradient(135deg, var(--color-accent-warm-300), var(--color-accent-warm-500))";
 
   // SCROLL AUTOMATIQUE RETIRÉ - l'utilisateur peut défiler manuellement
   // The useEffect for scrolling was here and has been removed as per instructions.
@@ -116,18 +121,21 @@ export default function GestionChatBot() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110"
-        style={{ background: 'linear-gradient(135deg, #FFE0B2, #FFCC80)' }}
+        style={{ background: actionGradient }}
       >
-        <Sparkles className="w-6 h-6 text-orange-900" />
+        <Sparkles className="w-6 h-6" style={{ color: "var(--color-warning-text)" }} />
       </button>
     );
   }
 
   return (
-    <Card className="fixed bottom-6 right-6 z-50 w-96 shadow-2xl border-2 border-orange-300">
-      <CardHeader className="p-4 border-b" style={{ background: 'linear-gradient(135deg, #FFE0B2, #FFCC80)' }}>
+    <Card
+      className="fixed bottom-6 right-6 z-50 w-96 shadow-2xl border-2 border-orange-300"
+      style={isDark ? { borderColor: "var(--color-border-medium)" } : undefined}
+    >
+      <CardHeader className="p-4 border-b" style={{ background: headerGradient }}>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base text-orange-900 flex items-center gap-2">
+          <CardTitle className="text-base flex items-center gap-2" style={{ color: "var(--color-warning-text)" }}>
             <Sparkles className="w-5 h-5" />
             Assistant Gestion
           </CardTitle>
@@ -138,21 +146,38 @@ export default function GestionChatBot() {
       </CardHeader>
       
       <CardContent className="p-0">
-        <div className="h-96 overflow-y-auto p-4 bg-orange-50/30">
+        <div
+          className="h-96 overflow-y-auto p-4 bg-orange-50/30"
+          style={isDark ? { backgroundColor: "var(--color-bg-surface-hover)" } : undefined}
+        >
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-2 mb-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-xl px-3 py-2 ${
-                msg.role === 'user' 
-                  ? 'bg-orange-600 text-white' 
-                  : 'bg-white border-2 border-orange-200'
-              }`}>
+              <div
+                className={`max-w-[80%] rounded-xl px-3 py-2 ${
+                  msg.role === 'user' 
+                    ? 'bg-orange-600 text-white' 
+                    : 'bg-white border-2 border-orange-200'
+                }`}
+                style={msg.role === "user" || !isDark ? undefined : {
+                  backgroundColor: "var(--color-bg-surface)",
+                  borderColor: "var(--color-border-medium)",
+                  color: "var(--color-text-primary)",
+                }}
+              >
                 <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
               </div>
             </div>
           ))}
           {loading && (
             <div className="flex gap-2 mb-3">
-              <div className="bg-white border-2 border-orange-200 rounded-xl px-3 py-2">
+              <div
+                className="bg-white border-2 border-orange-200 rounded-xl px-3 py-2"
+                style={!isDark ? undefined : {
+                  backgroundColor: "var(--color-bg-surface)",
+                  borderColor: "var(--color-border-medium)",
+                  color: "var(--color-text-primary)",
+                }}
+              >
                 <div className="flex gap-1">
                   <div className="w-2 h-2 bg-orange-600 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-orange-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -164,7 +189,10 @@ export default function GestionChatBot() {
           <div ref={endRef} />
         </div>
 
-        <div className="p-3 border-t-2 border-orange-200 bg-white">
+        <div
+          className="p-3 border-t-2 border-orange-200 bg-white"
+          style={isDark ? { backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" } : undefined}
+        >
           <div className="flex gap-2">
             <Textarea
               value={input}
@@ -191,7 +219,7 @@ export default function GestionChatBot() {
               <Button
                 onClick={send}
                 disabled={!input.trim() || loading}
-                style={{ background: 'linear-gradient(135deg, #FFCC80, #FFB74D)' }}
+                style={{ background: actionGradient }}
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>

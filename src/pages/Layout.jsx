@@ -4,12 +4,14 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Home, User, Mail, Phone, MapPin, Briefcase, Box, Menu, X, Shield, ArrowLeft, Globe, LayoutDashboard, Calendar, Wrench, Zap } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 const ASSET_BASE_URL = import.meta.env.BASE_URL || "/";
 
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const { theme } = useTheme();
   
   // DETECTION TRES AGRESSIVE DES PAGES ADMIN
   const path = location.pathname.toLowerCase();
@@ -36,7 +38,7 @@ export default function Layout({ children, currentPageName }) {
   // SI ADMIN : PAS DE HEADER, JUSTE LE CONTENU + FOOTER MINIMAL
   if (isAdmin) {
     return (
-      <div className="admin-theme min-h-screen flex flex-col">
+      <div className={`admin-theme min-h-screen flex flex-col ${theme === "dark" ? "dark admin-surface" : ""}`}>
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[60] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-white focus:text-stone-900 focus:shadow-lg"

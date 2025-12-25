@@ -65,9 +65,11 @@ import ListesChatBot from "../components/admin/ListesChatBot";
 import GestionChatBot from "../components/admin/GestionChatBot";
 import { AdminHero } from "../components/admin/AdminHero";
 import { useTheme } from "@/context/ThemeContext";
+import { sendAssistantMessage } from "@/api/assistantClient";
 
 export default function Gestion() {
   const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [activeSection, setActiveSection] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -264,17 +266,36 @@ export default function Gestion() {
     >
       <GestionChatBot />
 
-      <aside
+        <aside
         className={`fixed lg:sticky top-0 left-0 h-screen admin-sidebar transition-all duration-300 z-50 shadow-lg ${sidebarOpen ? "w-64" : "w-0"} overflow-hidden`}
         style={{ borderRight: `1px solid var(--color-border-light)` }}
       >
         <div className="flex flex-col h-full w-64">
-          <div className="px-4 sm:px-6 py-5 border-b flex-shrink-0" style={{ borderColor: "var(--color-border-light)" }}>
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 flex-shrink-0" color="var(--color-badge-primary-text)" />
+          <div
+            className="px-4 sm:px-6 py-5 border-b flex-shrink-0 relative overflow-hidden"
+            style={{
+              borderColor: "var(--color-border-light)",
+              backgroundColor: "var(--color-bg-sidebar)",
+            }}
+          >
+            <div className="relative flex items-center gap-2">
+              <Shield
+                className="w-5 h-5 flex-shrink-0"
+                style={{ color: isDark ? "var(--color-text-primary)" : "var(--color-text-inverse)" }}
+              />
               <div className="min-w-0 flex-1">
-                <h2 className="font-semibold truncate" style={{ color: "var(--color-text-inverse)" }}>Administration</h2>
-                <p className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>{user?.full_name || user?.email || "Admin"}</p>
+                <h2
+                  className="font-semibold truncate"
+                  style={{ color: isDark ? "var(--color-text-primary)" : "var(--color-text-inverse)" }}
+                >
+                  Administration
+                </h2>
+                <p
+                  className="text-xs truncate"
+                  style={{ color: isDark ? "var(--color-text-tertiary)" : "var(--color-text-muted)" }}
+                >
+                  {user?.full_name || user?.email || "Admin"}
+                </p>
               </div>
             </div>
           </div>
@@ -298,13 +319,13 @@ export default function Gestion() {
                   <button
                     key={item.id}
                     onClick={() => handleNavigation(item.id)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-white/5"
                     style={
                       isActive
                         ? {
                             backgroundColor: "var(--color-nav-item-bg-active)",
                             color: "var(--color-nav-item-text-active)",
-                            boxShadow: "var(--shadow-md)",
+                            boxShadow: "var(--shadow-md), inset 3px 0 0 var(--color-accent-warm-500)",
                           }
                         : {
                             color: "var(--color-nav-item-text)",
@@ -344,7 +365,7 @@ export default function Gestion() {
           backgroundColor: "var(--color-bg-sidebar)",
           borderColor: "var(--color-bg-sidebar-hover)",
           boxShadow: "var(--shadow-sm)",
-          color: "var(--color-text-inverse)",
+          color: isDark ? "var(--color-text-primary)" : "var(--color-text-inverse)",
         }}
       >
         <div className="px-4 sm:px-6 py-4">
@@ -355,16 +376,22 @@ export default function Gestion() {
                 size="icon"
                 className="flex-shrink-0 btn-ghost"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                style={{ color: "var(--color-text-inverse)" }}
+                style={{ color: isDark ? "var(--color-text-primary)" : "var(--color-text-inverse)" }}
               >
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>
 
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg sm:text-xl font-semibold truncate" style={{ color: "var(--color-text-inverse)" }}>
+                <h1
+                  className="text-lg sm:text-xl font-semibold truncate"
+                  style={{ color: isDark ? "var(--color-text-primary)" : "var(--color-text-inverse)" }}
+                >
                   {navigation.find((n) => n.id === activeSection)?.label || "Tableau de bord"}
                 </h1>
-                <p className="text-xs sm:text-sm hidden sm:block" style={{ color: "var(--color-text-muted)" }}>
+                <p
+                  className="text-xs sm:text-sm hidden sm:block"
+                  style={{ color: isDark ? "var(--color-text-tertiary)" : "var(--color-text-muted)" }}
+                >
                   {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
                 </p>
               </div>
@@ -449,6 +476,8 @@ function QuickAccessLinks({ activeSection, onNavigate }) {
 }
 
 function DashboardContent({ stats, setActiveSection }) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   const { data: items = [] } = useQuery({
@@ -497,10 +526,10 @@ function DashboardContent({ stats, setActiveSection }) {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="w-full" style={{ height: '500px', backgroundColor: "var(--color-bg-surface)" }}>
+            <div className="w-full" style={{ height: '500px', backgroundColor: isDark ? "var(--color-bg-surface)" : "#ffffff" }}>
               <iframe
                 src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&mode=AGENDA"
-                style={{ border: 0 }}
+                style={{ border: 0, filter: isDark ? "invert(0.92) hue-rotate(180deg)" : "none" }}
                 width="100%"
                 height="100%"
                 frameBorder="0"
@@ -1067,6 +1096,8 @@ function AssistantClientContent() {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
+  const [leads, setLeads] = useState([]);
+  const [loadingLeads, setLoadingLeads] = useState(true);
   const [showSummary, setShowSummary] = useState(false);
   const [summary, setSummary] = useState(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
@@ -1099,6 +1130,21 @@ function AssistantClientContent() {
       }
     };
     loadConversations();
+  }, []);
+
+  useEffect(() => {
+    const loadLeads = async () => {
+      try {
+        setLoadingLeads(true);
+        const data = await api.leads.list(200);
+        setLeads(data || []);
+      } catch (error) {
+        console.error("Error loading leads:", error);
+      } finally {
+        setLoadingLeads(false);
+      }
+    };
+    loadLeads();
   }, []);
 
   useEffect(() => {
@@ -1300,27 +1346,195 @@ function AssistantClientContent() {
           )}
         </Card>
       </div>
+
+      <Card className="border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
+        <CardHeader className="border-b p-4" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
+          <CardTitle className="text-base flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
+            <FileText className="w-5 h-5" />Demandes formulaire ({leads.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4" style={{ backgroundColor: "var(--color-bg-surface)" }}>
+          {loadingLeads ? (
+            <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 text-orange-600 animate-spin" /></div>
+          ) : leads.length === 0 ? (
+            <div className="text-center py-8 text-stone-500">
+              <FileText className="w-12 h-12 mx-auto mb-3 text-stone-300" />
+              <p className="text-sm">Aucune demande</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {leads.map((lead) => {
+                const sourceLabel = lead.source === "assistant" ? "Assistant IA" : "Formulaire";
+                const createdLabel = lead.created_at
+                  ? new Date(lead.created_at).toLocaleDateString("fr-FR")
+                  : "";
+                return (
+                  <div
+                    key={lead.id}
+                    className="rounded-lg border p-4"
+                    style={{
+                      borderColor: "var(--color-border-light)",
+                      backgroundColor: "var(--color-bg-surface)",
+                    }}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate" style={{ color: "var(--color-text-primary)" }}>
+                          {lead.name || lead.email || "Sans nom"}
+                        </p>
+                        <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                          {lead.project_type || "Type a preciser"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          className="badge-secondary"
+                          style={{
+                            backgroundColor: "var(--color-accent-warm-100)",
+                            color: "var(--color-primary-600)",
+                          }}
+                        >
+                          {sourceLabel}
+                        </Badge>
+                        {createdLabel && (
+                          <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                            {createdLabel}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                      {lead.email && <span>{lead.email}</span>}
+                      {lead.email && lead.phone && <span> • </span>}
+                      {lead.phone && <span>{lead.phone}</span>}
+                    </div>
+                    {lead.description && (
+                      <p className="mt-2 text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                        {lead.description}
+                      </p>
+                    )}
+                    {Array.isArray(lead.photos) && lead.photos.length > 0 && (
+                      <p className="mt-2 text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                        Photos: {lead.photos.length}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+const PERSONAL_ASSISTANT_PROMPT = `Tu es l'assistant personnel interne de L'Atelier des Espaces.
+
+Ta mission: aider le gerant a piloter l'activite (planning, chantiers, taches, achats, relances, devis, suivi).
+
+Regles:
+- Pose une seule question a la fois si besoin de precision.
+- Donne des conseils clairs et actionnables.
+- Ne collecte pas de donnees sensibles inutiles.
+- Si une action ne peut pas etre executee ici, explique et propose des etapes manuelles.
+
+Format de reponse OBLIGATOIRE (JSON uniquement):
+{
+  "message": "ta reponse",
+  "summary": null
+}
+
+Reponds uniquement en JSON valide.`;
+
+const ASSISTANT_PERSONNEL_CONVERSATION_KEY = "assistant_personnel_conversation_id";
+const ASSISTANT_PERSONNEL_PROMPT_KEY = "assistant_personnel_system_prompt";
 
 function AssistantContent() {
   const { theme } = useTheme();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(ASSISTANT_PERSONNEL_CONVERSATION_KEY);
+  });
+  const [systemPrompt, setSystemPrompt] = useState(() => {
+    if (typeof window === "undefined") return PERSONAL_ASSISTANT_PROMPT;
+    const saved = localStorage.getItem(ASSISTANT_PERSONNEL_PROMPT_KEY);
+    return saved && saved.trim() ? saved : PERSONAL_ASSISTANT_PROMPT;
+  });
+  const [promptDraft, setPromptDraft] = useState(systemPrompt);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef(null);
-  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([{
         role: 'assistant',
-        content: "Salut Thomas \n\nJe suis ton assistant de gestion. Je peux t'aider a :\n\n Suivre l'etat de tes chantiers\n Gerer tes taches prioritaires\n Calculer tes charges URSSAF\n Organiser ton planning\n\nQu'est-ce que je peux faire pour toi ?",
+        content: "Salut Thomas \n\nJe suis ton assistant personnel. Je peux t'aider a :\n\n Suivre l'etat des chantiers\n Gerer les taches prioritaires\n Calculer les charges URSSAF\n Organiser le planning\n\nQu'est-ce que je peux faire pour toi ?",
         noAction: true
       }]);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (conversationId) {
+      localStorage.setItem(ASSISTANT_PERSONNEL_CONVERSATION_KEY, conversationId);
+    } else {
+      localStorage.removeItem(ASSISTANT_PERSONNEL_CONVERSATION_KEY);
+    }
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (systemPrompt && systemPrompt.trim()) {
+      localStorage.setItem(ASSISTANT_PERSONNEL_PROMPT_KEY, systemPrompt);
+    } else {
+      localStorage.removeItem(ASSISTANT_PERSONNEL_PROMPT_KEY);
+    }
+  }, [systemPrompt]);
+
+  useEffect(() => {
+    if (isSettingsOpen) {
+      setPromptDraft(systemPrompt);
+    }
+  }, [isSettingsOpen, systemPrompt]);
+
+  const sendToAssistant = async (userMessage) => {
+    const ctx = {
+      agent_name: "assistant_personnel",
+      page: "admin",
+    };
+
+    const result = await sendAssistantMessage({
+      message: userMessage,
+      conversationId,
+      context: ctx,
+      systemPrompt: systemPrompt && systemPrompt.trim() ? systemPrompt : PERSONAL_ASSISTANT_PROMPT,
+    });
+
+    if (!conversationId && result.conversationId) {
+      setConversationId(result.conversationId);
+    }
+
+    return {
+      message: result.reply || "Reponse indisponible",
+      actions: [],
+      noAction: true,
+    };
+  };
+
+  const handleSavePrompt = () => {
+    const nextPrompt = promptDraft.trim();
+    setSystemPrompt(nextPrompt ? nextPrompt : PERSONAL_ASSISTANT_PROMPT);
+    setIsSettingsOpen(false);
+  };
+
+  const handleResetPrompt = () => {
+    setPromptDraft(PERSONAL_ASSISTANT_PROMPT);
+  };
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -1330,20 +1544,13 @@ function AssistantContent() {
     setIsLoading(true);
 
     try {
-      const res = await api.functions.invoke('invokeAgent', { userMessage, context: "gestion" });
-      const msg = res.data?.message || res.data?.output || " Action effectuee";
-      const actions = res.data?.actions || [];
-      const hasRealActions = actions.some(a => a.type !== 'refresh' && a.status !== 'pending_frontend');
-
-      setMessages(prev => [...prev, { role: 'assistant', content: msg, actions, noAction: !hasRealActions }]);
-      
-      if (res.data?.actions) {
-        for (const act of res.data.actions) {
-          if (act.type === 'refresh') {
-            queryClient.invalidateQueries({ queryKey: [act.entity.toLowerCase() + 's'] });
-          }
-        }
-      }
+      const aiResponse = await sendToAssistant(userMessage);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: aiResponse.message,
+        actions: aiResponse.actions,
+        noAction: aiResponse.noAction,
+      }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'assistant', content: "Desole, une erreur s'est produite. Reessaye.", noAction: true }]);
     } finally {
@@ -1410,8 +1617,8 @@ function AssistantContent() {
         icon={Lightbulb}
         eyebrow="Assistant interne"
         title="Pilotage intelligent"
-        subtitle="Gestion des tâches, actions automatiques et suivi"
-        badges={["Automation", "Base44", "Actions live"]}
+        subtitle="Gestion des taches, suivi quotidien et conseils"
+        badges={["Conseils", "Organisation", "Suivi"]}
         gradient="linear-gradient(135deg, var(--color-accent-warm-500), var(--color-accent-warm-400))"
       />
 
@@ -1425,7 +1632,22 @@ function AssistantContent() {
                 : "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))",
           }}
         >
-          <CardTitle className="text-xl" style={{ color: "var(--color-text-primary)" }}>Assistant de Gestion</CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-xl" style={{ color: "var(--color-text-primary)" }}>Assistant personnel</CardTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setIsSettingsOpen(true)}
+              className="btn-tertiary"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Reglages
+            </Button>
+          </div>
+          <p className="text-xs mt-2" style={{ color: "var(--color-text-tertiary)" }}>
+            Message systeme: {systemPrompt === PERSONAL_ASSISTANT_PROMPT ? "par defaut" : "personnalise"}
+          </p>
         </CardHeader>
         <CardContent className="p-0">
           <div
@@ -1480,11 +1702,56 @@ function AssistantContent() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent
+          className="sm:max-w-[720px]"
+          style={{
+            backgroundColor: "var(--color-bg-surface)",
+            color: "var(--color-text-primary)",
+            borderColor: "var(--color-border-light)",
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Reglages assistant personnel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="assistant-personnel-system">Message systeme</Label>
+              <Textarea
+                id="assistant-personnel-system"
+                value={promptDraft}
+                onChange={(e) => setPromptDraft(e.target.value)}
+                rows={10}
+                className="text-sm"
+              />
+              <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                Garde le format JSON pour des reponses stables.
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <Button type="button" variant="ghost" className="btn-tertiary" onClick={handleResetPrompt}>
+                Revenir au prompt par defaut
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" className="btn-tertiary" onClick={() => setIsSettingsOpen(false)}>
+                  Annuler
+                </Button>
+                <Button type="button" className="btn-primary" onClick={handleSavePrompt}>
+                  Enregistrer
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function PlanningContent() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [calendarKey, setCalendarKey] = useState(0);
   const queryClient = useQueryClient();
 
@@ -1532,7 +1799,10 @@ function PlanningContent() {
       )}
 
       <Card className="border-blue-200 shadow-2xl">
-        <CardHeader className="border-b p-6 bg-gradient-to-r from-blue-50 to-blue-100">
+        <CardHeader
+          className="border-b p-6 bg-gradient-to-r from-blue-50 to-blue-100"
+          style={isDark ? { background: "var(--color-bg-surface)" } : undefined}
+        >
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg text-blue-900 flex items-center gap-2"><Calendar className="w-5 h-5" />Calendrier Principal</CardTitle>
             <Button size="sm" variant="outline" onClick={() => setCalendarKey(prev => prev + 1)} className="text-blue-600 border-blue-600 hover:bg-blue-50">
@@ -1541,10 +1811,23 @@ function PlanningContent() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="w-full bg-white" style={{ height: '800px' }}>
-            <iframe key={calendarKey} src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis" style={{ border: 0 }} width="100%" height="100%" frameBorder="0" scrolling="no" title="Google Calendar" className="w-full h-full" />
+          <div className="w-full" style={{ height: '800px', backgroundColor: isDark ? "var(--color-bg-surface)" : "#ffffff" }}>
+            <iframe
+              key={calendarKey}
+              src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis"
+              style={{ border: 0, filter: isDark ? "invert(0.92) hue-rotate(180deg)" : "none" }}
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              scrolling="no"
+              title="Google Calendar"
+              className="w-full h-full"
+            />
           </div>
-          <div className="p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-t border-blue-200">
+          <div
+            className="p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-t border-blue-200"
+            style={isDark ? { background: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" } : undefined}
+          >
             <p className="text-xs text-blue-800 text-center flex items-center justify-center gap-2"><Sparkles className="w-3 h-3" />Synchronise automatiquement avec Google Calendar</p>
           </div>
         </CardContent>
@@ -1554,6 +1837,8 @@ function PlanningContent() {
 }
 
 function ListesContent() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [newItem, setNewItem] = useState("");
   const [selectedCategorie, setSelectedCategorie] = useState("courses");
   const [expandedCategories, setExpandedCategories] = useState({ courses: true, materiaux: true, outils: true, a_retenir: true, autre: true });
@@ -1624,8 +1909,9 @@ function ListesContent() {
   };
 
   const groupedItems = items.reduce((acc, item) => {
-    if (!acc[item.categorie]) acc[item.categorie] = [];
-    acc[item.categorie].push(item);
+    const key = categories[item.categorie] ? item.categorie : "autre";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
     return acc;
   }, {});
 
@@ -1635,14 +1921,14 @@ function ListesContent() {
   const importantItems = items.filter(i => !i.fait && i.urgence === "importante");
 
   const getUrgenceIcon = (urgence) => {
-    if (urgence === "urgente") return "";
-    if (urgence === "importante") return "";
-    return "";
+    if (urgence === "urgente") return "!!!";
+    if (urgence === "importante") return "!!";
+    return "!";
   };
 
   return (
     <div className="space-y-4">
-      <ListesChatBot onItemCreated={handleItemCreatedByChatbot} />
+      <ListesChatBot onItemCreated={handleItemCreatedByChatbot} items={items} />
 
       <AdminHero
         icon={ListChecks}
@@ -1705,7 +1991,10 @@ function ListesContent() {
       {viewMode === "dashboard" && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {urgentItems.length > 0 && (
-            <Card className="md:col-span-2 lg:col-span-2 border-red-300 shadow-lg bg-gradient-to-br from-red-50 to-white">
+            <Card
+              className="md:col-span-2 lg:col-span-2 border-red-300 shadow-lg bg-gradient-to-br from-red-50 to-white"
+              style={isDark ? { background: "var(--color-bg-surface)" } : undefined}
+            >
               <CardHeader className="border-b bg-red-100/50 p-4">
                 <CardTitle className="text-red-900 flex items-center gap-2"> Urgent <Badge className="bg-red-600 text-white">{urgentItems.length}</Badge></CardTitle>
               </CardHeader>
@@ -1949,7 +2238,7 @@ function ThemeToggle() {
       className="btn-ghost"
       onClick={toggleTheme}
       title={isDark ? "Mode clair" : "Mode sombre"}
-      style={{ color: "var(--color-text-inverse)" }}
+      style={{ color: "var(--color-text-primary)" }}
     >
       {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
     </Button>

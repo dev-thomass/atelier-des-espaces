@@ -50,6 +50,141 @@ const getMySQLPool = () => {
   return mysqlPool;
 };
 
+const parseJsonField = (value, fallback) => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "object") return value;
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+const toIsoString = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return value.toISOString();
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return String(value);
+};
+
+const normalizeLeadPayload = (payload = {}) => {
+  const source = (payload.source || payload.origin || "form").toString();
+  const conversationId =
+    (payload.conversation_id || payload.conversationId || "").toString().trim() || null;
+  const summaryObj =
+    typeof payload.summary === "string"
+      ? parseJsonField(payload.summary, null)
+      : payload.summary || null;
+  const photosArray = Array.isArray(payload.photos)
+    ? payload.photos
+    : payload.photos
+    ? [payload.photos]
+    : [];
+
+  return {
+    id: (payload.id || conversationId || crypto.randomUUID()).toString(),
+    source,
+    name: payload.name || payload.nom || null,
+    email: payload.email || null,
+    phone: payload.phone || payload.telephone || null,
+    address: payload.address || payload.adresse || null,
+    project_type: payload.project_type || payload.typeProjet || payload.typeBien || null,
+    description: payload.description || null,
+    photos: photosArray,
+    summary: summaryObj,
+    conversation_id: conversationId,
+    status: payload.status || "new",
+  };
+};
+
+const parseLeadRow = (row) => ({
+  id: row.id,
+  source: row.source,
+  name: row.name,
+  email: row.email,
+  phone: row.phone,
+  address: row.address,
+  project_type: row.project_type,
+  description: row.description,
+  photos: parseJsonField(row.photos, []),
+  summary: parseJsonField(row.summary, null),
+  conversation_id: row.conversation_id,
+  status: row.status,
+  created_at: toIsoString(row.created_at),
+  updated_at: toIsoString(row.updated_at),
+});
+
+const loadChatRecord = async (cid) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return historyStore.get(cid) || null;
+  }
+  const [rows] = await pool.query(
+    "SELECT id, agent, summary, messages, created_at, updated_at FROM chat_conversations WHERE id = ?",
+    [cid]
+  );
+  if (!rows.length) return null;
+  const row = rows[0];
+  return {
+    messages: parseJsonField(row.messages, []),
+    summary: parseJsonField(row.summary, null),
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+    agent: row.agent || null,
+  };
+};
+
+const listChatRecords = async () => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return Array.from(historyStore.entries()).map(([id, record]) => ({
+      id,
+      conversationId: id,
+      messages: record.messages || [],
+      summary: record.summary || null,
+      agent: record.agent || null,
+      created_date: record.createdAt,
+      updated_date: record.updatedAt,
+    }));
+  }
+  const [rows] = await pool.query(
+    "SELECT id, agent, summary, messages, created_at, updated_at FROM chat_conversations ORDER BY updated_at DESC"
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    conversationId: row.id,
+    messages: parseJsonField(row.messages, []),
+    summary: parseJsonField(row.summary, null),
+    agent: row.agent || null,
+    created_date: toIsoString(row.created_at),
+    updated_date: toIsoString(row.updated_at),
+  }));
+};
+
+const saveChatRecord = async (cid, record) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    historyStore.set(cid, record);
+    return;
+  }
+  const summaryValue = record.summary ? JSON.stringify(record.summary) : null;
+  const messagesValue = JSON.stringify(record.messages || []);
+  const createdAt = record.createdAt ? new Date(record.createdAt) : new Date();
+  const updatedAt = record.updatedAt ? new Date(record.updatedAt) : new Date();
+  await pool.query(
+    `INSERT INTO chat_conversations (id, agent, summary, messages, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       agent = VALUES(agent),
+       summary = VALUES(summary),
+       messages = VALUES(messages),
+       updated_at = VALUES(updated_at)`,
+    [cid, record.agent || null, summaryValue, messagesValue, createdAt, updatedAt]
+  );
+};
+
 const initDb = async () => {
   const pool = getMySQLPool();
   if (!pool) return;
@@ -137,6 +272,31 @@ const initDb = async () => {
       notes TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS chat_conversations (
+      id VARCHAR(64) PRIMARY KEY,
+      agent VARCHAR(128),
+      summary JSON,
+      messages JSON,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS leads (
+      id VARCHAR(64) PRIMARY KEY,
+      source VARCHAR(32) NOT NULL,
+      name VARCHAR(255),
+      email VARCHAR(255),
+      phone VARCHAR(64),
+      address TEXT,
+      project_type VARCHAR(255),
+      description TEXT,
+      photos JSON,
+      summary JSON,
+      conversation_id VARCHAR(64),
+      status VARCHAR(32) DEFAULT 'new',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_conversation (conversation_id)
     )`,
   ];
 
@@ -516,31 +676,33 @@ app.post("/api/llm", async (req, res) => {
   }
 });
 
-app.get("/api/chat", (_req, res) => {
-  const list = Array.from(historyStore.entries()).map(([id, record]) => ({
-    id,
-    conversationId: id,
-    messages: record.messages || [],
-    summary: record.summary || null,
-    agent: record.agent || null,
-    created_date: record.createdAt,
-    updated_date: record.updatedAt,
-  }));
-  list.sort((a, b) => new Date(b.updated_date).getTime() - new Date(a.updated_date).getTime());
-  res.json(list);
+app.get("/api/chat", async (_req, res) => {
+  try {
+    const list = await listChatRecords();
+    list.sort((a, b) => new Date(b.updated_date).getTime() - new Date(a.updated_date).getTime());
+    res.json(list);
+  } catch (error) {
+    console.error("Chat list error:", error);
+    res.status(500).json({ error: "chat_error" });
+  }
 });
 
-app.get("/api/chat/:conversationId", (req, res) => {
+app.get("/api/chat/:conversationId", async (req, res) => {
   const cid = req.params.conversationId;
-  const record = historyStore.get(cid);
-  if (!record) {
-    return res.status(404).json({ error: "conversation_not_found" });
+  try {
+    const record = await loadChatRecord(cid);
+    if (!record) {
+      return res.status(404).json({ error: "conversation_not_found" });
+    }
+    res.json({
+      conversationId: cid,
+      history: record.messages || [],
+      summary: record.summary || null,
+    });
+  } catch (error) {
+    console.error("Chat get error:", error);
+    res.status(500).json({ error: "chat_error" });
   }
-  res.json({
-    conversationId: cid,
-    history: record.messages || [],
-    summary: record.summary || null,
-  });
 });
 
 app.post("/api/chat", async (req, res) => {
@@ -551,7 +713,7 @@ app.post("/api/chat", async (req, res) => {
   }
 
   const cid = conversationId || crypto.randomUUID();
-  const pastRecord = historyStore.get(cid) || { messages: [], summary: null, createdAt: new Date().toISOString() };
+  const pastRecord = (await loadChatRecord(cid)) || { messages: [], summary: null, createdAt: new Date().toISOString() };
   const past = pastRecord.messages || [];
   const limitedPast = past.slice(-6);
 
@@ -636,7 +798,7 @@ ConversationId: ${cid}
     const updatedMessages = [...limitedPast, { role: "user", content: message }, { role: "assistant", content: replyText }];
     const updatedAt = new Date().toISOString();
 
-    historyStore.set(cid, {
+    await saveChatRecord(cid, {
       messages: updatedMessages.slice(-6),
       summary: parsed.summary || pastRecord.summary || null,
       createdAt: pastRecord.createdAt || updatedAt,
@@ -653,6 +815,73 @@ ConversationId: ${cid}
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "chat_error" });
+  }
+});
+
+app.post("/api/leads", async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  const lead = normalizeLeadPayload(req.body || {});
+
+  try {
+    await pool.query(
+      `INSERT INTO leads (id, source, name, email, phone, address, project_type, description, photos, summary, conversation_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         source = VALUES(source),
+         name = VALUES(name),
+         email = VALUES(email),
+         phone = VALUES(phone),
+         address = VALUES(address),
+         project_type = VALUES(project_type),
+         description = VALUES(description),
+         photos = VALUES(photos),
+         summary = VALUES(summary),
+         status = VALUES(status),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        lead.id,
+        lead.source,
+        lead.name,
+        lead.email,
+        lead.phone,
+        lead.address,
+        lead.project_type,
+        lead.description,
+        JSON.stringify(lead.photos || []),
+        lead.summary ? JSON.stringify(lead.summary) : null,
+        lead.conversation_id,
+        lead.status,
+      ]
+    );
+
+    res.json({ success: true, id: lead.id });
+  } catch (error) {
+    console.error("Lead insert error:", error);
+    res.status(500).json({ error: "lead_error" });
+  }
+});
+
+app.get("/api/leads", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  const limit = Math.min(Number(req.query.limit || 200), 500);
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, source, name, email, phone, address, project_type, description, photos, summary, conversation_id, status, created_at, updated_at FROM leads ORDER BY created_at DESC LIMIT ?",
+      [limit]
+    );
+    res.json(rows.map(parseLeadRow));
+  } catch (error) {
+    console.error("Lead list error:", error);
+    res.status(500).json({ error: "lead_error" });
   }
 });
 

@@ -530,44 +530,65 @@
   }
 
   /* Uniformisation des surfaces en mode sombre */
-  .theme-dark .admin-card,
-  .theme-dark .card,
-  .theme-dark .glass,
-  .theme-dark .glass-card {
+  .theme-dark .admin-theme .admin-card,
+  .theme-dark .admin-theme .card,
+  .theme-dark .admin-theme .glass,
+  .theme-dark .admin-theme .glass-card {
     background-color: var(--color-bg-surface);
     border-color: var(--color-border-medium);
     box-shadow: var(--shadow-card);
     color: var(--color-text-primary);
   }
-  .theme-dark .admin-card .border-b,
-  .theme-dark .card .border-b {
+  .theme-dark .admin-theme .admin-card .border-b,
+  .theme-dark .admin-theme .card .border-b {
     border-color: var(--color-border-medium);
   }
-  .theme-dark .admin-card [class*="bg-amber"],
-  .theme-dark .admin-card [class*="bg-blue-"],
-  .theme-dark .admin-card [class*="bg-green"],
-  .theme-dark .admin-card [class*="bg-red"],
-  .theme-dark .admin-card [class*="bg-purple"],
-  .theme-dark .admin-card [class*="bg-stone"],
-  .theme-dark .admin-card [class*="bg-neutral"],
-  .theme-dark .card [class*="bg-amber"],
-  .theme-dark .card [class*="bg-blue-"],
-  .theme-dark .card [class*="bg-green"],
-  .theme-dark .card [class*="bg-red"],
-  .theme-dark .card [class*="bg-purple"],
-  .theme-dark .card [class*="bg-stone"],
-  .theme-dark .card [class*="bg-neutral"] {
-    background-color: var(--color-bg-surface-hover) !important;
+  .theme-dark .admin-theme .admin-card .text-neutral-900,
+  .theme-dark .admin-theme .admin-card .text-stone-800,
+  .theme-dark .admin-theme .admin-card .text-stone-700,
+  .theme-dark .admin-theme .card .text-neutral-900,
+  .theme-dark .admin-theme .card .text-stone-800,
+  .theme-dark .admin-theme .card .text-stone-700 {
     color: var(--color-text-primary) !important;
-    border-color: var(--color-border-medium) !important;
   }
-  .theme-dark .admin-card .text-neutral-900,
-  .theme-dark .admin-card .text-stone-800,
-  .theme-dark .admin-card .text-stone-700,
-  .theme-dark .card .text-neutral-900,
-  .theme-dark .card .text-stone-800,
-  .theme-dark .card .text-stone-700 {
+
+  /* Dark admin text contrast: prevent low-contrast colored text */
+  .theme-dark .admin-theme .text-neutral-900,
+  .theme-dark .admin-theme .text-stone-900,
+  .theme-dark .admin-theme .text-neutral-800,
+  .theme-dark .admin-theme .text-stone-800 {
     color: var(--color-text-primary) !important;
+  }
+  .theme-dark .admin-theme .text-neutral-700,
+  .theme-dark .admin-theme .text-stone-700,
+  .theme-dark .admin-theme .text-neutral-600,
+  .theme-dark .admin-theme .text-stone-600 {
+    color: var(--color-text-secondary) !important;
+  }
+  .theme-dark .admin-theme .text-neutral-500,
+  .theme-dark .admin-theme .text-stone-500,
+  .theme-dark .admin-theme .text-neutral-400,
+  .theme-dark .admin-theme .text-stone-400 {
+    color: var(--color-text-tertiary) !important;
+  }
+  .theme-dark .admin-theme [class*="text-blue-"] {
+    color: var(--color-info-text) !important;
+  }
+  .theme-dark .admin-theme [class*="text-amber-"] {
+    color: var(--color-warning-text) !important;
+  }
+  .theme-dark .admin-theme [class*="text-red-"] {
+    color: var(--color-error-text) !important;
+  }
+  .theme-dark .admin-theme [class*="text-green-"] {
+    color: var(--color-success-text) !important;
+  }
+  .theme-dark .admin-theme [class*="text-purple-"] {
+    color: var(--color-secondary-700) !important;
+  }
+  .theme-dark .admin-theme [class*="text-orange-"],
+  .theme-dark .admin-theme [class*="text-yellow-"] {
+    color: var(--color-warning-text) !important;
   }
 }
 
@@ -607,41 +628,61 @@
 }
 
 /* Admin surface overrides pour palette nuit / glass */
-.admin-surface [class*="bg-white"] {
-  background: linear-gradient(145deg, rgba(59,130,246,0.14), rgba(245,158,11,0.1)) !important;
-  border-color: rgba(255,255,255,0.18) !important;
-  color: #e2e8f0 !important;
+.admin-surface .bg-white,
+.admin-surface [class~="bg-white/80"],
+.admin-surface [class~="bg-white/95"] {
+  background-color: var(--color-bg-surface) !important;
+  border-color: var(--color-border-medium) !important;
+  color: var(--color-text-primary) !important;
 }
-.admin-surface [class*="bg-neutral-50"],
-.admin-surface [class*="bg-stone-50"],
-.admin-surface [class*="bg-amber-50"],
-.admin-surface [class*="bg-blue-50"] {
-  background-color: rgba(15,28,55,0.78) !important;
-  color: #e2e8f0 !important;
-}
-.admin-surface [class*="border-"] {
-  border-color: rgba(255,255,255,0.15) !important;
-}
+.admin-surface .bg-neutral-50,
+.admin-surface .bg-neutral-100,
+.admin-surface .bg-neutral-200,
+.admin-surface .bg-stone-50,
 .admin-surface .bg-stone-100,
-.admin-surface .bg-purple-100,
-.admin-surface .bg-red-50,
-.admin-surface .bg-green-50,
+.admin-surface .bg-stone-200,
+.admin-surface .bg-amber-50,
+.admin-surface .bg-amber-100,
+.admin-surface .bg-amber-200,
+.admin-surface .bg-blue-50,
 .admin-surface .bg-blue-100,
-.admin-surface .bg-amber-100 {
-  background: linear-gradient(135deg, rgba(59,130,246,0.16), rgba(245,158,11,0.14)) !important;
-  color: #e2e8f0 !important;
-  border-color: rgba(255,255,255,0.18) !important;
+.admin-surface .bg-red-50,
+.admin-surface .bg-red-100,
+.admin-surface .bg-green-50,
+.admin-surface .bg-green-100,
+.admin-surface .bg-purple-100,
+.admin-surface .bg-yellow-100 {
+  background-color: var(--color-bg-surface-hover) !important;
+  border-color: var(--color-border-medium) !important;
+  color: var(--color-text-primary) !important;
 }
 .admin-surface .text-neutral-900,
 .admin-surface .text-stone-800,
 .admin-surface .text-stone-700,
 .admin-surface .text-neutral-700 {
-  color: #e2e8f0 !important;
+  color: var(--color-text-primary) !important;
 }
 .admin-surface .text-neutral-500,
 .admin-surface .text-stone-500,
 .admin-surface .text-neutral-400 {
-  color: #cbd5e1 !important;
+  color: var(--color-text-secondary) !important;
+}
+.admin-surface [class*="text-blue-"] {
+  color: var(--color-info-text) !important;
+}
+.admin-surface [class*="text-amber-"],
+.admin-surface [class*="text-yellow-"],
+.admin-surface [class*="text-orange-"] {
+  color: var(--color-warning-text) !important;
+}
+.admin-surface [class*="text-red-"] {
+  color: var(--color-error-text) !important;
+}
+.admin-surface [class*="text-green-"] {
+  color: var(--color-success-text) !important;
+}
+.admin-surface [class*="text-purple-"] {
+  color: var(--color-secondary-700) !important;
 }
 .admin-surface .shadow-lg,
 .admin-surface .shadow-sm,
@@ -650,7 +691,6 @@
 }
 .admin-surface button {
   transition: all 0.2s ease;
-  color: #e2e8f0;
 }
 
 /* Textured, animated cream background for admin layout */

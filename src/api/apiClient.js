@@ -179,10 +179,16 @@ const auth = {
   getToken,
 };
 
+const leads = {
+  list: async (limit) => request("/api/leads", { params: limit ? { limit } : undefined, auth: true }),
+  createPublic: async (payload) => request("/api/leads", { method: "POST", body: payload, auth: false }),
+};
+
 export const api = {
   entities,
   integrations,
   functions,
   agents,
+  leads,
   auth,
 };
