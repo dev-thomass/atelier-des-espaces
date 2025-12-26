@@ -6,7 +6,7 @@ import { Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 
 export default function AdminProjetCard({ projet, onEdit, onDelete, onToggleVisibility }) {
   return (
-    <Card className="border-2 hover:border-amber-700 transition-all duration-300 w-full">
+    <Card className="border-2 hover:border-[var(--color-secondary-600)] transition-all duration-300 w-full">
       <CardContent className="p-3 md:p-6">
         <div className="flex gap-3 md:gap-4">
           {/* Image */}
@@ -27,16 +27,16 @@ export default function AdminProjetCard({ projet, onEdit, onDelete, onToggleVisi
             </div>
             
             <div className="flex flex-wrap gap-1 md:gap-2 mb-2">
-              <Badge className="bg-amber-100 text-amber-800 text-xs">
+              <Badge className="bg-[var(--color-secondary-100)] text-[var(--color-secondary-700)] text-xs">
                 {projet.categorie}
               </Badge>
               {projet.visible ? (
-                <Badge className="bg-green-100 text-green-800 text-xs">
+                <Badge className="bg-[var(--color-success-bg)] text-[var(--color-success-text)] text-xs">
                   <Eye className="w-3 h-3 mr-1" />
                   Visible
                 </Badge>
               ) : (
-                <Badge className="bg-red-100 text-red-800 text-xs">
+                <Badge className="bg-[var(--color-error-bg)] text-[var(--color-error-text)] text-xs">
                   <EyeOff className="w-3 h-3 mr-1" />
                   Masqué
                 </Badge>
@@ -67,7 +67,7 @@ export default function AdminProjetCard({ projet, onEdit, onDelete, onToggleVisi
                 size="sm"
                 variant="outline"
                 onClick={() => onEdit(projet)}
-                className="text-blue-600 border-blue-600 hover:bg-blue-50 text-xs px-2 md:px-3 flex-shrink-0"
+                className="text-[var(--color-primary-600)] border-[var(--color-primary-500)] hover:bg-[var(--color-primary-100)] text-xs px-2 md:px-3 flex-shrink-0"
               >
                 <Pencil className="w-3 h-3 md:mr-1" />
                 <span className="hidden md:inline">Modifier</span>
@@ -76,7 +76,7 @@ export default function AdminProjetCard({ projet, onEdit, onDelete, onToggleVisi
                 size="sm"
                 variant="outline"
                 onClick={() => onToggleVisibility(projet)}
-                className="text-amber-600 border-amber-600 hover:bg-amber-50 text-xs px-2 md:px-3 flex-shrink-0"
+                className="text-[var(--color-secondary-600)] border-[var(--color-secondary-500)] hover:bg-[var(--color-secondary-100)] text-xs px-2 md:px-3 flex-shrink-0"
               >
                 {projet.visible ? <EyeOff className="w-3 h-3 md:mr-1" /> : <Eye className="w-3 h-3 md:mr-1" />}
                 <span className="hidden md:inline">{projet.visible ? "Masquer" : "Afficher"}</span>
@@ -85,7 +85,7 @@ export default function AdminProjetCard({ projet, onEdit, onDelete, onToggleVisi
                 size="sm"
                 variant="outline"
                 onClick={() => onDelete(projet)}
-                className="text-red-600 border-red-600 hover:bg-red-50 text-xs px-2 md:px-3 flex-shrink-0"
+                className="text-[var(--color-error-text)] border-[var(--color-error-border)] hover:bg-[var(--color-error-bg)] text-xs px-2 md:px-3 flex-shrink-0"
               >
                 <Trash2 className="w-3 h-3 md:mr-1" />
                 <span className="hidden md:inline">Supprimer</span>

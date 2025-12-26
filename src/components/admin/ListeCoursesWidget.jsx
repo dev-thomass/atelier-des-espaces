@@ -128,11 +128,11 @@ export default function ListeCoursesWidget() {
   };
 
   const categories = {
-    courses: { label: "Courses", icon: ShoppingCart, color: "bg-blue-100 text-blue-800" },
+    courses: { label: "Courses", icon: ShoppingCart, color: "bg-[var(--color-primary-100)] text-[var(--color-primary-700)]" },
     materiaux: { label: "Matériaux", icon: Package, color: "bg-purple-100 text-purple-800" },
-    outils: { label: "Outils", icon: Wrench, color: "bg-amber-100 text-amber-800" },
-    a_retenir: { label: "À Retenir", icon: Lightbulb, color: "bg-yellow-100 text-yellow-800" },
-    autre: { label: "Autre", icon: AlertCircle, color: "bg-stone-100 text-stone-800" }
+    outils: { label: "Outils", icon: Wrench, color: "bg-[var(--color-secondary-100)] text-[var(--color-secondary-700)]" },
+    a_retenir: { label: "À Retenir", icon: Lightbulb, color: "bg-[var(--color-warning-bg)] text-[var(--color-warning-text)]" },
+    autre: { label: "Autre", icon: AlertCircle, color: "bg-[var(--color-bg-surface-hover)] text-[var(--color-text-primary)]" }
   };
 
   const groupedItems = items.reduce((acc, item) => {
@@ -156,9 +156,9 @@ export default function ListeCoursesWidget() {
       }}
       onMouseDown={handleMouseDown}
     >
-      <Card className="border-2 border-amber-700 shadow-2xl bg-white/95 backdrop-blur-sm overflow-hidden">
+      <Card className="border-2 border-[var(--color-secondary-600)] shadow-2xl bg-white/95 backdrop-blur-sm overflow-hidden">
         <CardHeader 
-          className="bg-gradient-to-r from-amber-700 to-amber-800 text-white p-3 flex flex-row items-center justify-between cursor-grab active:cursor-grabbing"
+          className="bg-gradient-to-r from-[var(--color-secondary-600)] to-[var(--color-secondary-700)] text-white p-3 flex flex-row items-center justify-between cursor-grab active:cursor-grabbing"
         >
           <div className="flex items-center gap-2">
             <GripVertical className="w-4 h-4" />
@@ -167,7 +167,7 @@ export default function ListeCoursesWidget() {
               Mes Listes ({totalItems})
             </CardTitle>
             {doneItems > 0 && (
-              <Badge className="bg-green-500 text-white text-xs px-1.5 py-0.5">
+              <Badge className="bg-[var(--color-success-text)] text-white text-xs px-1.5 py-0.5">
                 {doneItems} ✓
               </Badge>
             )}
@@ -204,7 +204,7 @@ export default function ListeCoursesWidget() {
                 <Button
                   size="sm"
                   onClick={handleAddItem}
-                  className="bg-amber-700 hover:bg-amber-800 px-3"
+                  className="bg-[var(--color-secondary-600)] hover:bg-[var(--color-secondary-700)] px-3"
                 >
                   <Plus className="w-4 h-4" />
                 </Button>
@@ -222,8 +222,8 @@ export default function ListeCoursesWidget() {
                       onClick={() => setSelectedCategorie(key)}
                       className={`text-xs h-7 px-2 ${
                         selectedCategorie === key 
-                          ? 'bg-amber-700 hover:bg-amber-800 text-white' 
-                          : 'hover:bg-stone-100'
+                          ? 'bg-[var(--color-secondary-600)] hover:bg-[var(--color-secondary-700)] text-white' 
+                          : 'hover:bg-[var(--color-bg-surface-hover)]'
                       }`}
                     >
                       <Icon className="w-3 h-3 mr-1" />
@@ -240,7 +240,7 @@ export default function ListeCoursesWidget() {
                 size="sm"
                 variant="outline"
                 onClick={handleDeleteDone}
-                className="w-full text-xs text-green-600 border-green-600 hover:bg-green-50"
+                className="w-full text-xs text-[var(--color-success-text)] border-[var(--color-success-border)] hover:bg-[var(--color-success-bg)]"
               >
                 <Trash2 className="w-3 h-3 mr-1" />
                 Supprimer les {doneItems} cochés
@@ -257,14 +257,14 @@ export default function ListeCoursesWidget() {
                 const notDone = categoryItems.filter(i => !i.fait).length;
 
                 return (
-                  <div key={key} className="border border-stone-200 rounded-lg overflow-hidden">
+                  <div key={key} className="border border-[var(--color-border-light)] rounded-lg overflow-hidden">
                     <button
                       onClick={() => toggleCategory(key)}
-                      className="w-full flex items-center justify-between p-2 bg-stone-50 hover:bg-stone-100 transition-colors"
+                      className="w-full flex items-center justify-between p-2 bg-[var(--color-bg-surface-hover)] hover:bg-[var(--color-bg-surface-hover)] transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <Icon className="w-3 h-3 text-stone-600" />
-                        <span className="text-xs font-semibold text-stone-800">
+                        <Icon className="w-3 h-3 text-[var(--color-text-secondary)]" />
+                        <span className="text-xs font-semibold text-[var(--color-text-primary)]">
                           {cat.label}
                         </span>
                         <Badge className={`${cat.color} text-xs px-1.5 py-0`}>
@@ -272,9 +272,9 @@ export default function ListeCoursesWidget() {
                         </Badge>
                       </div>
                       {expandedCategories[key] ? (
-                        <ChevronUp className="w-3 h-3 text-stone-600" />
+                        <ChevronUp className="w-3 h-3 text-[var(--color-text-secondary)]" />
                       ) : (
-                        <ChevronDown className="w-3 h-3 text-stone-600" />
+                        <ChevronDown className="w-3 h-3 text-[var(--color-text-secondary)]" />
                       )}
                     </button>
 
@@ -285,29 +285,29 @@ export default function ListeCoursesWidget() {
                             key={item.id}
                             className={`flex items-center gap-2 p-2 rounded-lg border transition-all ${
                               item.fait 
-                                ? 'bg-green-50 border-green-200 opacity-60' 
-                                : 'bg-white border-stone-200 hover:border-amber-700'
+                                ? 'bg-[var(--color-success-bg)] border-[var(--color-success-border)] opacity-60' 
+                                : 'bg-[var(--color-bg-surface)] border-[var(--color-border-light)] hover:border-[var(--color-secondary-600)]'
                             }`}
                           >
                             <button
                               onClick={() => handleToggleItem(item)}
                               className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
                                 item.fait 
-                                  ? 'bg-green-500 border-green-500' 
-                                  : 'border-stone-300 hover:border-amber-700'
+                                  ? 'bg-[var(--color-success-text)] border-[var(--color-success-text)]' 
+                                  : 'border-[var(--color-border-medium)] hover:border-[var(--color-secondary-600)]'
                               }`}
                             >
                               {item.fait && <Check className="w-3 h-3 text-white" />}
                             </button>
-                            <span className={`flex-1 text-xs ${item.fait ? 'line-through text-stone-500' : 'text-stone-800'}`}>
+                            <span className={`flex-1 text-xs ${item.fait ? 'line-through text-[var(--color-text-tertiary)]' : 'text-[var(--color-text-primary)]'}`}>
                               {item.titre}
                               {item.quantite && (
-                                <span className="text-stone-500 ml-1">({item.quantite})</span>
+                                <span className="text-[var(--color-text-tertiary)] ml-1">({item.quantite})</span>
                               )}
                             </span>
                             <button
                               onClick={() => handleDeleteItem(item.id)}
-                              className="flex-shrink-0 text-red-600 hover:text-red-800 p-1"
+                              className="flex-shrink-0 text-[var(--color-error-text)] hover:text-[var(--color-error-icon)] p-1"
                             >
                               <X className="w-3 h-3" />
                             </button>
@@ -321,8 +321,8 @@ export default function ListeCoursesWidget() {
             </div>
 
             {items.length === 0 && (
-              <div className="text-center py-8 text-stone-500">
-                <ShoppingCart className="w-8 h-8 mx-auto mb-2 text-stone-300" />
+              <div className="text-center py-8 text-[var(--color-text-tertiary)]">
+                <ShoppingCart className="w-8 h-8 mx-auto mb-2 text-[var(--color-text-muted)]" />
                 <p className="text-xs">Aucun item</p>
                 <p className="text-xs">Ajoutez-en un ci-dessus !</p>
               </div>

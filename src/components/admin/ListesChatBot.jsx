@@ -321,7 +321,7 @@ Message utilisateur: "${userMsg}"`;
 
   return (
     <Card
-      className="fixed bottom-6 right-6 z-50 w-96 shadow-2xl border-2 border-yellow-300"
+      className="fixed bottom-6 right-6 z-50 w-96 shadow-2xl border-2 border-[var(--color-secondary-300)]"
       style={isDark ? { borderColor: "var(--color-border-medium)" } : undefined}
     >
       <CardHeader className="p-4 border-b" style={{ background: headerGradient }}>
@@ -338,7 +338,7 @@ Message utilisateur: "${userMsg}"`;
       
       <CardContent className="p-0">
         <div
-          className="h-96 overflow-y-auto p-4 bg-yellow-50/30"
+          className="h-96 overflow-y-auto p-4 bg-[var(--color-secondary-100)]"
           style={isDark ? { backgroundColor: "var(--color-bg-surface-hover)" } : undefined}
         >
           {messages.map((msg, i) => (
@@ -346,8 +346,8 @@ Message utilisateur: "${userMsg}"`;
               <div
                 className={`max-w-[80%] rounded-xl px-3 py-2 ${
                   msg.role === 'user' 
-                    ? 'bg-amber-600 text-white' 
-                    : 'bg-white border-2 border-yellow-200'
+                    ? 'bg-[var(--color-secondary-500)] text-white' 
+                    : 'bg-white border-2 border-[var(--color-secondary-300)]'
                 }`}
                 style={msg.role === "user" || !isDark ? undefined : {
                   backgroundColor: "var(--color-bg-surface)",
@@ -362,7 +362,7 @@ Message utilisateur: "${userMsg}"`;
           {loading && (
             <div className="flex gap-2 mb-3">
               <div
-                className="bg-white border-2 border-yellow-200 rounded-xl px-3 py-2"
+                className="bg-white border-2 border-[var(--color-secondary-300)] rounded-xl px-3 py-2"
                 style={!isDark ? undefined : {
                   backgroundColor: "var(--color-bg-surface)",
                   borderColor: "var(--color-border-medium)",
@@ -370,9 +370,9 @@ Message utilisateur: "${userMsg}"`;
                 }}
               >
                 <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-amber-600 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-amber-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-amber-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                  <div className="w-2 h-2 bg-[var(--color-secondary-500)] rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-[var(--color-secondary-500)] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-[var(--color-secondary-500)] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                 </div>
               </div>
             </div>
@@ -381,7 +381,7 @@ Message utilisateur: "${userMsg}"`;
         </div>
 
         <div
-          className="p-3 border-t-2 border-yellow-200 bg-white"
+          className="p-3 border-t-2 border-[var(--color-secondary-300)] bg-white"
           style={isDark ? { backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" } : undefined}
         >
           <div className="flex gap-2">
@@ -400,8 +400,8 @@ Message utilisateur: "${userMsg}"`;
                 disabled={loading}
                 className={`${
                   isListening 
-                    ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
-                    : 'bg-amber-500 hover:bg-amber-600'
+                    ? 'bg-[var(--color-error-text)] hover:bg-[var(--color-error-icon)] animate-pulse' 
+                    : 'bg-[var(--color-secondary-500)] hover:bg-[var(--color-secondary-500)]'
                 }`}
                 title={isListening ? "Arrêter" : "Parler"}
               >

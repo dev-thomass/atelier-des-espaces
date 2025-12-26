@@ -70,6 +70,7 @@ const entities = {
   Tache: entityClient("taches"),
   ComptaURSSAF: entityClient("compta-urssaf"),
   ListeCourse: entityClient("liste-courses"),
+  Note: entityClient("notes"),
   Event: entityClient("events"),
 };
 

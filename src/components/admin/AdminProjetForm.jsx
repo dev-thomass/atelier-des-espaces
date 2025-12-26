@@ -146,8 +146,8 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
   };
 
   return (
-    <Card ref={formRef} className="border-2 border-amber-700 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-      <CardHeader className="bg-gradient-to-r from-amber-900 to-amber-800 text-white flex-shrink-0 py-4 px-4 md:py-6 md:px-6">
+    <Card ref={formRef} className="border-2 border-[var(--color-secondary-600)] shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <CardHeader className="bg-gradient-to-r from-[var(--color-secondary-700)] to-[var(--color-secondary-600)] text-white flex-shrink-0 py-4 px-4 md:py-6 md:px-6">
         <CardTitle className="flex items-center justify-between text-lg md:text-xl">
           <span>{projet ? "Modifier" : "Nouveau projet"}</span>
           <Button variant="ghost" size="icon" onClick={onCancel} className="text-white hover:bg-white/20 h-8 w-8 md:h-10 md:w-10">
@@ -157,8 +157,8 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
       </CardHeader>
       <CardContent className="p-3 md:p-6 overflow-y-auto flex-1">
         {error && (
-          <Alert className="mb-4 md:mb-6 bg-red-50 border-red-500">
-            <AlertDescription className="text-red-800 text-sm">{error}</AlertDescription>
+          <Alert className="mb-4 md:mb-6 bg-[var(--color-error-bg)] border-[var(--color-error-border)]">
+            <AlertDescription className="text-[var(--color-error-text)] text-sm">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -245,7 +245,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
               </div>
             ) : (
               <div className="mt-2">
-                <label className="flex flex-col items-center justify-center w-full h-48 md:h-64 border-2 border-dashed border-stone-300 rounded-lg cursor-pointer hover:bg-stone-50">
+                <label className="flex flex-col items-center justify-center w-full h-48 md:h-64 border-2 border-dashed border-[var(--color-border-medium)] rounded-lg cursor-pointer hover:bg-stone-50">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Upload className="w-8 h-8 md:w-10 md:h-10 text-stone-400 mb-2 md:mb-3" />
                     <p className="text-xs md:text-sm text-stone-600">Cliquez pour uploader</p>
@@ -278,7 +278,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             className={`bg-white border-2 rounded-lg p-2 md:p-3 ${
-                              snapshot.isDragging ? 'border-amber-700 shadow-xl' : 'border-stone-200'
+                              snapshot.isDragging ? 'border-[var(--color-secondary-600)] shadow-xl' : 'border-[var(--color-border-light)]'
                             }`}
                           >
                             <div className="flex gap-2 md:gap-3">
@@ -292,7 +292,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
                                     moveImage(index, 'up');
                                   }}
                                   disabled={index === 0}
-                                  className="p-1.5 hover:bg-stone-100 rounded disabled:opacity-30 bg-stone-100 border border-stone-300"
+                                  className="p-1.5 hover:bg-stone-100 rounded disabled:opacity-30 bg-stone-100 border border-[var(--color-border-medium)]"
                                 >
                                   <ArrowUp className="w-3 h-3" />
                                 </button>
@@ -304,7 +304,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
                                     moveImage(index, 'down');
                                   }}
                                   disabled={index === formData.images_supplementaires.length - 1}
-                                  className="p-1.5 hover:bg-stone-100 rounded disabled:opacity-30 bg-stone-100 border border-stone-300"
+                                  className="p-1.5 hover:bg-stone-100 rounded disabled:opacity-30 bg-stone-100 border border-[var(--color-border-medium)]"
                                 >
                                   <ArrowDown className="w-3 h-3" />
                                 </button>
@@ -389,7 +389,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
             </DragDropContext>
 
             {/* Bouton ajouter image */}
-            <label className="mt-3 flex flex-col items-center justify-center w-full h-20 md:h-24 border-2 border-dashed border-stone-300 rounded-lg cursor-pointer hover:bg-stone-50">
+            <label className="mt-3 flex flex-col items-center justify-center w-full h-20 md:h-24 border-2 border-dashed border-[var(--color-border-medium)] rounded-lg cursor-pointer hover:bg-stone-50">
               <div className="flex items-center gap-2">
                 <Upload className="w-4 h-4 md:w-5 md:h-5 text-stone-400" />
                 <span className="text-xs md:text-sm text-stone-600">Ajouter une image</span>
@@ -445,7 +445,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
                 type="checkbox"
                 checked={formData.visible}
                 onChange={(e) => handleChange("visible", e.target.checked)}
-                className="w-4 h-4 md:w-5 md:h-5 text-amber-700 rounded"
+                className="w-4 h-4 md:w-5 md:h-5 text-[var(--color-secondary-600)] rounded"
               />
               <span className="text-sm md:text-base text-stone-700 font-semibold">Visible sur le site</span>
             </label>
@@ -454,14 +454,14 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
                 type="checkbox"
                 checked={formData.mis_en_avant}
                 onChange={(e) => handleChange("mis_en_avant", e.target.checked)}
-                className="w-4 h-4 md:w-5 md:h-5 text-amber-700 rounded"
+                className="w-4 h-4 md:w-5 md:h-5 text-[var(--color-secondary-600)] rounded"
               />
               <span className="text-sm md:text-base text-stone-700 font-semibold">Mettre en avant</span>
             </label>
           </div>
 
           {/* Actions - Sticky au bas */}
-          <div className="sticky bottom-0 bg-white pt-3 md:pt-4 pb-2 flex gap-2 md:gap-3 border-t border-stone-200 -mx-3 md:-mx-6 px-3 md:px-6 -mb-3 md:-mb-6">
+          <div className="sticky bottom-0 bg-white pt-3 md:pt-4 pb-2 flex gap-2 md:gap-3 border-t border-[var(--color-border-light)] -mx-3 md:-mx-6 px-3 md:px-6 -mb-3 md:-mb-6">
             <Button
               type="button"
               variant="outline"
@@ -473,7 +473,7 @@ export default function AdminProjetForm({ projet, onCancel, onSuccess }) {
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-amber-700 hover:bg-amber-800 text-sm md:text-base"
+              className="flex-1 bg-[var(--color-secondary-600)] hover:bg-[var(--color-secondary-700)] text-sm md:text-base"
               disabled={isSubmitting || isUploading || !formData.image_url}
             >
               {isSubmitting ? (

@@ -50,6 +50,7 @@
     --color-bg-body: #FAF8F5;
     --color-bg-surface: #FFFFFF;
     --color-bg-surface-hover: #F5F3F0;
+    --color-bg-elevated: #FFFFFF;
     --color-bg-sidebar: #2C2419;
     --color-bg-sidebar-hover: #3D342A;
 
@@ -66,6 +67,7 @@
     --color-border-dark: #A89885;
 
     /* Couleurs primaires (terre cuite & ocre) */
+    --color-primary-50: #FFF8F3;
     --color-primary-100: #FAF2ED;
     --color-primary-200: #F2DCCA;
     --color-primary-300: #E6B89C;
@@ -75,6 +77,7 @@
     --color-primary-700: #7D3B20;
 
     /* Couleurs secondaires (bleu calanques) */
+    --color-secondary-50: #F2F8FB;
     --color-secondary-100: #EBF4F7;
     --color-secondary-200: #C7E1EA;
     --color-secondary-300: #89B8CC;
@@ -171,38 +174,38 @@
     --color-focus-ring-offset: #FAF8F5;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 213 29% 6%;
+    --foreground: 220 22% 92%;
+    --card: 222 36% 11%;
+    --card-foreground: 220 22% 92%;
+    --popover: 222 36% 11%;
+    --popover-foreground: 220 22% 92%;
+    --primary: 214 78% 54%;
+    --primary-foreground: 220 22% 92%;
+    --secondary: 220 32% 13%;
+    --secondary-foreground: 220 22% 92%;
+    --muted: 220 33% 16%;
+    --muted-foreground: 216 16% 61%;
+    --accent: 220 33% 16%;
+    --accent-foreground: 220 22% 92%;
+    --destructive: 0 71% 62%;
+    --destructive-foreground: 220 22% 92%;
+    --border: 221 28% 22%;
+    --input: 221 28% 22%;
+    --ring: 212 100% 68%;
+    --chart-1: 214 78% 54%;
+    --chart-2: 42 87% 55%;
+    --chart-3: 159 66% 45%;
+    --chart-4: 0 71% 62%;
+    --chart-5: 212 100% 68%;
+    --sidebar-background: 220 32% 13%;
+    --sidebar-foreground: 218 20% 76%;
+    --sidebar-primary: 214 78% 54%;
+    --sidebar-primary-foreground: 220 22% 92%;
+    --sidebar-accent: 220 33% 16%;
+    --sidebar-accent-foreground: 220 22% 92%;
+    --sidebar-border: 221 28% 22%;
+    --sidebar-ring: 212 100% 68%;
   }
 }
 
@@ -225,6 +228,14 @@
   .admin-theme {
     background-color: var(--color-bg-body);
     color: var(--color-text-primary);
+  }
+
+  .theme-dark .admin-theme {
+    color-scheme: dark;
+  }
+
+  .theme-light .admin-theme {
+    color-scheme: light;
   }
 
   .admin-theme h1,
@@ -357,6 +368,10 @@
     border-bottom: 2px solid var(--color-border-medium);
   }
 
+  .admin-theme table {
+    font-variant-numeric: tabular-nums;
+  }
+
   .admin-theme table tbody tr {
     border-bottom: 1px solid var(--color-table-border);
   }
@@ -392,6 +407,59 @@
     box-shadow: none;
   }
 
+  /* Admin light text contrast: align gray scales with theme palette */
+  .admin-theme .text-gray-900,
+  .admin-theme .text-gray-800,
+  .admin-theme .text-gray-700,
+  .admin-theme .text-neutral-900,
+  .admin-theme .text-neutral-800,
+  .admin-theme .text-neutral-700,
+  .admin-theme .text-stone-900,
+  .admin-theme .text-stone-800,
+  .admin-theme .text-stone-700,
+  .admin-theme .text-slate-900,
+  .admin-theme .text-slate-800,
+  .admin-theme .text-slate-700,
+  .admin-theme .text-zinc-900,
+  .admin-theme .text-zinc-800,
+  .admin-theme .text-zinc-700 {
+    color: var(--color-text-primary);
+  }
+
+  .admin-theme .text-gray-600,
+  .admin-theme .text-gray-500,
+  .admin-theme .text-neutral-600,
+  .admin-theme .text-neutral-500,
+  .admin-theme .text-stone-600,
+  .admin-theme .text-stone-500,
+  .admin-theme .text-slate-600,
+  .admin-theme .text-slate-500,
+  .admin-theme .text-zinc-600,
+  .admin-theme .text-zinc-500 {
+    color: var(--color-text-secondary);
+  }
+
+  .admin-theme .text-gray-400,
+  .admin-theme .text-neutral-400,
+  .admin-theme .text-stone-400,
+  .admin-theme .text-slate-400,
+  .admin-theme .text-zinc-400 {
+    color: var(--color-text-tertiary);
+  }
+
+  .admin-theme .text-gray-300,
+  .admin-theme .text-gray-200,
+  .admin-theme .text-neutral-300,
+  .admin-theme .text-neutral-200,
+  .admin-theme .text-stone-300,
+  .admin-theme .text-stone-200,
+  .admin-theme .text-slate-300,
+  .admin-theme .text-slate-200,
+  .admin-theme .text-zinc-300,
+  .admin-theme .text-zinc-200 {
+    color: var(--color-text-muted);
+  }
+
   .admin-theme .admin-sidebar {
     background-color: var(--color-bg-sidebar);
     color: var(--color-text-inverse);
@@ -413,120 +481,123 @@
 
   /* THEME DARK (admin) */
   .theme-dark {
-    --color-bg-body: #080c14;
-    --color-bg-surface: #0e1522;
-    --color-bg-surface-hover: #151d2e;
-    --color-bg-sidebar: #080c14;
-    --color-bg-sidebar-hover: #10192a;
+    --color-bg-body: #0B0F14;
+    --color-bg-surface: #121826;
+    --color-bg-surface-hover: #161D2B;
+    --color-bg-elevated: #1B2436;
+    --color-bg-sidebar: #0E1522;
+    --color-bg-sidebar-hover: #182236;
 
-    --color-text-primary: #e9eef7;
-    --color-text-secondary: #c1ccda;
-    --color-text-tertiary: #8fa0b5;
-    --color-text-muted: #6f7d90;
-    --color-text-inverse: #0a1016;
+    --color-text-primary: #E6E9EF;
+    --color-text-secondary: #B7C0CF;
+    --color-text-tertiary: #8A97AB;
+    --color-text-muted: #5B6678;
+    --color-text-inverse: #0B0F14;
 
-    --color-border-light: #1a2332;
-    --color-border-medium: #223045;
-    --color-border-dark: #2d3c55;
+    --color-border-light: #283247;
+    --color-border-medium: #33415C;
+    --color-border-dark: #3E4B66;
 
-    --color-primary-100: #0f252b;
-    --color-primary-200: #163740;
-    --color-primary-300: #1d4b56;
-    --color-primary-400: #256270;
-    --color-primary-500: #2b8c91;
-    --color-primary-600: #3ca7ad;
-    --color-primary-700: #63c6c4;
+    --color-primary-50: #0B1421;
+    --color-primary-100: #0E1A2A;
+    --color-primary-200: #15243A;
+    --color-primary-300: #1D3250;
+    --color-primary-400: #234167;
+    --color-primary-500: #2C7BE5;
+    --color-primary-600: #3A8BFF;
+    --color-primary-700: #6CB3FF;
 
-    --color-secondary-100: #0f1826;
-    --color-secondary-200: #162236;
-    --color-secondary-300: #1f2f47;
-    --color-secondary-400: #2b3e5c;
-    --color-secondary-500: #3f5677;
-    --color-secondary-600: #5f799a;
-    --color-secondary-700: #8da8c4;
+    --color-secondary-50: #1A1307;
+    --color-secondary-100: #2A1D0A;
+    --color-secondary-200: #3A2A0F;
+    --color-secondary-300: #5A3F1A;
+    --color-secondary-400: #8C5E24;
+    --color-secondary-500: #F0B429;
+    --color-secondary-600: #F6C453;
+    --color-secondary-700: #F8D58E;
 
-    --color-accent-warm-100: #1e160e;
-    --color-accent-warm-200: #2a1f13;
-    --color-accent-warm-300: #3a2d1c;
-    --color-accent-warm-400: #544025;
-    --color-accent-warm-500: #b78b56;
+    --color-accent-warm-100: #1F160D;
+    --color-accent-warm-200: #2A1E11;
+    --color-accent-warm-300: #3A2A16;
+    --color-accent-warm-400: #C98A23;
+    --color-accent-warm-500: #F0B429;
 
-    --color-accent-olive-100: #121a14;
-    --color-accent-olive-200: #19241d;
-    --color-accent-olive-300: #24332a;
-    --color-accent-olive-400: #354935;
-    --color-accent-olive-500: #5d7b5f;
+    --color-accent-olive-100: #0E221C;
+    --color-accent-olive-200: #133026;
+    --color-accent-olive-300: #1A4637;
+    --color-accent-olive-400: #1F5B46;
+    --color-accent-olive-500: #27C08A;
 
-    --color-success-bg: #0f271c;
-    --color-success-border: #1f5641;
-    --color-success-text: #8ed8b1;
-    --color-success-icon: #57b887;
+    --color-success-bg: #0F1F1A;
+    --color-success-border: #1E3A31;
+    --color-success-text: #8BE3C1;
+    --color-success-icon: #27C08A;
 
-    --color-warning-bg: #2c1f10;
-    --color-warning-border: #4b361d;
-    --color-warning-text: #e2c08c;
-    --color-warning-icon: #d6a86a;
+    --color-warning-bg: #2B1F12;
+    --color-warning-border: #4A341C;
+    --color-warning-text: #F2C38F;
+    --color-warning-icon: #F0B429;
 
-    --color-error-bg: #2c1416;
-    --color-error-border: #4b2025;
-    --color-error-text: #edb0b5;
-    --color-error-icon: #d8757c;
+    --color-error-bg: #2B1416;
+    --color-error-border: #4A2024;
+    --color-error-text: #F1A6A6;
+    --color-error-icon: #E35B5B;
 
-    --color-info-bg: #101e2c;
-    --color-info-border: #233a55;
-    --color-info-text: #a9c7e2;
-    --color-info-icon: #6f9ac3;
+    --color-info-bg: #101B2E;
+    --color-info-border: #1F314D;
+    --color-info-text: #A8C4E8;
+    --color-info-icon: #2C7BE5;
 
-    --color-btn-primary-bg: #2b8c91;
-    --color-btn-primary-bg-hover: #3ca7ad;
-    --color-btn-primary-text: #0a1016;
+    --color-btn-primary-bg: #2C7BE5;
+    --color-btn-primary-bg-hover: #3A8BFF;
+    --color-btn-primary-text: #FFFFFF;
 
-    --color-btn-secondary-bg: #192434;
-    --color-btn-secondary-bg-hover: #223045;
-    --color-btn-secondary-text: #e9eef7;
+    --color-btn-secondary-bg: #F0B429;
+    --color-btn-secondary-bg-hover: #F6C453;
+    --color-btn-secondary-text: #0B0F14;
 
-    --color-btn-tertiary-bg: #151d2e;
-    --color-btn-tertiary-bg-hover: #1d2639;
-    --color-btn-tertiary-text: #e9eef7;
+    --color-btn-tertiary-bg: #161D2B;
+    --color-btn-tertiary-bg-hover: #1B2436;
+    --color-btn-tertiary-text: #E6E9EF;
 
     --color-btn-ghost-bg: transparent;
-    --color-btn-ghost-bg-hover: rgba(255,255,255,0.05);
-    --color-btn-ghost-text: #c1ccda;
+    --color-btn-ghost-bg-hover: #161D2B;
+    --color-btn-ghost-text: #B7C0CF;
 
-    --color-badge-default-bg: #192434;
-    --color-badge-default-text: #e9eef7;
+    --color-badge-default-bg: #1B2436;
+    --color-badge-default-text: #E6E9EF;
 
-    --color-badge-primary-bg: #0f252b;
-    --color-badge-primary-border: #1d4b56;
-    --color-badge-primary-text: #63c6c4;
+    --color-badge-primary-bg: #0E1A2A;
+    --color-badge-primary-border: #1D3250;
+    --color-badge-primary-text: #5AA6FF;
 
-    --color-badge-secondary-bg: #0f1826;
-    --color-badge-secondary-border: #2b3e5c;
-    --color-badge-secondary-text: #8da8c4;
+    --color-badge-secondary-bg: #2A1D0A;
+    --color-badge-secondary-border: #5A3F1A;
+    --color-badge-secondary-text: #F6C453;
 
-    --color-table-header-bg: #151d2e;
-    --color-table-header-text: #e9eef7;
-    --color-table-row-hover: #10182a;
-    --color-table-border: #1a2332;
+    --color-table-header-bg: #1B2436;
+    --color-table-header-text: #E6E9EF;
+    --color-table-row-hover: #161D2B;
+    --color-table-border: #283247;
 
-    --color-input-bg: #0c1018;
-    --color-input-border: #1a2332;
-    --color-input-border-focus: #2b8c91;
-    --color-input-text: #e9eef7;
-    --color-input-placeholder: #6f7d90;
+    --color-input-bg: #161D2B;
+    --color-input-border: #283247;
+    --color-input-border-focus: #5AA6FF;
+    --color-input-text: #E6E9EF;
+    --color-input-placeholder: #5B6678;
 
-    --color-nav-item-text: #6f7d90;
-    --color-nav-item-text-hover: #e9eef7;
-    --color-nav-item-bg-active: #2b8c91;
-    --color-nav-item-text-active: #0a1016;
+    --color-nav-item-text: #8A97AB;
+    --color-nav-item-text-hover: #E6E9EF;
+    --color-nav-item-bg-active: #2C7BE5;
+    --color-nav-item-text-active: #FFFFFF;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
     --shadow-md: 0 6px 14px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 14px 36px rgba(0, 0, 0, 0.48);
-    --shadow-card: 0 8px 20px rgba(0, 0, 0, 0.32);
+    --shadow-card: 0 10px 26px rgba(0, 0, 0, 0.35);
 
-    --color-focus-ring: #2b8c91;
-    --color-focus-ring-offset: #0c1018;
+    --color-focus-ring: #5AA6FF;
+    --color-focus-ring-offset: #0B0F14;
   }
 
   /* Uniformisation des surfaces en mode sombre */
@@ -638,22 +709,54 @@
 .admin-surface .bg-neutral-50,
 .admin-surface .bg-neutral-100,
 .admin-surface .bg-neutral-200,
+.admin-surface .bg-gray-50,
+.admin-surface .bg-gray-100,
+.admin-surface .bg-gray-200,
 .admin-surface .bg-stone-50,
 .admin-surface .bg-stone-100,
 .admin-surface .bg-stone-200,
+.admin-surface .bg-slate-50,
+.admin-surface .bg-slate-100,
+.admin-surface .bg-slate-200,
+.admin-surface .bg-zinc-50,
+.admin-surface .bg-zinc-100,
+.admin-surface .bg-zinc-200 {
+  background-color: var(--color-bg-surface-hover) !important;
+  border-color: var(--color-border-medium) !important;
+  color: var(--color-text-primary) !important;
+}
 .admin-surface .bg-amber-50,
 .admin-surface .bg-amber-100,
 .admin-surface .bg-amber-200,
+.admin-surface .bg-yellow-100,
+.admin-surface .bg-orange-100 {
+  background-color: var(--color-warning-bg) !important;
+  border-color: var(--color-warning-border) !important;
+  color: var(--color-text-primary) !important;
+}
 .admin-surface .bg-blue-50,
 .admin-surface .bg-blue-100,
+.admin-surface .bg-indigo-100,
+.admin-surface .bg-sky-100 {
+  background-color: var(--color-info-bg) !important;
+  border-color: var(--color-info-border) !important;
+  color: var(--color-text-primary) !important;
+}
 .admin-surface .bg-red-50,
-.admin-surface .bg-red-100,
+.admin-surface .bg-red-100 {
+  background-color: var(--color-error-bg) !important;
+  border-color: var(--color-error-border) !important;
+  color: var(--color-text-primary) !important;
+}
 .admin-surface .bg-green-50,
-.admin-surface .bg-green-100,
-.admin-surface .bg-purple-100,
-.admin-surface .bg-yellow-100 {
-  background-color: var(--color-bg-surface-hover) !important;
-  border-color: var(--color-border-medium) !important;
+.admin-surface .bg-green-100 {
+  background-color: var(--color-success-bg) !important;
+  border-color: var(--color-success-border) !important;
+  color: var(--color-text-primary) !important;
+}
+.admin-surface .bg-purple-100 {
+  background-color: var(--color-primary-100) !important;
+  border-color: var(--color-primary-300) !important;
   color: var(--color-text-primary) !important;
 }
 .admin-surface .text-neutral-900,
@@ -693,6 +796,35 @@
   transition: all 0.2s ease;
 }
 
+.admin-theme a {
+  color: var(--color-primary-500);
+}
+
+.admin-theme a:hover {
+  color: var(--color-primary-600);
+}
+
+/* Fix dialogs/portals that render outside admin-theme wrapper */
+[data-radix-portal],
+[data-radix-portal] [role="dialog"],
+[data-radix-portal] [role="listbox"],
+[data-radix-popper-content-wrapper] {
+  color: var(--color-text-primary, #2C2419);
+}
+
+.theme-dark [data-radix-portal],
+.theme-dark [data-radix-portal] [role="dialog"],
+.theme-dark [data-radix-portal] [role="listbox"],
+.theme-dark [data-radix-popper-content-wrapper] {
+  color: var(--color-text-primary, #E6E9EF);
+}
+
+.admin-theme button:focus-visible,
+.admin-theme [role="button"]:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 /* Textured, animated cream background for admin layout */
 .admin-textured-bg {
   background-color: #f1e8dc;
@@ -711,13 +843,13 @@
 }
 
 .admin-textured-bg-dark {
-  background-color: #080c14;
+  background-color: #0B0F14;
   background-image:
-    conic-gradient(from 140deg at 18% 16%, rgba(43,139,146,0.16), transparent 50%, rgba(183,139,86,0.10), transparent 88%),
-    conic-gradient(from 240deg at 82% 12%, rgba(93,123,93,0.12), transparent 46%, rgba(79,107,146,0.14), transparent 84%),
-    radial-gradient(120% 110% at 14% 72%, rgba(68,190,184,0.08), transparent 62%),
-    radial-gradient(140% 120% at 86% 84%, rgba(109,148,117,0.10), transparent 54%),
-    linear-gradient(145deg, rgba(10,15,22,0.96), rgba(8,12,20,0.94)),
+    conic-gradient(from 140deg at 18% 16%, rgba(44,123,229,0.14), transparent 50%, rgba(90,166,255,0.08), transparent 88%),
+    conic-gradient(from 240deg at 82% 12%, rgba(240,180,41,0.10), transparent 46%, rgba(70,95,140,0.12), transparent 84%),
+    radial-gradient(120% 110% at 14% 72%, rgba(44,123,229,0.08), transparent 62%),
+    radial-gradient(140% 120% at 86% 84%, rgba(240,180,41,0.08), transparent 54%),
+    linear-gradient(145deg, rgba(11,15,20,0.96), rgba(9,13,19,0.94)),
     linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 100%),
     linear-gradient(0deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 100%);
   background-size: 200% 200%, 180% 180%, 160% 160%, 170% 170%, 100% 100%, 26px 26px, 22px 22px;

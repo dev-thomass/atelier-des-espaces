@@ -19,7 +19,6 @@ import {
   MessageSquare,
   Lightbulb,
   Calendar,
-  ListChecks,
   Settings,
   Menu,
   X,
@@ -39,14 +38,11 @@ import {
   GripVertical,
   ArrowUp,
   ArrowDown,
-  ShoppingCart,
-  Check,
-  Package,
-  ChevronDown,
-  ChevronUp,
   RefreshCw,
   User,
   FileText,
+  Pin,
+  PinOff,
   MapPin,
   Sparkles,
   ArrowRight,
@@ -55,17 +51,18 @@ import {
   BookOpen,
   Copy,
   Sun,
-  Moon
+  Moon,
+  Receipt
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import AdminProjetCard from "../components/admin/AdminProjetCard";
 import AdminProjetForm from "../components/admin/AdminProjetForm";
 import PlanningChatBot from "../components/admin/PlanningChatBot";
-import ListesChatBot from "../components/admin/ListesChatBot";
 import GestionChatBot from "../components/admin/GestionChatBot";
 import { AdminHero } from "../components/admin/AdminHero";
 import { useTheme } from "@/context/ThemeContext";
 import { sendAssistantMessage } from "@/api/assistantClient";
+import { DocumentsContent } from "../components/documents";
 
 export default function Gestion() {
   const { theme } = useTheme();
@@ -207,8 +204,9 @@ export default function Gestion() {
   const navigation = [
     { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, section: "main" },
     { id: "divider-pratique", label: "Gestion Pratique", section: "divider" },
+    { id: "documents", label: "Devis & Factures", icon: Receipt, section: "pratique" },
     { id: "planning", label: "Planning", icon: Calendar, section: "pratique" },
-    { id: "listes", label: "Listes", icon: ListChecks, section: "pratique" },
+    { id: "listes", label: "Notes", icon: FileText, section: "pratique" },
     { id: "assistant", label: "Assistant", icon: Lightbulb, section: "pratique" },
     { id: "divider-web", label: "Gestion Web", section: "divider" },
     { id: "projets", label: "Projets & Prestations", icon: Globe, section: "web" },
@@ -262,7 +260,7 @@ export default function Gestion() {
   return (
     <div
       className={`min-h-screen flex ${theme === "dark" ? "admin-textured-bg-dark" : "admin-textured-bg"}`}
-      style={{ color: "var(--color-text-primary)" }}
+      style={{ color: isDark ? "var(--color-text-primary)" : "#FFFFFF" }}
     >
       <GestionChatBot />
 
@@ -426,10 +424,11 @@ export default function Gestion() {
               prestations={prestations}
             />
           )}
+          {activeSection === "documents" && <DocumentsContent />}
           {activeSection === "assistant-client" && <AssistantClientContent />}
           {activeSection === "assistant" && <AssistantContent />}
           {activeSection === "planning" && <PlanningContent />}
-          {activeSection === "listes" && <ListesContent />}
+          {activeSection === "listes" && <NotesContent />}
           {activeSection === "settings" && <SettingsContent user={user} handleLogout={handleLogout} />}
         </div>
       </main>
@@ -445,7 +444,7 @@ function QuickAccessLinks({ activeSection, onNavigate }) {
   const quickLinks = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, color: "var(--color-primary-500)" },
     { id: "planning", label: "Planning", icon: Calendar, color: "var(--color-secondary-500)" },
-    { id: "listes", label: "Listes", icon: ListChecks, color: "var(--color-accent-olive-500)" },
+    { id: "listes", label: "Notes", icon: FileText, color: "var(--color-accent-olive-500)" },
     { id: "assistant", label: "Assistant", icon: Lightbulb, color: "var(--color-accent-warm-500)" }
   ];
 
@@ -480,19 +479,23 @@ function DashboardContent({ stats, setActiveSection }) {
   const isDark = theme === "dark";
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  const { data: items = [] } = useQuery({
-    queryKey: ['liste-courses'],
-    queryFn: () => api.entities.ListeCourse.list('ordre'),
+  const { data: notes = [] } = useQuery({
+    queryKey: ['notes'],
+    queryFn: () => api.entities.Note.list('updated_at'),
   });
 
-  const activeItems = items.filter(i => !i.fait);
-  const urgentItems = activeItems.filter(i => i.urgence === "urgente");
-  const categories = {
-    courses: { label: "Courses", color: "#E3F2FD", icon: ShoppingCart },
-    materiaux: { label: "Materiaux", color: "#F3E5F5", icon: Package },
-    outils: { label: "Outils", color: "#FFF9C4", icon: Wrench },
-    a_retenir: { label: "A retenir", color: "#FFE0B2", icon: Lightbulb }
-  };
+  const visibleNotes = notes.filter((note) => !note?.archived);
+  const pinnedNotes = visibleNotes.filter((note) => Boolean(note?.pinned));
+  const now = Date.now();
+  const recentNotesCount = visibleNotes.filter((note) => {
+    const dateValue = new Date(note?.updated_at || note?.created_at || 0).getTime();
+    if (!dateValue) return false;
+    return now - dateValue <= 7 * 24 * 60 * 60 * 1000;
+  }).length;
+  const recentNotes = visibleNotes
+    .slice()
+    .sort((a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0))
+    .slice(0, 3);
 
   const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -550,7 +553,7 @@ function DashboardContent({ stats, setActiveSection }) {
           <CardHeader className="p-5 border-b" style={{ borderColor: "var(--color-border-light)" }}>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2 font-bold" style={{ color: "var(--color-text-primary)" }}>
-                <ListChecks className="w-5 h-5" />Listes
+                <FileText className="w-5 h-5" />Notes
               </CardTitle>
               <Button
                 size="sm"
@@ -573,8 +576,8 @@ function DashboardContent({ stats, setActiveSection }) {
                   color: "var(--color-secondary-700)",
                 }}
               >
-                <div className="text-xl font-bold" style={{ color: "var(--color-secondary-700)" }}>{activeItems.length}</div>
-                <div className="text-xs" style={{ color: "var(--color-secondary-600)" }}>Actifs</div>
+                <div className="text-xl font-bold" style={{ color: "var(--color-secondary-700)" }}>{visibleNotes.length}</div>
+                <div className="text-xs" style={{ color: "var(--color-secondary-600)" }}>Total</div>
               </div>
               <div
                 className="rounded-lg p-2 text-center border"
@@ -584,8 +587,8 @@ function DashboardContent({ stats, setActiveSection }) {
                   color: "var(--color-warning-text)",
                 }}
               >
-                <div className="text-xl font-bold">{urgentItems.length}</div>
-                <div className="text-xs" style={{ color: "var(--color-warning-text)" }}>Urgent</div>
+                <div className="text-xl font-bold">{pinnedNotes.length}</div>
+                <div className="text-xs" style={{ color: "var(--color-warning-text)" }}>Epingles</div>
               </div>
               <div
                 className="rounded-lg p-2 text-center border"
@@ -595,54 +598,58 @@ function DashboardContent({ stats, setActiveSection }) {
                   color: "var(--color-success-text)",
                 }}
               >
-                <div className="text-xl font-bold">{items.filter(i => i.fait).length}</div>
-                <div className="text-xs" style={{ color: "var(--color-success-text)" }}>Fait</div>
+                <div className="text-xl font-bold">{recentNotesCount}</div>
+                <div className="text-xs" style={{ color: "var(--color-success-text)" }}>7 derniers jours</div>
               </div>
             </div>
 
-            {urgentItems.length > 0 && (
+            {pinnedNotes.length > 0 && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                  <span className="text-sm font-semibold text-red-900">Urgent</span>
+                  <Pin className="w-4 h-4 text-[var(--color-secondary-600)]" />
+                  <span className="text-sm font-semibold text-[var(--color-secondary-700)]">Epingles</span>
                 </div>
                 <div className="space-y-2">
-                  {urgentItems.slice(0, 3).map(item => (
-                    <div key={item.id} className="flex items-center gap-2 p-2 bg-red-50 rounded-lg border border-red-200">
-                      <div className="w-1.5 h-1.5 bg-red-600 rounded-full flex-shrink-0"></div>
-                      <span className="text-sm text-red-900 flex-1 truncate">{item.titre}</span>
-                      <Badge className="bg-red-100 text-red-800 text-xs">{categories[item.categorie]?.label}</Badge>
-                    </div>
-                  ))}
+                  {pinnedNotes.slice(0, 3).map((note) => {
+                    const label = note?.title || note?.content || "Note sans titre";
+                    return (
+                      <div key={note.id} className="flex items-center gap-2 p-2 bg-[var(--color-secondary-100)] rounded-lg border border-[var(--color-secondary-300)]">
+                        <Pin className="w-3.5 h-3.5 text-[var(--color-secondary-600)]" />
+                        <span className="text-sm text-[var(--color-secondary-700)] flex-1 truncate">{label}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
             <div className="space-y-2">
-              {Object.entries(categories).map(([key, cat]) => {
-                const count = activeItems.filter(i => i.categorie === key).length;
-                if (count === 0) return null;
-                const Icon = cat.icon;
+              {recentNotes.map((note) => {
+                const label = note?.title || note?.content || "Note sans titre";
                 return (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between p-2 rounded-lg border transition-all hover:shadow-sm"
-                      style={{ backgroundColor: "var(--color-primary-100)", borderColor: "var(--color-primary-200)" }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-amber-900" />
-                        <span className="text-sm font-medium text-amber-900">{cat.label}</span>
-                      </div>
-                      <Badge className="bg-white/80 text-amber-900">{count}</Badge>
+                  <div
+                    key={note.id}
+                    className="flex items-center justify-between p-2 rounded-lg border transition-all hover:shadow-sm"
+                    style={{ backgroundColor: "var(--color-primary-100)", borderColor: "var(--color-primary-200)" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      {note?.pinned ? (
+                        <Pin className="w-4 h-4 text-[var(--color-secondary-600)]" />
+                      ) : (
+                        <FileText className="w-4 h-4 text-[var(--color-secondary-600)]" />
+                      )}
+                      <span className="text-sm font-medium text-[var(--color-secondary-700)] truncate">{label}</span>
+                    </div>
+                    {note?.pinned && <Badge className="bg-white/80 text-[var(--color-secondary-700)] text-xs">Epinglee</Badge>}
                   </div>
                 );
               })}
             </div>
 
-            {activeItems.length === 0 && (
+            {visibleNotes.length === 0 && (
               <div className="text-center py-8">
-                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-amber-300" />
-                <p className="text-sm text-amber-700">Toutes les listes sont a jour !</p>
+                <FileText className="w-12 h-12 mx-auto mb-3 text-[var(--color-secondary-300)]" />
+                <p className="text-sm text-[var(--color-secondary-600)]">Aucune note pour le moment.</p>
               </div>
             )}
           </CardContent>
@@ -720,11 +727,11 @@ function DashboardContent({ stats, setActiveSection }) {
                         className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
                         style={{ backgroundColor: "var(--color-accent-warm-100)" }}
                       >
-                        <ListChecks className="w-5 h-5" color="var(--color-primary-600)" />
+                        <FileText className="w-5 h-5" color="var(--color-primary-600)" />
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Listes</p>
-                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Ajouter des items</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Notes</p>
+                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Ecrire une note rapide</p>
                       </div>
                       <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" color="var(--color-primary-600)" />
                     </div>
@@ -740,7 +747,7 @@ function DashboardContent({ stats, setActiveSection }) {
                   <div>
                     <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-text-primary)" }}> Astuce</p>
                     <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
-                      Utilise l'assistant pour creer rapidement des evenements, gerer tes listes et suivre tes projets en langage naturel.
+                      Utilise l'assistant pour creer rapidement des evenements, noter des idees et suivre tes projets en langage naturel.
                     </p>
                   </div>
                 </div>
@@ -752,10 +759,10 @@ function DashboardContent({ stats, setActiveSection }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Projets", value: stats.totalProjets, icon: Globe, gradient: "from-blue-600 to-blue-400" },
-          { label: "Prestations", value: stats.totalPrestations, icon: Briefcase, gradient: "from-amber-500 to-amber-300" },
-          { label: "Conv. Clients", value: stats.totalConversationsProjet, icon: MessageSquare, gradient: "from-emerald-500 to-cyan-400" },
-          { label: "Sessions", value: stats.totalConversationsChantier || 0, icon: Wrench, gradient: "from-indigo-500 to-blue-500" },
+          { label: "Projets", value: stats.totalProjets, icon: Globe, gradient: "from-[var(--color-primary-600)] to-[var(--color-primary-400)]" },
+          { label: "Prestations", value: stats.totalPrestations, icon: Briefcase, gradient: "from-[var(--color-secondary-500)] to-[var(--color-secondary-300)]" },
+          { label: "Conv. Clients", value: stats.totalConversationsProjet, icon: MessageSquare, gradient: "from-[var(--color-accent-olive-400)] to-[var(--color-accent-olive-300)]" },
+          { label: "Sessions", value: stats.totalConversationsChantier || 0, icon: Wrench, gradient: "from-[var(--color-accent-olive-400)] to-[var(--color-accent-olive-300)]" },
         ].map((item, idx) => {
           const Icon = item.icon;
           return (
@@ -894,14 +901,14 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
               </div>
 
               {filteredProjets.length === 0 ? (
-                <Alert className="bg-neutral-100">
+                <Alert className="bg-[var(--color-bg-surface-hover)]">
                   <AlertDescription className="text-center py-8">
                     {searchTerm ? "Aucun projet trouve" : "Aucun projet. Creez-en un !"}
                   </AlertDescription>
                 </Alert>
               ) : (
                 <>
-                  <div className="bg-neutral-100 border border-neutral-200 rounded-lg p-3 mb-4 text-xs md:text-sm">
+                  <div className="bg-[var(--color-bg-surface-hover)] border border-[var(--color-border-light)] rounded-lg p-3 mb-4 text-xs md:text-sm">
                      Utilisez les fleches pour reorganiser
                   </div>
                   <DragDropContext onDragEnd={handleProjetDragEnd}>
@@ -914,13 +921,13 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
                                 <div ref={provided.innerRef} {...provided.draggableProps} className={snapshot.isDragging ? 'opacity-50' : ''}>
                                   <div className="flex gap-2 items-start">
                                     <div className="flex flex-col gap-1 flex-shrink-0">
-                                      <button onClick={() => moveProjet(index, 'up')} disabled={index === 0} className="p-1.5 md:p-2 hover:bg-neutral-100 rounded disabled:opacity-30 bg-white border border-neutral-200">
+                                      <button onClick={() => moveProjet(index, 'up')} disabled={index === 0} className="p-1.5 md:p-2 hover:bg-[var(--color-bg-surface-hover)] rounded disabled:opacity-30 bg-white border border-[var(--color-border-light)]">
                                         <ArrowUp className="w-3 h-3 md:w-4 md:h-4" />
                                       </button>
-                                      <div {...provided.dragHandleProps} className="hidden md:block p-2 bg-white border border-neutral-200 rounded cursor-grab active:cursor-grabbing">
+                                      <div {...provided.dragHandleProps} className="hidden md:block p-2 bg-white border border-[var(--color-border-light)] rounded cursor-grab active:cursor-grabbing">
                                         <GripVertical className="w-4 h-4 text-neutral-400" />
                                       </div>
-                                      <button onClick={() => moveProjet(index, 'down')} disabled={index === filteredProjets.length - 1} className="p-1.5 md:p-2 hover:bg-neutral-100 rounded disabled:opacity-30 bg-white border border-neutral-200">
+                                      <button onClick={() => moveProjet(index, 'down')} disabled={index === filteredProjets.length - 1} className="p-1.5 md:p-2 hover:bg-[var(--color-bg-surface-hover)] rounded disabled:opacity-30 bg-white border border-[var(--color-border-light)]">
                                         <ArrowDown className="w-3 h-3 md:w-4 md:h-4" />
                                       </button>
                                     </div>
@@ -962,7 +969,7 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
           )}
 
           {prestations.length === 0 ? (
-            <Alert className="bg-neutral-100">
+            <Alert className="bg-[var(--color-bg-surface-hover)]">
               <AlertDescription className="text-center py-8">Aucune prestation. Creez-en une !</AlertDescription>
             </Alert>
           ) : (
@@ -975,10 +982,10 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
                 >
                   <div className="flex gap-2 md:gap-3">
                     <div className="flex flex-col gap-1 flex-shrink-0">
-                      <button onClick={() => movePrestationOrder(index, 'up')} disabled={index === 0} className="p-1.5 hover:bg-neutral-100 rounded disabled:opacity-30 border border-neutral-200">
+                      <button onClick={() => movePrestationOrder(index, 'up')} disabled={index === 0} className="p-1.5 hover:bg-[var(--color-bg-surface-hover)] rounded disabled:opacity-30 border border-[var(--color-border-light)]">
                         <ArrowUp className="w-3 h-3" />
                       </button>
-                      <button onClick={() => movePrestationOrder(index, 'down')} disabled={index === prestations.length - 1} className="p-1.5 hover:bg-neutral-100 rounded disabled:opacity-30 border border-neutral-200">
+                      <button onClick={() => movePrestationOrder(index, 'down')} disabled={index === prestations.length - 1} className="p-1.5 hover:bg-[var(--color-bg-surface-hover)] rounded disabled:opacity-30 border border-[var(--color-border-light)]">
                         <ArrowDown className="w-3 h-3" />
                       </button>
                     </div>
@@ -986,24 +993,24 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
                       <div className="flex justify-between items-start gap-2 mb-2">
                         <h3 className="font-bold text-neutral-800 text-sm md:text-base flex-1 min-w-0">{prestation.titre}</h3>
                         {prestation.visible ? (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                          <span className="text-xs bg-[var(--color-success-bg)] text-[var(--color-success-text)] px-2 py-0.5 rounded flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <Eye className="w-3 h-3" /> Visible
                           </span>
                         ) : (
-                          <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded flex items-center gap-1 whitespace-nowrap flex-shrink-0">
+                          <span className="text-xs bg-[var(--color-error-bg)] text-[var(--color-error-text)] px-2 py-0.5 rounded flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                             <EyeOff className="w-3 h-3" /> Masque
                           </span>
                         )}
                       </div>
                       <p className="text-xs md:text-sm text-neutral-600 mb-3 line-clamp-2">{prestation.description}</p>
                       <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(prestation)} className="text-blue-600 border-blue-600 hover:bg-blue-50 text-xs">
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(prestation)} className="text-[var(--color-primary-600)] border-[var(--color-primary-500)] hover:bg-[var(--color-primary-100)] text-xs">
                           <Edit2 className="w-3 h-3 mr-1" />Modifier
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleToggleVisibility(prestation)} className="text-neutral-600 border-neutral-600 hover:bg-neutral-50 text-xs">
+                        <Button size="sm" variant="outline" onClick={() => handleToggleVisibility(prestation)} className="text-neutral-600 border-[var(--color-border-medium)] hover:bg-[var(--color-bg-surface)] text-xs">
                           {prestation.visible ? <><EyeOff className="w-3 h-3 mr-1" />Masquer</> : <><Eye className="w-3 h-3 mr-1" />Afficher</>}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleDelete(prestation)} className="text-red-600 border-red-600 hover:bg-red-50 text-xs">
+                        <Button size="sm" variant="outline" onClick={() => handleDelete(prestation)} className="text-[var(--color-error-text)] border-[var(--color-error-border)] hover:bg-[var(--color-error-bg)] text-xs">
                           <Trash2 className="w-3 h-3 mr-1" />Supprimer
                         </Button>
                       </div>
@@ -1043,8 +1050,8 @@ function PrestationForm({ prestation, onCancel, onSuccess }) {
   };
 
   return (
-    <Card className="border-neutral-200 shadow-lg mb-6">
-      <CardHeader className="border-b border-neutral-100">
+    <Card className="border-[var(--color-border-light)] shadow-lg mb-6">
+      <CardHeader className="border-b border-[var(--color-border-light)]">
         <CardTitle className="text-base font-semibold text-neutral-900">
           {prestation ? "Modifier la prestation" : "Nouvelle prestation"}
         </CardTitle>
@@ -1073,7 +1080,7 @@ function PrestationForm({ prestation, onCancel, onSuccess }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <input type="checkbox" id="visible" checked={formData.visible} onChange={(e) => setFormData({ ...formData, visible: e.target.checked })} className="w-4 h-4 rounded border-neutral-300" />
+            <input type="checkbox" id="visible" checked={formData.visible} onChange={(e) => setFormData({ ...formData, visible: e.target.checked })} className="w-4 h-4 rounded border-[var(--color-border-medium)]" />
             <Label htmlFor="visible" className="text-sm text-neutral-700 cursor-pointer">Visible sur le site</Label>
           </div>
 
@@ -1211,11 +1218,11 @@ function AssistantClientContent() {
     const isUser = message.role === 'user';
     return (
       <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-        {!isUser && <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center flex-shrink-0 shadow-md"><MessageSquare className="w-5 h-5 text-white" /></div>}
-        <div className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${isUser ? 'bg-gradient-to-br from-green-600 to-green-700 text-white' : 'bg-white border-2 border-stone-200 text-stone-800'}`}>
+        {!isUser && <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[var(--color-accent-olive-400)] to-[var(--color-accent-olive-500)] flex items-center justify-center flex-shrink-0 shadow-md"><MessageSquare className="w-5 h-5 text-white" /></div>}
+        <div className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-sm ${isUser ? 'bg-gradient-to-br from-[var(--color-primary-500)] to-[var(--color-primary-600)] text-white' : 'bg-white border-2 border-[var(--color-border-light)] text-stone-800'}`}>
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
         </div>
-        {isUser && <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-stone-600 to-stone-800 flex items-center justify-center flex-shrink-0 shadow-md"><User className="w-5 h-5 text-white" /></div>}
+        {isUser && <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[var(--color-primary-500)] to-[var(--color-primary-700)] flex items-center justify-center flex-shrink-0 shadow-md"><User className="w-5 h-5 text-white" /></div>}
       </div>
     );
   };
@@ -1232,7 +1239,7 @@ function AssistantClientContent() {
       />
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
+        <Card className="lg:col-span-1 border-[var(--color-border-light)] shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
           <CardHeader className="border-b p-4" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
             <CardTitle className="text-base flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
               <MessageSquare className="w-5 h-5" />Conversations ({conversations.length})
@@ -1240,7 +1247,7 @@ function AssistantClientContent() {
           </CardHeader>
           <CardContent className="p-4 max-h-[600px] overflow-y-auto" style={{ backgroundColor: "var(--color-bg-surface)" }}>
             {loadingConversations ? (
-              <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 text-orange-600 animate-spin" /></div>
+              <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 text-[var(--color-accent-warm-500)] animate-spin" /></div>
             ) : conversations.length === 0 ? (
               <div className="text-center py-8 text-stone-500">
                 <MessageSquare className="w-12 h-12 mx-auto mb-3 text-stone-300" />
@@ -1264,7 +1271,7 @@ function AssistantClientContent() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
+        <Card className="lg:col-span-2 border-[var(--color-border-light)] shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
           {selectedConversation ? (
             <>
               <CardHeader className="border-b p-4" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
@@ -1293,14 +1300,14 @@ function AssistantClientContent() {
                       {messages.map((message, index) => (<MessageBubble key={index} message={message} />))}
                       {isLoading && (
                         <div className="flex gap-3 justify-start mb-4">
-                          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-orange-600 to-orange-800 flex items-center justify-center flex-shrink-0 shadow-md">
+                          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[var(--color-accent-warm-400)] to-[var(--color-accent-warm-500)] flex items-center justify-center flex-shrink-0 shadow-md">
                             <MessageSquare className="w-5 h-5 text-white" />
                           </div>
-                          <div className="bg-white border-2 border-stone-200 rounded-2xl px-4 py-3 shadow-sm">
+                          <div className="bg-white border-2 border-[var(--color-border-light)] rounded-2xl px-4 py-3 shadow-sm">
                             <div className="flex gap-1">
-                              <div className="w-2 h-2 bg-orange-600 rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-orange-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                              <div className="w-2 h-2 bg-orange-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                              <div className="w-2 h-2 bg-[var(--color-accent-warm-500)] rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-[var(--color-accent-warm-500)] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                              <div className="w-2 h-2 bg-[var(--color-accent-warm-500)] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
                             </div>
                           </div>
                         </div>
@@ -1309,7 +1316,7 @@ function AssistantClientContent() {
                     </div>
                     <div className="p-4 border-t-2 bg-white" style={{ borderColor: 'var(--color-accent-warm-300)' }}>
                       <div className="flex gap-3">
-                        <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={handleKeyPress} placeholder="Repondre au client..." className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
+                        <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={handleKeyPress} placeholder="Repondre au client..." className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: "var(--color-warning-border)" }} />
                         <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg btn-primary">
                           <Send className="w-5 h-5" />
                         </Button>
@@ -1319,7 +1326,7 @@ function AssistantClientContent() {
                 ) : (
                   <div className="p-6 max-h-[600px] overflow-y-auto">
                     {summary?.error ? (
-                      <div className="text-center"><AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-500" /><p className="text-red-700">{summary.error}</p></div>
+                      <div className="text-center"><AlertCircle className="w-12 h-12 mx-auto mb-3 text-[var(--color-error-text)]" /><p className="text-[var(--color-error-text)]">{summary.error}</p></div>
                     ) : summary ? (
                       <div className="space-y-4">
                         <div className="rounded-xl p-4" style={{ backgroundColor: "var(--color-accent-warm-100)", border: "1px solid var(--color-accent-warm-300)" }}>
@@ -1333,7 +1340,7 @@ function AssistantClientContent() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 text-orange-600 animate-spin" /></div>
+                      <div className="flex items-center justify-center h-96"><Loader2 className="w-8 h-8 text-[var(--color-accent-warm-500)] animate-spin" /></div>
                     )}
                   </div>
                 )}
@@ -1347,7 +1354,7 @@ function AssistantClientContent() {
         </Card>
       </div>
 
-      <Card className="border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
+      <Card className="border-[var(--color-border-light)] shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
         <CardHeader className="border-b p-4" style={{ background: "linear-gradient(135deg, var(--color-accent-warm-100), var(--color-accent-warm-200))" }}>
           <CardTitle className="text-base flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
             <FileText className="w-5 h-5" />Demandes formulaire ({leads.length})
@@ -1355,7 +1362,7 @@ function AssistantClientContent() {
         </CardHeader>
         <CardContent className="p-4" style={{ backgroundColor: "var(--color-bg-surface)" }}>
           {loadingLeads ? (
-            <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 text-orange-600 animate-spin" /></div>
+            <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 text-[var(--color-accent-warm-500)] animate-spin" /></div>
           ) : leads.length === 0 ? (
             <div className="text-center py-8 text-stone-500">
               <FileText className="w-12 h-12 mx-auto mb-3 text-stone-300" />
@@ -1562,7 +1569,7 @@ function AssistantContent() {
     const isUser = message.role === 'user';
     const assistantBubbleStyle = theme === "dark"
       ? { backgroundColor: "var(--color-bg-surface-hover)", borderColor: "var(--color-border-medium)", color: "var(--color-text-primary)" }
-      : { backgroundColor: "#ffffff", borderColor: "var(--color-accent-warm-300)", color: "var(--color-text-primary)" };
+      : { backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-border-light)", color: "var(--color-text-primary)" };
     return (
       <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
         {!isUser && (
@@ -1576,7 +1583,7 @@ function AssistantContent() {
           </div>
         )}
         <div className={`max-w-[85%] ${isUser ? 'rounded-2xl px-4 py-3 shadow-md text-white' : 'space-y-2'}`}
-          style={isUser ? { background: theme === "dark" ? "linear-gradient(135deg, #1f2937, #0f172a)" : "linear-gradient(135deg, #404040, #262626)" } : undefined}>
+          style={isUser ? { background: theme === "dark" ? "linear-gradient(135deg, var(--color-primary-300), var(--color-primary-500))" : "linear-gradient(135deg, #404040, #262626)" } : undefined}>
           {isUser ? (
             <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
           ) : (
@@ -1588,12 +1595,12 @@ function AssistantContent() {
                 <div
                   className="rounded-lg p-3 text-xs border"
                   style={{
-                    backgroundColor: theme === "dark" ? "rgba(99, 198, 196, 0.12)" : "var(--color-success-bg)",
-                    borderColor: theme === "dark" ? "rgba(63,198,196,0.35)" : "var(--color-success-border)",
+                    backgroundColor: theme === "dark" ? "var(--color-success-bg)" : "var(--color-success-bg)",
+                    borderColor: theme === "dark" ? "var(--color-success-border)" : "var(--color-success-border)",
                     color: theme === "dark" ? "var(--color-text-primary)" : "var(--color-success-text)",
                   }}
                 >
-                  <div className="flex items-center gap-2 mb-2" style={{ color: theme === "dark" ? "#63c6c4" : "var(--color-success-icon)" }}>
+                  <div className="flex items-center gap-2 mb-2" style={{ color: "var(--color-success-icon)" }}>
                     <CheckCircle2 className="w-4 h-4" /> <span className="font-semibold">Actions effectuees :</span>
                   </div>
                   {message.actions.map((action, idx) => (
@@ -1606,7 +1613,7 @@ function AssistantContent() {
             </>
           )}
         </div>
-        {isUser && <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-neutral-700 to-neutral-900 flex items-center justify-center flex-shrink-0 shadow-lg"><span className="text-white text-sm font-bold">T</span></div>}
+        {isUser && <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[var(--color-primary-500)] to-[var(--color-primary-700)] flex items-center justify-center flex-shrink-0 shadow-lg"><span className="text-white text-sm font-bold">T</span></div>}
       </div>
     );
   };
@@ -1622,7 +1629,7 @@ function AssistantContent() {
         gradient="linear-gradient(135deg, var(--color-accent-warm-500), var(--color-accent-warm-400))"
       />
 
-      <Card className="border-orange-200 shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
+      <Card className="border-[var(--color-border-light)] shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
         <CardHeader
           className="p-6"
           style={{
@@ -1694,9 +1701,9 @@ function AssistantContent() {
             }}
           >
             <div className="flex gap-3">
-              <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())} placeholder="Ex: Ou j'en suis sur le chantier Dupont ?" className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: '#FFCC80' }} />
+              <Textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())} placeholder="Ex: Ou j'en suis sur le chantier Dupont ?" className="resize-none text-sm" rows={2} disabled={isLoading} style={{ borderColor: "var(--color-warning-border)" }} />
               <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} className="px-6 shadow-lg btn-primary">
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-orange-900" /> : <Send className="w-5 h-5 text-orange-900" />}
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin text-[var(--color-text-primary)]" /> : <Send className="w-5 h-5 text-[var(--color-text-primary)]" />}
               </Button>
             </div>
           </div>
@@ -1783,12 +1790,12 @@ function PlanningContent() {
       />
 
       {todayEvents.length > 0 && (
-        <Card className="border-blue-50 shadow-sm bg-white">
-          <CardHeader className="p-3 bg-blue-50"><CardTitle className="text-sm font-semibold text-blue-900 flex items-center gap-2"><Clock className="w-4 h-4" />Aujourd'hui ({todayEvents.length})</CardTitle></CardHeader>
+        <Card className="border-[var(--color-border-light)] shadow-sm bg-white">
+          <CardHeader className="p-3 bg-[var(--color-primary-100)]"><CardTitle className="text-sm font-semibold text-[var(--color-primary-700)] flex items-center gap-2"><Clock className="w-4 h-4" />Aujourd'hui ({todayEvents.length})</CardTitle></CardHeader>
           <CardContent className="p-3">
             <div className="flex gap-2 overflow-x-auto">
               {todayEvents.map(event => (
-                <div key={event.id} className="flex-shrink-0 w-48 p-2 rounded-lg border-l-4 bg-white shadow-sm" style={{ borderLeftColor: event.color || '#007AFF' }}>
+                <div key={event.id} className="flex-shrink-0 w-48 p-2 rounded-lg border-l-4 bg-white shadow-sm" style={{ borderLeftColor: event.color || "var(--color-primary-500)" }}>
                   <div className="font-semibold text-stone-800 text-xs truncate">{event.title}</div>
                   <div className="text-xs text-stone-600 mt-1">{new Date(event.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
@@ -1798,14 +1805,14 @@ function PlanningContent() {
         </Card>
       )}
 
-      <Card className="border-blue-200 shadow-2xl">
+      <Card className="border-[var(--color-primary-200)] shadow-2xl">
         <CardHeader
-          className="border-b p-6 bg-gradient-to-r from-blue-50 to-blue-100"
+          className="border-b p-6 bg-gradient-to-r from-[var(--color-primary-100)] to-[var(--color-primary-200)]"
           style={isDark ? { background: "var(--color-bg-surface)" } : undefined}
         >
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg text-blue-900 flex items-center gap-2"><Calendar className="w-5 h-5" />Calendrier Principal</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setCalendarKey(prev => prev + 1)} className="text-blue-600 border-blue-600 hover:bg-blue-50">
+            <CardTitle className="text-lg text-[var(--color-primary-700)] flex items-center gap-2"><Calendar className="w-5 h-5" />Calendrier Principal</CardTitle>
+            <Button size="sm" variant="outline" onClick={() => setCalendarKey(prev => prev + 1)} className="text-[var(--color-primary-600)] border-[var(--color-primary-500)] hover:bg-[var(--color-primary-100)]">
               <RefreshCw className="w-4 h-4 mr-2" />Actualiser
             </Button>
           </div>
@@ -1825,10 +1832,10 @@ function PlanningContent() {
             />
           </div>
           <div
-            className="p-3 bg-gradient-to-r from-blue-50 to-blue-100 border-t border-blue-200"
+            className="p-3 bg-gradient-to-r from-[var(--color-primary-100)] to-[var(--color-primary-200)] border-t border-[var(--color-primary-200)]"
             style={isDark ? { background: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" } : undefined}
           >
-            <p className="text-xs text-blue-800 text-center flex items-center justify-center gap-2"><Sparkles className="w-3 h-3" />Synchronise automatiquement avec Google Calendar</p>
+            <p className="text-xs text-[var(--color-primary-700)] text-center flex items-center justify-center gap-2"><Sparkles className="w-3 h-3" />Synchronise automatiquement avec Google Calendar</p>
           </div>
         </CardContent>
       </Card>
@@ -1836,251 +1843,409 @@ function PlanningContent() {
   );
 }
 
-function ListesContent() {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const [newItem, setNewItem] = useState("");
-  const [selectedCategorie, setSelectedCategorie] = useState("courses");
-  const [expandedCategories, setExpandedCategories] = useState({ courses: true, materiaux: true, outils: true, a_retenir: true, autre: true });
-  const [viewMode, setViewMode] = useState("dashboard");
+
+const NOTE_COLORS = [
+  { id: "sand", label: "Sable", bg: "bg-[var(--color-secondary-100)]", border: "border-[var(--color-secondary-300)]", text: "text-[var(--color-secondary-700)]", dot: "bg-[var(--color-secondary-500)]" },
+  { id: "sage", label: "Sauge", bg: "bg-[var(--color-accent-olive-100)]", border: "border-[var(--color-accent-olive-300)]", text: "text-[var(--color-accent-olive-500)]", dot: "bg-[var(--color-accent-olive-400)]" },
+  { id: "sky", label: "Ciel", bg: "bg-[var(--color-primary-100)]", border: "border-[var(--color-primary-300)]", text: "text-[var(--color-primary-700)]", dot: "bg-[var(--color-primary-500)]" },
+  { id: "rose", label: "Rose", bg: "bg-[var(--color-accent-warm-100)]", border: "border-[var(--color-accent-warm-300)]", text: "text-[var(--color-accent-warm-500)]", dot: "bg-[var(--color-accent-warm-400)]" },
+  { id: "stone", label: "Pierre", bg: "bg-[var(--color-bg-surface-hover)]", border: "border-[var(--color-border-light)]", text: "text-[var(--color-text-primary)]", dot: "bg-[var(--color-border-medium)]" },
+];
+
+const resolveNoteColor = (colorId) => NOTE_COLORS.find((color) => color.id === colorId) || NOTE_COLORS[0];
+
+const noteLabel = (note) => {
+  const title = (note?.title || "").toString().trim();
+  return title || "Note sans titre";
+};
+
+const noteTimestamp = (note) => note?.updated_at || note?.created_at || null;
+
+function NotesContent() {
   const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [draft, setDraft] = useState({
+    title: "",
+    content: "",
+    color: NOTE_COLORS[0].id,
+    pinned: false,
+  });
+  const [editingNote, setEditingNote] = useState(null);
+  const [editDraft, setEditDraft] = useState({
+    title: "",
+    content: "",
+    color: NOTE_COLORS[0].id,
+    pinned: false,
+  });
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  const { data: items = [] } = useQuery({
-    queryKey: ['liste-courses'],
-    queryFn: () => api.entities.ListeCourse.list('ordre'),
+  const { data: notes = [] } = useQuery({
+    queryKey: ['notes'],
+    queryFn: () => api.entities.Note.list('updated_at'),
   });
 
-  const handleItemCreatedByChatbot = () => {
-    queryClient.invalidateQueries({ queryKey: ['liste-courses'] });
-  };
-
   const createMutation = useMutation({
-    mutationFn: (data) => api.entities.ListeCourse.create(data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
+    mutationFn: (data) => api.entities.Note.create(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notes'] }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => api.entities.ListeCourse.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
+    mutationFn: ({ id, data }) => api.entities.Note.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notes'] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => api.entities.ListeCourse.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['liste-courses'] }),
+    mutationFn: (id) => api.entities.Note.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notes'] }),
   });
 
-  const handleAddItem = () => {
-    if (!newItem.trim()) return;
-    createMutation.mutate({ titre: newItem, categorie: selectedCategorie, fait: false, urgence: "normale", ordre: items.length });
-    setNewItem("");
+  const normalizedNotes = notes.map((note) => ({
+    ...note,
+    pinned: Boolean(note?.pinned),
+    archived: Boolean(note?.archived),
+    color: note?.color || NOTE_COLORS[0].id,
+  }));
+
+  const term = searchTerm.trim().toLowerCase();
+  const visibleNotes = normalizedNotes.filter((note) => !note.archived);
+  const filteredNotes = visibleNotes.filter((note) => {
+    if (!term) return true;
+    const haystack = `${note?.title || ""} ${note?.content || ""}`.toLowerCase();
+    return haystack.includes(term);
+  });
+
+  const sortByRecent = (a, b) => {
+    const aTime = new Date(noteTimestamp(a) || 0).getTime();
+    const bTime = new Date(noteTimestamp(b) || 0).getTime();
+    return bTime - aTime;
   };
 
-  const handleToggleItem = (item) => {
-    updateMutation.mutate({ id: item.id, data: { ...item, fait: !item.fait } });
+  const pinnedNotes = filteredNotes.filter((note) => note.pinned).sort(sortByRecent);
+  const otherNotes = filteredNotes.filter((note) => !note.pinned).sort(sortByRecent);
+
+  const handleCreateNote = () => {
+    const title = draft.title.trim();
+    const content = draft.content.trim();
+    if (!title && !content) return;
+    createMutation.mutate({
+      title: title || null,
+      content: content || null,
+      color: draft.color,
+      pinned: draft.pinned,
+      archived: false,
+    });
+    setDraft((prev) => ({
+      ...prev,
+      title: "",
+      content: "",
+      pinned: false,
+    }));
   };
 
-  const handleToggleUrgence = (item) => {
-    const urgences = ["normale", "importante", "urgente"];
-    const currentIndex = urgences.indexOf(item.urgence || "normale");
-    const nextIndex = (currentIndex + 1) % urgences.length;
-    updateMutation.mutate({ id: item.id, data: { ...item, urgence: urgences[nextIndex] } });
+  const handleTogglePin = (note) => {
+    updateMutation.mutate({ id: note.id, data: { pinned: !note.pinned } });
   };
 
-  const handleDeleteItem = (id) => {
-    deleteMutation.mutate(id);
+  const handleDeleteNote = (note) => {
+    if (!note?.id) return;
+    if (confirm("Supprimer cette note ?")) {
+      deleteMutation.mutate(note.id);
+    }
   };
 
-  const handleDeleteDone = () => {
-    items.filter(item => item.fait).forEach(item => deleteMutation.mutate(item.id));
+  const openEdit = (note) => {
+    setEditingNote(note);
+    setEditDraft({
+      title: note?.title || "",
+      content: note?.content || "",
+      color: note?.color || NOTE_COLORS[0].id,
+      pinned: Boolean(note?.pinned),
+    });
   };
 
-  const toggleCategory = (cat) => {
-    setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  const closeEdit = () => {
+    setEditingNote(null);
+    setEditDraft({
+      title: "",
+      content: "",
+      color: NOTE_COLORS[0].id,
+      pinned: false,
+    });
   };
 
-  const categories = {
-    courses: { label: "Courses", icon: ShoppingCart, color: "bg-blue-500", lightColor: "bg-blue-100", textColor: "text-blue-900" },
-    materiaux: { label: "Materiaux", icon: Package, color: "bg-purple-500", lightColor: "bg-purple-100", textColor: "text-purple-900" },
-    outils: { label: "Outils", icon: Wrench, color: "bg-amber-500", lightColor: "bg-amber-100", textColor: "text-amber-900" },
-    a_retenir: { label: "A Retenir", icon: Lightbulb, color: "bg-yellow-500", lightColor: "bg-yellow-100", textColor: "text-yellow-900" },
-    autre: { label: "Autre", icon: AlertCircle, color: "bg-stone-500", lightColor: "bg-stone-100", textColor: "text-stone-900" }
+  const handleSaveEdit = () => {
+    if (!editingNote) return;
+    const title = editDraft.title.trim();
+    const content = editDraft.content.trim();
+    if (!title && !content) return;
+    updateMutation.mutate({
+      id: editingNote.id,
+      data: {
+        title: title || null,
+        content: content || null,
+        color: editDraft.color,
+        pinned: editDraft.pinned,
+      },
+    });
+    closeEdit();
   };
 
-  const groupedItems = items.reduce((acc, item) => {
-    const key = categories[item.categorie] ? item.categorie : "autre";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
-
-  const totalItems = items.length;
-  const doneItems = items.filter(i => i.fait).length;
-  const urgentItems = items.filter(i => !i.fait && i.urgence === "urgente");
-  const importantItems = items.filter(i => !i.fait && i.urgence === "importante");
-
-  const getUrgenceIcon = (urgence) => {
-    if (urgence === "urgente") return "!!!";
-    if (urgence === "importante") return "!!";
-    return "!";
+  const formatNoteDate = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
   };
+
+  const totalNotes = visibleNotes.length;
+  const pinnedCount = visibleNotes.filter((note) => note.pinned).length;
 
   return (
     <div className="space-y-4">
-      <ListesChatBot onItemCreated={handleItemCreatedByChatbot} items={items} />
-
       <AdminHero
-        icon={ListChecks}
+        icon={FileText}
         eyebrow="Gestion pratique"
-        title="Mes listes"
-        subtitle="Courses, matériaux et tâches du quotidien"
-        badges={["Dashboard", "Vue liste"]}
+        title="Notes"
+        subtitle="Un bloc-notes inspire de Google Keep"
+        badges={["Epinglage", "Recherche", "Couleurs"]}
         gradient="linear-gradient(135deg, var(--color-accent-olive-500), var(--color-accent-olive-400))"
         iconTint="rgba(255,255,255,0.14)"
-        rightContent={
-          <div className="flex rounded-lg p-1 gap-1 bg-white/10 border border-white/25">
-            <button
-              onClick={() => setViewMode("dashboard")}
-              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
-              style={viewMode === "dashboard"
-                ? { backgroundColor: "rgba(255,255,255,0.16)", color: "var(--color-text-inverse)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--color-text-inverse)" }}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" /><span className="hidden sm:inline">Dashboard</span>
-            </button>
-            <button
-              onClick={() => setViewMode("liste")}
-              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5"
-              style={viewMode === "liste"
-                ? { backgroundColor: "rgba(255,255,255,0.16)", color: "var(--color-text-inverse)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--color-text-inverse)" }}
-            >
-              <ListChecks className="w-3.5 h-3.5" /><span className="hidden sm:inline">Liste</span>
-            </button>
-          </div>
-        }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="border-neutral-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-neutral-500 mb-1">Total</div><div className="text-3xl font-bold text-neutral-900">{totalItems}</div></CardContent></Card>
-        <Card className="border-red-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-red-600 mb-1"> Urgent</div><div className="text-3xl font-bold text-red-600">{urgentItems.length}</div></CardContent></Card>
-        <Card className="border-orange-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-orange-600 mb-1"> Important</div><div className="text-3xl font-bold text-orange-600">{importantItems.length}</div></CardContent></Card>
-        <Card className="border-green-200 shadow-sm"><CardContent className="p-4"><div className="text-xs text-green-600 mb-1">Fait</div><div className="text-3xl font-bold text-green-600">{doneItems}</div></CardContent></Card>
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 border-[var(--color-border-light)] shadow-lg">
+          <CardHeader className="border-b p-5" style={{ borderColor: "var(--color-border-light)" }}>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="text-lg flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
+                <FileText className="w-5 h-5" />Nouvelle note
+              </CardTitle>
+              <Button
+                variant={draft.pinned ? "default" : "outline"}
+                size="sm"
+                onClick={() => setDraft((prev) => ({ ...prev, pinned: !prev.pinned }))}
+                className={draft.pinned ? "bg-[var(--color-secondary-500)] hover:bg-[var(--color-secondary-600)] text-white" : ""}
+              >
+                {draft.pinned ? <PinOff className="w-4 h-4 mr-2" /> : <Pin className="w-4 h-4 mr-2" />}
+                {draft.pinned ? "Epinglee" : "Epingler"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-5 space-y-4">
+            <div className="space-y-3">
+              <Input
+                value={draft.title}
+                onChange={(e) => setDraft((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Titre (optionnel)"
+                className="text-sm"
+              />
+              <Textarea
+                value={draft.content}
+                onChange={(e) => setDraft((prev) => ({ ...prev, content: e.target.value }))}
+                placeholder="Ecris ta note..."
+                rows={4}
+                className="text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {NOTE_COLORS.map((color) => (
+                  <button
+                    key={color.id}
+                    type="button"
+                    onClick={() => setDraft((prev) => ({ ...prev, color: color.id }))}
+                    className={`h-7 w-7 rounded-full border ${color.bg} ${color.border} ${draft.color === color.id ? "ring-2 ring-offset-2 ring-[var(--color-secondary-500)]" : ""}`}
+                    title={color.label}
+                  />
+                ))}
+              </div>
+              <Button onClick={handleCreateNote} className="bg-[var(--color-secondary-500)] hover:bg-[var(--color-secondary-600)] text-white">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-[var(--color-border-light)] shadow-lg">
+          <CardHeader className="border-b p-5" style={{ borderColor: "var(--color-border-light)" }}>
+            <CardTitle className="text-lg flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
+              <Search className="w-5 h-5" />Recherche
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-5 space-y-4">
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Filtrer par titre ou contenu..."
+              className="text-sm"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3 text-center" style={{ borderColor: "var(--color-border-light)" }}>
+                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>Total</p>
+                <p className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>{totalNotes}</p>
+              </div>
+              <div className="rounded-lg border p-3 text-center" style={{ borderColor: "var(--color-border-light)" }}>
+                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>Epingles</p>
+                <p className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>{pinnedCount}</p>
+              </div>
+            </div>
+            <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)" }}>
+              <p className="text-xs mb-1" style={{ color: "var(--color-text-tertiary)" }}>Astuce</p>
+              <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
+                Clique sur une note pour la modifier, ou epingle-la pour la garder en haut.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="border-yellow-200 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex gap-3">
-            <Input value={newItem} onChange={(e) => setNewItem(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleAddItem(); }} placeholder="Ajouter un nouvel item..." className="text-sm" />
-            <div className="flex gap-2">
-              {Object.entries(categories).map(([key, cat]) => {
-                const Icon = cat.icon;
-                return (
-                  <Button key={key} size="sm" variant={selectedCategorie === key ? "default" : "outline"} onClick={() => setSelectedCategorie(key)} className={selectedCategorie === key ? `${cat.color} hover:opacity-90 text-white` : ''} title={cat.label}>
-                    <Icon className="w-4 h-4" />
-                  </Button>
-                );
-              })}
-              <Button onClick={handleAddItem} className="bg-amber-600 hover:bg-amber-700"><Plus className="w-4 h-4 mr-2" />Ajouter</Button>
+      {pinnedNotes.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Pin className="w-4 h-4 text-[var(--color-secondary-600)]" />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Epingles</h3>
+          </div>
+          <div className="columns-1 md:columns-2 xl:columns-3 gap-4">
+            {pinnedNotes.map((note) => {
+              const color = resolveNoteColor(note.color);
+              const title = noteLabel(note);
+              const dateLabel = formatNoteDate(noteTimestamp(note));
+              return (
+                <div key={note.id} className="mb-4 break-inside-avoid">
+                  <div className={`rounded-xl border shadow-sm p-4 ${color.bg} ${color.border}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className={`text-sm font-semibold ${color.text} truncate`}>{title}</h4>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleTogglePin(note)} title="Desepingler">
+                          <PinOff className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(note)} title="Modifier">
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteNote(note)} title="Supprimer">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {note?.content && (
+                      <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{note.content}</p>
+                    )}
+                    <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                      <span>{dateLabel ? `Modifiee ${dateLabel}` : "Modifiee recemment"}</span>
+                      <Badge className="bg-white/80 text-slate-700 border border-white/70">Epinglee</Badge>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-[var(--color-secondary-600)]" />
+          <h3 className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            {pinnedNotes.length > 0 ? "Autres notes" : "Toutes les notes"}
+          </h3>
+        </div>
+        {otherNotes.length > 0 ? (
+          <div className="columns-1 md:columns-2 xl:columns-3 gap-4">
+            {otherNotes.map((note) => {
+              const color = resolveNoteColor(note.color);
+              const title = noteLabel(note);
+              const dateLabel = formatNoteDate(noteTimestamp(note));
+              return (
+                <div key={note.id} className="mb-4 break-inside-avoid">
+                  <div className={`rounded-xl border shadow-sm p-4 ${color.bg} ${color.border}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className={`text-sm font-semibold ${color.text} truncate`}>{title}</h4>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleTogglePin(note)} title="Epingler">
+                          <Pin className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(note)} title="Modifier">
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteNote(note)} title="Supprimer">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {note?.content && (
+                      <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{note.content}</p>
+                    )}
+                    <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                      <span>{dateLabel ? `Modifiee ${dateLabel}` : "Modifiee recemment"}</span>
+                      <div className={`h-2.5 w-2.5 rounded-full ${color.dot}`} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <Card className="border-[var(--color-border-light)] shadow-sm">
+            <CardContent className="p-6 text-center">
+              <FileText className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+              <p className="text-sm text-slate-600">Aucune note a afficher.</p>
+              <p className="text-xs text-slate-500 mt-1">Ajoute-en une au-dessus.</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <Dialog open={Boolean(editingNote)} onOpenChange={(open) => { if (!open) closeEdit(); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Modifier la note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={editDraft.title}
+              onChange={(e) => setEditDraft((prev) => ({ ...prev, title: e.target.value }))}
+              placeholder="Titre"
+              className="text-sm"
+            />
+            <Textarea
+              value={editDraft.content}
+              onChange={(e) => setEditDraft((prev) => ({ ...prev, content: e.target.value }))}
+              placeholder="Contenu"
+              rows={6}
+              className="text-sm"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {NOTE_COLORS.map((color) => (
+                  <button
+                    key={color.id}
+                    type="button"
+                    onClick={() => setEditDraft((prev) => ({ ...prev, color: color.id }))}
+                    className={`h-7 w-7 rounded-full border ${color.bg} ${color.border} ${editDraft.color === color.id ? "ring-2 ring-offset-2 ring-[var(--color-secondary-500)]" : ""}`}
+                    title={color.label}
+                  />
+                ))}
+              </div>
+              <Button
+                variant={editDraft.pinned ? "default" : "outline"}
+                size="sm"
+                onClick={() => setEditDraft((prev) => ({ ...prev, pinned: !prev.pinned }))}
+                className={editDraft.pinned ? "bg-[var(--color-secondary-500)] hover:bg-[var(--color-secondary-600)] text-white" : ""}
+              >
+                {editDraft.pinned ? <PinOff className="w-4 h-4 mr-2" /> : <Pin className="w-4 h-4 mr-2" />}
+                {editDraft.pinned ? "Epinglee" : "Epingler"}
+              </Button>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeEdit}>Annuler</Button>
+              <Button onClick={handleSaveEdit} className="bg-[var(--color-secondary-500)] hover:bg-[var(--color-secondary-600)] text-white">
+                Enregistrer
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {viewMode === "dashboard" && (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {urgentItems.length > 0 && (
-            <Card
-              className="md:col-span-2 lg:col-span-2 border-red-300 shadow-lg bg-gradient-to-br from-red-50 to-white"
-              style={isDark ? { background: "var(--color-bg-surface)" } : undefined}
-            >
-              <CardHeader className="border-b bg-red-100/50 p-4">
-                <CardTitle className="text-red-900 flex items-center gap-2"> Urgent <Badge className="bg-red-600 text-white">{urgentItems.length}</Badge></CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
-                {urgentItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-white border-2 border-red-200">
-                    <button onClick={() => handleToggleItem(item)} className="flex-shrink-0 w-6 h-6 rounded border-2 border-red-400 hover:bg-red-400 flex items-center justify-center">
-                      {item.fait && <Check className="w-4 h-4 text-white" />}
-                    </button>
-                    <span className="flex-1 text-sm text-neutral-800 font-medium">{item.titre}</span>
-                    <button onClick={() => handleDeleteItem(item.id)} className="flex-shrink-0 text-red-600 hover:text-red-800 p-1"><X className="w-4 h-4" /></button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {Object.entries(groupedItems).map(([key, itemsInCategory]) => {
-            const categoryItems = itemsInCategory.filter(i => !i.fait);
-            if (categoryItems.length === 0) return null;
-            const cat = categories[key];
-            const Icon = cat.icon;
-
-            return (
-              <Card key={key} className="border-neutral-200 shadow-lg">
-                <CardHeader className={`border-b p-4 ${cat.lightColor}`}>
-                  <CardTitle className={`flex items-center gap-2 ${cat.textColor}`}>
-                    <Icon className="w-5 h-5" />{cat.label}<Badge className={cat.color + " text-white"}>{categoryItems.length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-2 max-h-[300px] overflow-y-auto">
-                  {categoryItems.slice(0, 5).map((item) => (
-                    <div key={item.id} className="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border">
-                      <button onClick={() => handleToggleUrgence(item)} className="flex-shrink-0 text-sm">{getUrgenceIcon(item.urgence)}</button>
-                      <button onClick={() => handleToggleItem(item)} className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center">
-                        {item.fait && <Check className="w-3 h-3" />}
-                      </button>
-                      <span className="flex-1 text-xs truncate">{item.titre}</span>
-                      <button onClick={() => handleDeleteItem(item.id)} className="flex-shrink-0 text-neutral-400 hover:text-red-600"><X className="w-3 h-3" /></button>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {viewMode === "liste" && (
-        <div className="space-y-3">
-          {Object.entries(categories).map(([key, cat]) => {
-            const categoryItems = groupedItems[key] || [];
-            if (categoryItems.length === 0) return null;
-            const Icon = cat.icon;
-            const notDone = categoryItems.filter(i => !i.fait).length;
-
-            return (
-              <Card key={key} className="border-neutral-200 shadow-lg">
-                <button onClick={() => toggleCategory(key)} className={`w-full flex items-center justify-between p-4 ${cat.lightColor}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg ${cat.color} flex items-center justify-center`}><Icon className="w-5 h-5 text-white" /></div>
-                    <span className={`font-bold ${cat.textColor}`}>{cat.label}</span>
-                    <Badge className={cat.color + " text-white"}>{notDone}/{categoryItems.length}</Badge>
-                  </div>
-                  {expandedCategories[key] ? <ChevronUp className={`w-5 h-5 ${cat.textColor}`} /> : <ChevronDown className={`w-5 h-5 ${cat.textColor}`} />}
-                </button>
-
-                {expandedCategories[key] && (
-                  <CardContent className="p-4 space-y-2">
-                    {categoryItems.map((item) => (
-                      <div key={item.id} className={`flex items-center gap-3 p-3 rounded-lg border-2 ${item.fait ? 'bg-green-50 border-green-200 opacity-70' : 'bg-white border-neutral-200'}`}>
-                        <button onClick={() => handleToggleUrgence(item)} className="flex-shrink-0 text-lg">{getUrgenceIcon(item.urgence)}</button>
-                        <button onClick={() => handleToggleItem(item)} className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center ${item.fait ? 'bg-green-500 border-green-500' : 'border-neutral-300'}`}>
-                          {item.fait && <Check className="w-4 h-4 text-white" />}
-                        </button>
-                        <span className={`flex-1 text-sm ${item.fait ? 'line-through text-neutral-500' : 'text-neutral-800'}`}>{item.titre}</span>
-                        <button onClick={() => handleDeleteItem(item.id)} className="flex-shrink-0 text-red-600 hover:text-red-800"><X className="w-4 h-4" /></button>
-                      </div>
-                    ))}
-                  </CardContent>
-                )}
-              </Card>
-            );
-          })}
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2145,7 +2310,7 @@ function SettingsContent({ user, handleLogout }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="border-neutral-200 shadow-sm lg:col-span-2" style={{ borderColor: "var(--color-border-light)" }}>
+        <Card className="border-[var(--color-border-light)] shadow-sm lg:col-span-2" style={{ borderColor: "var(--color-border-light)" }}>
           <CardHeader className="border-b" style={{ borderColor: "var(--color-border-light)" }}>
             <CardTitle className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
               <User className="w-5 h-5 text-[var(--color-primary-500)]" /> Profil administrateur
@@ -2181,7 +2346,7 @@ function SettingsContent({ user, handleLogout }) {
           </CardContent>
         </Card>
 
-        <Card className="border-neutral-200 shadow-lg" style={{ borderColor: "var(--color-border-medium)" }}>
+        <Card className="border-[var(--color-border-light)] shadow-lg" style={{ borderColor: "var(--color-border-medium)" }}>
           <CardHeader className="border-b" style={{ borderColor: "var(--color-border-light)" }}>
             <CardTitle className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
               <Shield className="w-5 h-5 text-[var(--color-secondary-500)]" /> Securite
@@ -2196,14 +2361,14 @@ function SettingsContent({ user, handleLogout }) {
               <span>Session actuelle</span>
               <Badge className="badge-secondary">Connecte</Badge>
             </div>
-            <Button onClick={handleLogout} variant="outline" className="w-full text-red-600 border-red-600 hover:bg-red-50">
+            <Button onClick={handleLogout} variant="outline" className="w-full text-[var(--color-error-text)] border-[var(--color-error-border)] hover:bg-[var(--color-error-bg)]">
               <LogOut className="w-4 h-4 mr-2" />Se deconnecter
             </Button>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-neutral-200 shadow-sm">
+      <Card className="border-[var(--color-border-light)] shadow-sm">
         <CardHeader className="border-b" style={{ borderColor: "var(--color-border-light)" }}>
           <CardTitle className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
             <Wrench className="w-5 h-5 text-[var(--color-accent-olive-500)]" /> Preferences visuelles
@@ -2231,6 +2396,13 @@ function SettingsContent({ user, handleLogout }) {
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
+  const buttonStyle = isDark
+    ? { color: "var(--color-text-primary)" }
+    : {
+        color: "#FFFFFF",
+        backgroundColor: "rgba(255, 255, 255, 0.18)",
+        border: "1px solid rgba(255, 255, 255, 0.35)",
+      };
   return (
     <Button
       variant="ghost"
@@ -2238,7 +2410,7 @@ function ThemeToggle() {
       className="btn-ghost"
       onClick={toggleTheme}
       title={isDark ? "Mode clair" : "Mode sombre"}
-      style={{ color: "var(--color-text-primary)" }}
+      style={buttonStyle}
     >
       {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
     </Button>

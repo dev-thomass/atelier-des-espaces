@@ -1048,7 +1048,7 @@ export default function Contact() {
         </div>
       </section>
 
-      <style jsx>{`
+      <style>{`
         .wave-svg {
           will-change: transform;
         }
