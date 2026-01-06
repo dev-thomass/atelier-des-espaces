@@ -1562,32 +1562,52 @@ const googleCalendarService = {
 
 const DEFAULT_PRESTATIONS = [
   {
-    titre: "Renovation interieure",
-    description: "Renovation complete, tous corps d'etat, pour transformer votre interieur.",
+    titre: "Renovation complete",
+    description: "Transformation integrale de votre interieur : demontage, restructuration, et finitions haut de gamme. Coordination de tous les corps de metier pour un resultat cle en main.",
+  },
+  {
+    titre: "Renovation cuisine",
+    description: "Creation ou renovation de votre cuisine : implantation optimisee, pose de meubles, plan de travail, credence, carrelage et raccordements. Du design a la realisation.",
+  },
+  {
+    titre: "Renovation salle de bain",
+    description: "Conception et realisation de salles de bain fonctionnelles et esthetiques : douche a l'italienne, baignoire, meuble vasque, carrelage, faience et plomberie.",
   },
   {
     titre: "Amenagement interieur",
-    description: "Optimisation des volumes, circulation et rangements sur mesure.",
+    description: "Optimisation des espaces de vie : creation de rangements sur mesure, dressings, bibliotheques, placards integres. Solutions personnalisees pour maximiser chaque metre carre.",
   },
   {
     titre: "Conception 3D",
-    description: "Plans et visuels 3D pour valider les choix avant travaux.",
+    description: "Visualisation realiste de votre projet avant travaux : plans 2D/3D, rendus photoralistes, choix des materiaux et couleurs. Validez votre projet en toute confiance.",
   },
   {
-    titre: "Platrerie",
-    description: "Cloisons, doublages, faux plafonds et finitions lisses.",
+    titre: "Platrerie - Cloisons",
+    description: "Travaux de platrerie traditionnelle et seche : cloisons, doublages isolants, faux plafonds decoratifs ou acoustiques, enduits et finitions lisses impeccables.",
   },
   {
-    titre: "Peinture",
-    description: "Preparation des supports et mise en peinture durable.",
+    titre: "Peinture decorative",
+    description: "Mise en peinture complete : preparation des supports, enduits, sous-couches et finitions. Peintures decoratives, effets matieres, et conseils colorimetriques.",
   },
   {
-    titre: "Carrelage",
-    description: "Pose murale et sol, joints precis et finitions soignees.",
+    titre: "Carrelage - Faience",
+    description: "Pose de carrelage sol et mural : grands formats, mosaiques, faience, gres cerame. Joints epoxy, decoupes precises et finitions soignees pour un rendu parfait.",
   },
   {
-    titre: "Parquet",
-    description: "Pose et renovation de parquets pour une ambiance chaleureuse.",
+    titre: "Parquet - Revetement sol",
+    description: "Pose de parquet massif, contrecolle ou stratifie. Renovation et vitrification de parquets anciens. Pose de sols souples : vinyle, LVT, moquette.",
+  },
+  {
+    titre: "Menuiserie interieure",
+    description: "Pose et remplacement de portes interieures, chassis, plinthes, moulures. Creation de structures bois sur mesure : habillages, coffres, niches decoratives.",
+  },
+  {
+    titre: "Electricite",
+    description: "Mise aux normes et renovation electrique : tableau, prises, interrupteurs, eclairage LED. Installation domotique et solutions connectees pour un habitat moderne.",
+  },
+  {
+    titre: "Plomberie",
+    description: "Travaux de plomberie sanitaire : alimentation, evacuation, raccordements. Installation et remplacement de sanitaires, robinetterie, chauffe-eau et radiateurs.",
   },
 ];
 
@@ -1634,6 +1654,46 @@ const seedBasePrestations = async (pool) => {
     "INSERT INTO prestations (id, titre, description, visible, ordre) VALUES " + placeholders.join(","),
     values
   );
+};
+
+// Nettoyer les prestations en double et incompletes
+const cleanupPrestations = async (pool) => {
+  try {
+    // Supprimer les prestations sans titre ou sans description
+    await pool.query(
+      "DELETE FROM prestations WHERE titre IS NULL OR titre = '' OR description IS NULL OR description = ''"
+    );
+
+    // Recuperer toutes les prestations
+    const [rows] = await pool.query(
+      "SELECT id, titre, created_at FROM prestations ORDER BY created_at ASC"
+    );
+
+    // Identifier les doublons (garder le premier, supprimer les autres)
+    const seen = new Map();
+    const toDelete = [];
+
+    for (const row of rows) {
+      const normalized = normalizePrestationTitle(row.titre);
+      if (seen.has(normalized)) {
+        toDelete.push(row.id);
+      } else {
+        seen.set(normalized, row.id);
+      }
+    }
+
+    // Supprimer les doublons
+    if (toDelete.length > 0) {
+      const placeholders = toDelete.map(() => "?").join(",");
+      await pool.query(
+        `DELETE FROM prestations WHERE id IN (${placeholders})`,
+        toDelete
+      );
+      console.log(`Cleaned up ${toDelete.length} duplicate prestations`);
+    }
+  } catch (error) {
+    console.error("Cleanup prestations error:", error.message);
+  }
 };
 
 const initDb = async () => {
@@ -1924,6 +1984,14 @@ const initDb = async () => {
     // Colonne existe déjà, ignorer
   }
 
+  // Nettoyer les doublons et prestations incompletes
+  try {
+    await cleanupPrestations(pool);
+  } catch (error) {
+    console.error("Cleanup prestations error:", error.message);
+  }
+
+  // Ajouter les prestations de base manquantes
   try {
     await seedBasePrestations(pool);
   } catch (error) {

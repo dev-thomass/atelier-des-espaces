@@ -1,143 +1,160 @@
-﻿# Projet Frontend/Backend
+# L'Atelier des Espaces
 
-Application React (Vite) avec un serveur Node (Express) pour l'API maison, le proxy Groq, les uploads et l'envoi SMTP. Ce README detaille l'installation, la configuration, la structure et les commandes utiles.
+Application web pour artisan multiservice specialise en renovation et amenagement interieur a Marseille et dans les Bouches-du-Rhone.
 
-## Sommaire
-- [Apercu](#apercu)
-- [Stack technique](#stack-technique)
-- [Prerequis](#prerequis)
-- [Installation](#installation)
-- [Configuration (.env)](#configuration-env)
-- [Commandes principales](#commandes-principales)
-- [Architecture du projet](#architecture-du-projet)
-- [Frontend (Vite/React)](#frontend-vitereact)
-- [Backend (server.js)](#backend-serverjs)
-- [Qualite et verifications](#qualite-et-verifications)
-- [Deploiement](#deploiement)
-- [Depannage rapide](#depannage-rapide)
+## Fonctionnalites
 
-## Apercu
-Interface React (routing client via `react-router-dom`) avec composants UI modernes (Radix UI + Tailwind). Un serveur Node expose l'API maison (CRUD admin, uploads, SMTP), un proxy Groq pour le chat, et un endpoint de sante MySQL optionnel.
+### Site vitrine
+- **Accueil** : Presentation de l'entreprise et des services
+- **Prestations** : Liste complete des services (renovation, cuisine, salle de bain, platrerie, peinture, carrelage, etc.)
+- **Projets** : Galerie de realisations avec photos avant/apres
+- **Contact** : Formulaire de contact avec envoi SMTP
+
+### Espace administration
+- **Authentification securisee** : Inscription/connexion avec email et mot de passe (bcrypt)
+- **Gestion des projets** : CRUD complet avec upload d'images
+- **Gestion des prestations** : Modification des services affiches
+- **Calendrier interactif** : Planning avec synchronisation Google Calendar
+- **Assistant IA** : Chatbot pour repondre aux prospects (Groq/LLaMA)
+- **Mode sombre/clair** : Theme personnalisable
 
 ## Stack technique
-- Frontend : React 18, Vite 6, React Router 7, Tailwind CSS, Framer Motion.
-- UI : Radix UI primitives, Tailwind utilities, Lucide icons.
-- Etat/donnees : @tanstack/react-query, React Hook Form, Zod (validation).
-- Backend : Node/Express (`server.js`), MySQL (`mysql2`), SMTP (`nodemailer`), upload (`multer`).
-- Outils : ESLint 9, PostCSS, Vite dev server/build.
 
-## Prerequis
-- Node.js 18+ (npm inclus)
-- Navigateur moderne
-- Optionnel : une base MySQL si vous voulez persister les donnees
-- Optionnel : un serveur SMTP pour le formulaire de contact
+### Frontend
+- React 18 + Vite 6
+- React Router 7
+- Tailwind CSS
+- Radix UI + Lucide icons
+- Framer Motion (animations)
+- @tanstack/react-query (gestion des donnees)
+- React Hook Form + Zod (validation)
+
+### Backend
+- Node.js + Express
+- MySQL (mysql2)
+- bcrypt (hashage mots de passe)
+- nodemailer (SMTP)
+- multer (uploads)
+- googleapis (Google Calendar API)
 
 ## Installation
+
 ```bash
 npm install
 ```
 
 ## Configuration (.env)
-Creer un fichier `.env` a la racine. Exemple :
-```
-# Auth admin (backend)
-ADMIN_CODE=your_admin_code
+
+Creer un fichier `.env` a la racine :
+
+```env
+# Authentification
 ADMIN_SECRET=change_me_long_random_string
 ADMIN_TOKEN_TTL_SECONDS=43200
 
-# API front (optionnel si meme origine)
-# VITE_API_BASE_URL=
-
-# Groq (assistant)
-GROQ_API_KEY=your_groq_key
-GROQ_MODEL=llama-3.3-70b-versatile
-
-# SMTP (contact)
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_USER=
-SMTP_PASS=
-SMTP_FROM=
-MAIL_TO=
-PUBLIC_BASE_URL=https://atelierdesespaces.fr
-
-# Uploads
-# UPLOAD_REQUIRE_AUTH=false
-# UPLOAD_MAX_BYTES=8388608
-
-# MySQL (optionnel)
+# Base de donnees MySQL
 MYSQL_HOST=localhost
 MYSQL_USER=user
 MYSQL_PASSWORD=password
 MYSQL_DATABASE=database
 MYSQL_PORT=3306
+
+# SMTP (formulaire contact)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=user
+SMTP_PASS=password
+SMTP_FROM=contact@example.com
+MAIL_TO=destinataire@example.com
+
+# Assistant IA (Groq)
+GROQ_API_KEY=your_groq_key
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Google Calendar (optionnel)
+GOOGLE_SERVICE_ACCOUNT_EMAIL=service@project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_CALENDAR_ID=calendar_id@group.calendar.google.com
+
+# URLs publiques
+PUBLIC_BASE_URL=https://atelierdesespaces.fr
 ```
-Ne commitez pas de cles sensibles dans le repo.
 
-## Commandes principales
-- `npm run dev` : lance le frontend Vite (par defaut sur http://localhost:5173).
-- `npm run backend` : lance le serveur Node (`server.js`).
-- `npm run build` : build de production du frontend.
-- `npm run preview` : previsualise le build localement.
-- `npm run lint` : verifie le code avec ESLint.
+## Commandes
 
-## Architecture du projet
-- `src/` : code frontend
-  - `pages/` : pages React (routing client)
-  - `components/` : composants UI (inclut Radix wrappers et elements admin)
-  - `api/` : client API (`apiClient`) + helper assistant
-  - `utils/` : utilitaires (helpers de routing, etc.)
-- `server.js` : serveur Node/Express pour API + chat + SMTP + uploads
-- `index.html` : point d'entree Vite
-- `tailwind.config.js` / `postcss.config.js` : configuration CSS
-- `vite.config.js` : configuration Vite (aliases, plugins)
+| Commande | Description |
+|----------|-------------|
+| `npm run dev` | Lance le frontend (http://localhost:5173) |
+| `npm run backend` | Lance le serveur API |
+| `npm run build` | Build de production |
+| `npm run preview` | Previsualise le build |
+| `npm run lint` | Verification ESLint |
 
-## Frontend (Vite/React)
-- Dev server rapide (`npm run dev`) avec HMR.
-- Routing client via `react-router-dom`.
-- Gestion des donnees et cache serveur via `@tanstack/react-query`.
-- UI basee sur Radix UI + Tailwind + Lucide (icones).
-- Animations possibles avec Framer Motion.
-- Validation de formulaires avec React Hook Form + Zod.
+## Architecture
 
-## Backend (server.js)
-Endpoints principaux :
-- `POST /api/admin/login` : authentification admin
-- `GET /api/admin/me` : session admin courante
-- `POST /api/email` : envoi SMTP (contact)
-- `POST /api/upload` : upload de fichier (public, optionnellement protege)
-- `POST /api/llm` : appel LLM (resume admin)
-- `GET/POST/PUT/DELETE /api/:entity` : CRUD entites (projets, prestations, events, listes, etc.)
-- `GET /api/chat` : liste des conversations en memoire
-- `GET /api/chat/:conversationId` : detail conversation
-- `POST /api/chat` : proxy Groq (assistant)
-- `GET /api/db/health` : ping MySQL si configure
-
-Historique chat conserve en memoire (Map) pour les conversations : ideal en dev, a remplacer en prod par un stockage persistant.
-
-### Lancement backend
-```bash
-npm run backend
-# ou
-node server.js
 ```
-Assurez-vous que `GROQ_API_KEY` est renseignee avant de lancer.
+src/
+  pages/           # Pages React (Accueil, Prestations, Projets, Contact, Gestion, AdminLogin)
+  components/
+    ui/            # Composants UI (Button, Card, Dialog, etc.)
+    admin/         # Composants admin (AdminHero, modals)
+    calendar/      # Calendrier interactif
+    documents/     # Gestion devis/factures
+  api/             # Client API et helpers
+  hooks/           # Hooks personnalises
+  utils/           # Utilitaires
+server.js          # Serveur Express (API + SMTP + uploads)
+```
 
-## Qualite et verifications
-- Lint : `npm run lint`
-- Build : `npm run build` (assure la compatibilite de production)
-- Pas de suite de tests fournie actuellement. Ajoutez-en selon vos besoins (Jest/Testing Library/Playwright).
+## Prestations par defaut
+
+Les prestations suivantes sont creees automatiquement au demarrage :
+
+1. **Renovation complete** - Transformation integrale de l'interieur
+2. **Renovation cuisine** - Creation ou renovation de cuisines
+3. **Renovation salle de bain** - Conception et realisation de salles de bain
+4. **Amenagement interieur** - Rangements sur mesure, dressings, placards
+5. **Conception 3D** - Plans et rendus photoralistes
+6. **Platrerie - Cloisons** - Cloisons, faux plafonds, enduits
+7. **Peinture decorative** - Mise en peinture et effets decoratifs
+8. **Carrelage - Faience** - Pose sol et murale
+9. **Parquet - Revetement sol** - Pose et renovation de parquets
+10. **Menuiserie interieure** - Portes, plinthes, habillages bois
+11. **Electricite** - Renovation electrique et domotique
+12. **Plomberie** - Travaux de plomberie sanitaire
+
+## API Endpoints
+
+### Authentification
+- `POST /api/auth/register` - Inscription (email, password, name)
+- `POST /api/auth/login` - Connexion (email, password)
+- `GET /api/admin/me` - Session courante
+
+### Entites (CRUD)
+- `GET/POST/PUT/DELETE /api/:entity` - Gestion des projets, prestations, events, etc.
+
+### Autres
+- `POST /api/email` - Envoi de mail (formulaire contact)
+- `POST /api/upload` - Upload de fichiers
+- `POST /api/llm` - Appel LLM (resume)
+- `GET/POST /api/chat` - Assistant IA
+- `GET/POST/PUT/DELETE /api/calendar/events` - Google Calendar
 
 ## Deploiement
-1) Construire le frontend : `npm run build` (output dans `dist/`).
-2) Servir `dist/` via un serveur statique (nginx, serve, etc.).
-3) Deployer `server.js` sur un runtime Node (VPS, Railway, Fly.io, etc.).
-   - Fournir les variables `.env` (auth, SMTP, Groq, MySQL).
-   - Configurer un reverse proxy pour router `/api/*` et `/uploads/*` vers le serveur Node.
 
-## Depannage rapide
-- Erreur Groq : verifier `GROQ_API_KEY` et la connectivite reseau.
-- MySQL health en erreur : confirmer host/user/password/db/port et acces reseau.
-- SMTP en erreur : verifier host/user/password/port et TLS.
-- HMR ou dev server indisponible : port 5173 libre ? sinon lancer `npm run dev -- --port 5174`.
-- Build echoue : lancer `npm run lint` pour identifier les problemes de syntaxe ou de config.
+1. Build frontend : `npm run build` (genere `dist/`)
+2. Servir `dist/` via nginx ou serveur statique
+3. Deployer `server.js` sur un runtime Node (VPS, Railway, Fly.io)
+4. Configurer les variables d'environnement
+5. Configurer un reverse proxy pour `/api/*` et `/uploads/*`
+
+## Depannage
+
+- **Erreur d'inscription** : Verifier que MySQL est accessible et que le serveur a ete redemarre
+- **Erreur SMTP** : Verifier host/user/password/port dans .env
+- **Erreur Groq** : Verifier GROQ_API_KEY
+- **Erreur Google Calendar** : Verifier les credentials du service account
+
+## Licence
+
+Projet prive - L'Atelier des Espaces
