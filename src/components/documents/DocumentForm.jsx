@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/apiClient";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Select,
   SelectContent,
@@ -40,6 +42,7 @@ import {
   MapPin,
   ChevronRight,
   CheckCircle2,
+  X,
 } from "lucide-react";
 import ClientSelector from "./ClientSelector";
 import ChantierSelector from "./ChantierSelector";
@@ -85,6 +88,39 @@ const resolveConditionsPaiement = (preset, custom) => {
     return trimmed.length ? trimmed : null;
   }
   return CONDITIONS_PAIEMENT_LABELS[preset] || null;
+};
+
+const buildClientFromDocument = (doc) => {
+  if (!doc) return null;
+  const fallbackAddress = doc.client_adresse_ligne1 || doc.client_adresse || "";
+  return {
+    id: doc.client_id || doc.client?.id || null,
+    nom: doc.client_nom || doc.client?.nom || "",
+    prenom: doc.client_prenom || doc.client?.prenom || "",
+    email: doc.client_email || doc.client?.email || "",
+    telephone: doc.client_telephone || doc.client?.telephone || "",
+    adresse_ligne1: fallbackAddress,
+    adresse_ligne2: doc.client_adresse_ligne2 || doc.client?.adresse_ligne2 || "",
+    code_postal: doc.client_code_postal || doc.client_cp || doc.client?.code_postal || "",
+    ville: doc.client_ville || doc.client?.ville || "",
+    pays: doc.client_pays || doc.client?.pays || "",
+    siret: doc.client_siret || doc.client?.siret || "",
+    type: doc.client_type || doc.client?.type || "particulier",
+  };
+};
+
+const getResponseErrorMessage = async (response, fallback) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload === "object") {
+      const message = payload.message || payload.error || fallback;
+      if (payload.solution) return `${message} ${payload.solution}`;
+      return message;
+    }
+  } catch (error) {
+    return fallback;
+  }
+  return fallback;
 };
 
 function formatDate(date) {
@@ -134,12 +170,76 @@ function calculerTotaux(lignes, remiseGlobale = { type: null, valeur: 0 }, tvaAp
   };
 }
 
+const DEFAULT_APPEARANCE = {
+  primaryColor: "#1a5490",
+  secondaryColor: "#d7e3ee",
+  font: "Helvetica",
+  baseFontSize: 9,
+  lineHeight: 1.3,
+  headerStyle: "ultra",
+  clientPosition: "right",
+  layoutPreset: "premium-split",
+  tableStyle: "minimal",
+  borderWidth: 0.5,
+  borderRadius: 8,
+  cellPadding: 5,
+  pageMargin: 42,
+  sectionSpacing: 16,
+  hide: {},
+  columns: {
+    showNumero: true,
+    showQuantite: true,
+    showUnite: true,
+    showPrixUnitaire: true,
+    showTva: false,
+  },
+  showSignatureBox: true,
+  showPaymentMethods: true,
+  showConditions: true,
+  showFooter: true,
+  showPageNumbers: true,
+  showDraftWatermark: true,
+  showDocumentBorder: true,
+  compactMode: false,
+  showSectionSubtotals: false,
+  roundedRowBorders: true,
+};
+
+const DEFAULT_APPEARANCE_BY_TYPE = {
+  devis: DEFAULT_APPEARANCE,
+  facture: {
+    ...DEFAULT_APPEARANCE,
+    primaryColor: "#0e3a5c",
+    secondaryColor: "#c7d7e6",
+    borderRadius: 10,
+    showSectionSubtotals: true,
+  },
+  avoir: {
+    ...DEFAULT_APPEARANCE,
+    primaryColor: "#7d3b20",
+    secondaryColor: "#efdcd1",
+    borderRadius: 8,
+  },
+};
+
+const getDefaultAppearance = (docType) => {
+  const base = DEFAULT_APPEARANCE_BY_TYPE[docType] || DEFAULT_APPEARANCE;
+  return {
+    ...base,
+    columns: { ...(base.columns || {}) },
+    hide: { ...(base.hide || {}) },
+  };
+};
+
 export default function DocumentForm({ type = "devis", document = null, onClose, onSuccess }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const isEdit = !!document;
   const initialConditions = getConditionsPreset(document?.conditions_paiement);
   const initialRetenuePct = document?.retenue_garantie_pct > 0 ? document.retenue_garantie_pct : 5;
   const isFacture = type === "facture";
+  const appearanceLoadedRef = useRef(false);
+  const saveAppearanceTimeoutRef = useRef(null);
 
   // Form state
   const [client, setClient] = useState(document?.client || null);
@@ -159,15 +259,82 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
   const [previewPdfUrl, setPreviewPdfUrl] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
-  const [appearanceOptions, setAppearanceOptions] = useState({
-    primaryColor: "#1a5490",
-    font: "Helvetica",
-    fontSize: "normal",
-    tableStyle: "rounded",
-    hide: {},
-    showSectionSubtotals: true,
-    showQrCode: true,
+  const [appearanceOptions, setAppearanceOptions] = useState(() => getDefaultAppearance(type));
+
+  // Charger la config d'apparence sauvegardée
+  const { data: savedAppearance } = useQuery({
+    queryKey: ["appearance-config", document?.id],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (document?.id) params.append("document_id", document.id);
+      const response = await fetch(`/api/appearance-config?${params}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("admin_token")}` },
+      });
+      if (!response.ok) return getDefaultAppearance(type);
+      return response.json();
+    },
   });
+
+  // Appliquer la config chargée
+  useEffect(() => {
+    if (savedAppearance && !appearanceLoadedRef.current) {
+      setAppearanceOptions({ ...getDefaultAppearance(type), ...savedAppearance });
+      appearanceLoadedRef.current = true;
+    }
+  }, [savedAppearance]);
+
+  // Mutation pour sauvegarder la config
+  const saveAppearanceMutation = useMutation({
+    mutationFn: async (config) => {
+      const response = await fetch("/api/appearance-config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+        },
+        body: JSON.stringify({ document_id: document?.id || null, config }),
+      });
+      if (!response.ok) throw new Error("Failed to save appearance");
+      return response.json();
+    },
+  });
+
+  // Auto-save debounced de l'apparence avec feedback
+  const handleAppearanceChange = useCallback((newOptions) => {
+    setAppearanceOptions(newOptions);
+
+    // Debounce la sauvegarde
+    if (saveAppearanceTimeoutRef.current) {
+      clearTimeout(saveAppearanceTimeoutRef.current);
+    }
+    saveAppearanceTimeoutRef.current = setTimeout(() => {
+      saveAppearanceMutation.mutate(newOptions, {
+        onSuccess: () => {
+          toast({
+            title: "Apparence sauvegardée",
+            description: "Les modifications ont été enregistrées.",
+            duration: 2000,
+          });
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            title: "Erreur de sauvegarde",
+            description: "Impossible de sauvegarder l'apparence. Réessayez.",
+          });
+        },
+      });
+    }, 1000);
+  }, [saveAppearanceMutation, toast]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveAppearanceTimeoutRef.current) {
+        clearTimeout(saveAppearanceTimeoutRef.current);
+      }
+    };
+  }, []);
   const [dateEmission, setDateEmission] = useState(formatDate(document?.date_emission || new Date()));
   const [dateValidite, setDateValidite] = useState(formatDate(document?.date_validite || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)));
   const [dateEcheance, setDateEcheance] = useState(formatDate(document?.date_echeance || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)));
@@ -189,6 +356,34 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
   const [notesClient, setNotesClient] = useState(document?.notes_client || "");
   const [notesInternes, setNotesInternes] = useState(document?.notes_internes || "");
   const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [lastAutoSave, setLastAutoSave] = useState(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const autoSaveTimeoutRef = useRef(null);
+  const autoSaveIntervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!document) return;
+    const docClientId = document.client?.id || document.client_id || null;
+    if (!docClientId && client?.id) return;
+    if (docClientId && client?.id === docClientId) return;
+    if (document.client && document.client.id) {
+      setClient(document.client);
+      return;
+    }
+    const nextClient = buildClientFromDocument(document);
+    if (nextClient?.id || nextClient?.nom || nextClient?.email) {
+      setClient(nextClient);
+    }
+  }, [document, client?.id]);
+
+  // Resynchroniser les conditions de paiement quand le document change
+  useEffect(() => {
+    if (!document?.conditions_paiement) return;
+    const newConditions = getConditionsPreset(document.conditions_paiement);
+    setConditionsPaiementPreset(newConditions.preset);
+    setConditionsPaiementCustom(newConditions.custom);
+  }, [document?.conditions_paiement]);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -207,12 +402,23 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
     }
   }, [chantierLookup]);
 
-  const totaux = calculerTotaux(lignes, remiseGlobale, tvaApplicable);
+  // Memoization des calculs de totaux pour éviter recalculs inutiles
+  const totaux = useMemo(
+    () => calculerTotaux(lignes, remiseGlobale, tvaApplicable),
+    [lignes, remiseGlobale, tvaApplicable]
+  );
+
   const retenuePctNumeric = Math.min(Math.max(Number(retenuePct) || 0, 0), 100);
-  const retenueMontant = isFacture && retenueActive
-    ? Math.round((totaux.totalTTC * retenuePctNumeric / 100) * 100) / 100
-    : 0;
-  const netAPayerFinal = Math.round((totaux.totalTTC - retenueMontant) * 100) / 100;
+  const retenueMontant = useMemo(
+    () => isFacture && retenueActive
+      ? Math.round((totaux.totalTTC * retenuePctNumeric / 100) * 100) / 100
+      : 0,
+    [isFacture, retenueActive, totaux.totalTTC, retenuePctNumeric]
+  );
+  const netAPayerFinal = useMemo(
+    () => Math.round((totaux.totalTTC - retenueMontant) * 100) / 100,
+    [totaux.totalTTC, retenueMontant]
+  );
   const conditionsPaiementPreview = resolveConditionsPaiement(conditionsPaiementPreset, conditionsPaiementCustom);
   const pdfAvailable = Boolean(document?.id);
 
@@ -334,6 +540,109 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
     }
   }, [showPreview]);
 
+  // Auto-save brouillon toutes les 30 secondes si des modifications ont été faites
+  const buildAutoSavePayload = useCallback(() => {
+    if (!client?.id) return null;
+    if (lignes.filter((l) => l.type === "ligne").length === 0) return null;
+
+    const conditionsPaiementValue = resolveConditionsPaiement(conditionsPaiementPreset, conditionsPaiementCustom);
+    const dureeEstimeeValue = dureeEstimee === "" ? null : Number(dureeEstimee);
+    const dureeEstimeeFinal = Number.isNaN(dureeEstimeeValue) ? null : dureeEstimeeValue;
+    const dureeUniteFinal = dureeEstimeeFinal ? dureeUnite : null;
+    const retenuePctValue = isFacture && retenueActive ? Math.min(Math.max(Number(retenuePct) || 0, 0), 100) : 0;
+
+    return {
+      type, client_id: client.id, date_emission: dateEmission,
+      date_validite: type === "devis" ? dateValidite : null,
+      date_echeance: type === "facture" ? dateEcheance : null,
+      chantier_id: chantier?.id || null,
+      date_visite: dateVisite || null,
+      date_debut_travaux: dateDebutTravaux || null,
+      duree_estimee: dureeEstimeeFinal,
+      duree_unite: dureeUniteFinal,
+      objet, lignes, tva_applicable: tvaApplicable, mention_tva: mentionTva,
+      modes_paiement: modesPaiement,
+      conditions_paiement: conditionsPaiementValue,
+      remise_type: remiseGlobale.type,
+      remise_valeur: remiseGlobale.valeur, acompte_demande: acompte,
+      retenue_garantie_pct: retenuePctValue,
+      retenue_garantie_montant: retenuePctValue > 0 ? Math.round((totaux.totalTTC * retenuePctValue / 100) * 100) / 100 : 0,
+      total_ht: totaux.totalHT,
+      total_tva: totaux.totalTVA,
+      total_ttc: totaux.totalTTC,
+      total_remise: totaux.totalRemise,
+      net_a_payer: netAPayerFinal,
+      notes_client: notesClient, notes_internes: notesInternes,
+    };
+  }, [
+    client, type, dateEmission, dateValidite, dateEcheance, chantier, dateVisite,
+    dateDebutTravaux, dureeEstimee, dureeUnite, objet, lignes, tvaApplicable,
+    mentionTva, modesPaiement, conditionsPaiementPreset, conditionsPaiementCustom,
+    remiseGlobale, acompte, retenueActive, retenuePct, totaux, netAPayerFinal,
+    notesClient, notesInternes, isFacture
+  ]);
+
+  const performAutoSave = useCallback(async () => {
+    if (isSaving || isAutoSaving) return;
+
+    const payload = buildAutoSavePayload();
+    if (!payload) return;
+
+    setIsAutoSaving(true);
+    try {
+      const endpoint = isEdit ? `/api/documents/${document.id}` : "/api/documents";
+      const method = isEdit ? "PUT" : "POST";
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${api.auth.getToken()}` },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        setLastAutoSave(new Date());
+        // Si c'est une création, on recharge pour avoir l'ID du document
+        if (!isEdit) {
+          queryClient.invalidateQueries({ queryKey: ["documents"] });
+        }
+      }
+    } catch (error) {
+      console.error("Auto-save error:", error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [buildAutoSavePayload, isSaving, isAutoSaving, isEdit, document?.id, queryClient]);
+
+  // Déclencher l'auto-save après 30 secondes d'inactivité
+  useEffect(() => {
+    // Ne pas auto-save si document déjà sauvegardé et pas en mode édition
+    if (!isEdit && !client?.id) return;
+
+    // Clear previous timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout for 30 seconds after last change
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      performAutoSave();
+    }, 30000); // 30 secondes
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [buildAutoSavePayload, performAutoSave, isEdit, client?.id]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
+      if (autoSaveIntervalRef.current) clearInterval(autoSaveIntervalRef.current);
+    };
+  }, []);
+
   // Auto-refresh preview when form data changes (debounced)
   const autoRefreshTimeoutRef = useRef(null);
   const prevPayloadRef = useRef(null);
@@ -370,7 +679,10 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${api.auth.getToken()}` },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error("Erreur création");
+      if (!response.ok) {
+        const message = await getResponseErrorMessage(response, "Erreur creation");
+        throw new Error(message);
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -386,7 +698,10 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${api.auth.getToken()}` },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error("Erreur mise à jour");
+      if (!response.ok) {
+        const message = await getResponseErrorMessage(response, "Erreur mise a jour");
+        throw new Error(message);
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -396,8 +711,20 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
   });
 
   const handleSave = async (sendAfter = false) => {
-    if (!client) { alert("Veuillez sélectionner un client"); return; }
-    if (lignes.filter((l) => l.type === "ligne").length === 0) { alert("Veuillez ajouter au moins une ligne"); return; }
+    const showError = (title, message) => {
+      setFormError(message);
+      toast({ variant: "destructive", title, description: message });
+    };
+
+    setFormError("");
+    if (!client?.id) {
+      showError("Client requis", "Veuillez selectionner un client.");
+      return;
+    }
+    if (lignes.filter((l) => l.type === "ligne").length === 0) {
+      showError("Lignes requises", "Veuillez ajouter au moins une ligne.");
+      return;
+    }
 
     setIsSaving(true);
     const conditionsPaiementValue = resolveConditionsPaiement(conditionsPaiementPreset, conditionsPaiementCustom);
@@ -432,9 +759,11 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
     try {
       if (isEdit) await updateMutation.mutateAsync(data);
       else await createMutation.mutateAsync(data);
+      setFormError("");
     } catch (error) {
       console.error("Erreur:", error);
-      alert("Erreur lors de l'enregistrement");
+      const message = error?.message || "Erreur lors de l'enregistrement";
+      showError("Enregistrement impossible", message);
     } finally {
       setIsSaving(false);
     }
@@ -457,21 +786,31 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
         title={`${isEdit ? "Modifier" : "Nouveau"} ${typeLabel}`}
         subtitle={isEdit ? `${document.numero}` : `Création rapide en quelques étapes`}
         badges={client ? [client.nom] : []}
-        gradient={type === "devis"
-          ? "linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600))"
-          : "linear-gradient(135deg, var(--color-secondary-500), var(--color-secondary-600))"
-        }
+        color={type === "devis" ? "var(--color-primary-500)" : "var(--color-secondary-500)"}
         rightContent={
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={onClose} className="text-white/80 hover:text-white hover:bg-white/10">
+            {/* Indicateur auto-save */}
+            {(isAutoSaving || lastAutoSave) && (
+              <div className="text-xs text-white/60 flex items-center gap-1">
+                {isAutoSaving ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Sauvegarde...</span>
+                  </>
+                ) : lastAutoSave ? (
+                  <span>Sauvegardé à {lastAutoSave.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                ) : null}
+              </div>
+            )}
+            <Button variant="outline" onClick={onClose} className="hero-action hero-action--ghost">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
             </Button>
-            <Button variant="ghost" onClick={() => setShowPreview(true)} className="text-white/80 hover:text-white hover:bg-white/10">
+            <Button variant="outline" onClick={() => setShowPreview(true)} className="hero-action hero-action--ghost">
               <Eye className="w-4 h-4 mr-2" />
               Apercu
             </Button>
-            <Button onClick={() => handleSave(false)} disabled={isSaving} className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+            <Button onClick={() => handleSave(false)} disabled={isSaving || isAutoSaving} className="hero-action hero-action--solid">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Enregistrer
             </Button>
@@ -479,10 +818,30 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
         }
       />
 
+      {formError && (
+        <Alert className="bg-[var(--color-error-bg)] border-[var(--color-error-border)]">
+          <div className="flex items-start justify-between gap-3">
+            <AlertDescription className="text-[var(--color-error-text)] text-sm">
+              {formError}
+            </AlertDescription>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setFormError("")}
+              className="h-7 w-7 -mr-2 text-[var(--color-error-text)] hover:text-[var(--color-error-text)] hover:bg-[var(--color-error-bg)]"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </Alert>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Step 1: Client */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Step 1: Client */}
           <Card className="admin-card" style={{ borderColor: "var(--color-border-light)" }}>
             <CardHeader className="p-4 border-b" style={{ borderColor: "var(--color-border-light)" }}>
               <div className="flex items-center gap-3">
@@ -517,7 +876,7 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
             </CardContent>
           </Card>
 
-          {/* Step 2: Chantier */}
+            {/* Step 2: Chantier */}
           <Card className="admin-card" style={{ borderColor: "var(--color-border-light)" }}>
             <CardHeader className="p-4 border-b" style={{ borderColor: "var(--color-border-light)" }}>
               <div className="flex items-center gap-3">
@@ -557,6 +916,7 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
             </CardContent>
           </Card>
 
+          </div>
           {/* Step 3: Lignes */}
           <Card className="admin-card" style={{ borderColor: "var(--color-border-light)" }}>
             <CardHeader className="p-4 border-b" style={{ borderColor: "var(--color-border-light)" }}>
@@ -882,14 +1242,14 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
 
       {/* Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] max-h-[90vh] overflow-hidden flex flex-col min-h-0">
           <DialogHeader>
             <DialogTitle>Apercu du document</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 -mx-6 px-6 pb-4 overflow-hidden">
-            <div className="h-full flex gap-4">
+          <div className="flex-1 -mx-6 px-6 pb-4 overflow-hidden min-h-0">
+            <div className="h-full flex gap-4 min-h-0">
               {/* PDF Preview */}
-              <div className="flex-1 flex flex-col gap-3 min-w-0">
+              <div className="flex-1 flex flex-col gap-3 min-w-0 min-h-0">
                 <p className="text-xs text-[var(--color-text-tertiary)]">
                   Apercu genere a partir du rendu PDF final. Se met a jour automatiquement.
                 </p>
@@ -915,13 +1275,13 @@ export default function DocumentForm({ type = "devis", document = null, onClose,
               </div>
 
               {/* Appearance Panel */}
-              <div className="w-72 flex-shrink-0 border-l border-[var(--color-border-light)] pl-4 overflow-y-auto">
+              <div className="w-72 flex-shrink-0 border-l border-[var(--color-border-light)] pl-4 pr-2 overflow-y-auto h-full min-h-0">
                 <div className="sticky top-0 bg-[var(--color-bg-surface)] pb-3 mb-3 border-b border-[var(--color-border-light)]">
                   <h3 className="font-semibold text-[var(--color-text-primary)]">Apparence du document</h3>
                 </div>
                 <DocumentAppearancePanel
                   options={appearanceOptions}
-                  onChange={setAppearanceOptions}
+                  onChange={handleAppearanceChange}
                 />
               </div>
             </div>

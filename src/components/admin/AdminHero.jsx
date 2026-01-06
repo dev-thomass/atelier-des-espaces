@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
  * - title: main title
  * - subtitle: optional description
  * - badges: array of strings or { label }
- * - gradient: background gradient override (string)
+ * - color: background color (use var(--page-XXX)) - creates subtle same-color gradient
  * - iconTint: background tint for the icon container
  * - rightContent: optional React node (actions, chips)
  */
@@ -19,20 +19,31 @@ export function AdminHero({
   title,
   subtitle,
   badges = [],
-  gradient = "linear-gradient(135deg, var(--color-secondary-500), var(--color-accent-warm-400))",
-  iconTint = "rgba(255,255,255,0.12)",
+  color,
+  iconTint = "rgba(255,255,255,0.15)",
   rightContent,
 }) {
+  // Couleur de base (pastel unie)
+  const baseColor = color || "var(--page-dashboard)";
+
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border shadow-lg p-6 sm:p-8"
+      className="admin-hero relative overflow-hidden rounded-2xl border shadow-lg p-6 sm:p-8"
       style={{
-        background: gradient,
-        color: "var(--color-text-inverse)",
+        backgroundColor: baseColor,
+        color: "#FFFFFF",
         borderColor: "rgba(255,255,255,0.18)",
         boxShadow: "var(--shadow-lg)",
       }}
     >
+      {/* Dégradé subtil de même couleur (clair en haut-gauche, foncé en bas-droite) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%, rgba(0,0,0,0.15) 100%)",
+        }}
+      />
+      {/* Effet de brillance */}
       <div
         className="absolute inset-0 opacity-25"
         style={{
@@ -57,16 +68,20 @@ export function AdminHero({
               {subtitle && <p className="text-sm text-white/80">{subtitle}</p>}
             </div>
           </div>
-          <div className="flex items-center flex-wrap gap-2">
-            {badges.map((b, idx) => {
-              const label = typeof b === "string" ? b : b?.label;
-              return (
-                <Badge key={idx} className="bg-white/15 text-white border border-white/25">
-                  {label}
-                </Badge>
-              );
-            })}
-            {rightContent}
+          <div className="admin-hero-meta">
+            {badges.length > 0 && (
+              <div className="admin-hero-badges">
+                {badges.map((b, idx) => {
+                  const label = typeof b === "string" ? b : b?.label;
+                  return (
+                    <Badge key={idx} className="admin-hero-badge">
+                      {label}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+            {rightContent && <div className="admin-hero-actions">{rightContent}</div>}
           </div>
         </div>
       </div>
@@ -86,6 +101,7 @@ export function AdminPanel({
   headerClassName = "",
   contentClassName = "",
   accent = "primary",
+  rightContent,
 }) {
   const accentMap = {
     primary: "var(--color-primary-500)",
@@ -103,9 +119,12 @@ export function AdminPanel({
         className={`border-b px-4 py-3 ${headerClassName}`}
         style={{ borderColor: "var(--color-border-light)" }}
       >
-        <div className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
-          {Icon && <Icon className="w-5 h-5" style={{ color: accentColor }} />}
-          <span className="font-semibold">{title}</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
+            {Icon && <Icon className="w-5 h-5" style={{ color: accentColor }} />}
+            <span className="font-semibold">{title}</span>
+          </div>
+          {rightContent && <div className="flex items-center gap-2">{rightContent}</div>}
         </div>
       </div>
       <div className={`p-4 ${contentClassName}`}>{children}</div>

@@ -7,6 +7,9 @@ import fs from "fs/promises";
 import multer from "multer";
 import nodemailer from "nodemailer";
 import PdfPrinter from "pdfmake";
+import * as XLSX from "xlsx";
+import { google } from "googleapis";
+import bcrypt from "bcrypt";
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -62,6 +65,19 @@ const parseJsonField = (value, fallback) => {
   }
 };
 
+const ensureJsonString = (value, fallback) => {
+  if (value === null || value === undefined) return JSON.stringify(fallback);
+  if (typeof value === "string") {
+    try {
+      JSON.parse(value);
+      return value;
+    } catch {
+      return JSON.stringify(fallback);
+    }
+  }
+  return JSON.stringify(value);
+};
+
 const formatDateFr = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -69,8 +85,11 @@ const formatDateFr = (value) => {
   return date.toLocaleDateString("fr-FR");
 };
 
-const formatMoney = (value) =>
-  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(value) || 0);
+const formatMoney = (value) => {
+  const formatted = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" })
+    .format(Number(value) || 0);
+  return formatted.replace(/[\u202F\u00A0]/g, " ");
+};
 
 const calculerLigneTotal = (ligne) => {
   if (!ligne || ligne.type !== "ligne") return 0;
@@ -155,6 +174,68 @@ const DEFAULT_PDF_BLUE = "#1a5490";
 const DEFAULT_PDF_GRAY = "#5a6a7a";
 const DEFAULT_PDF_TEXT = "#1e2a3a";
 
+const BASE_PDF_APPEARANCE = {
+  primaryColor: DEFAULT_PDF_BLUE,
+  secondaryColor: "#d7e3ee",
+  font: "Helvetica",
+  baseFontSize: 9,
+  lineHeight: 1.3,
+  headerStyle: "ultra",
+  clientPosition: "right",
+  tableStyle: "minimal",
+  borderWidth: 0.5,
+  borderRadius: 8,
+  cellPadding: 5,
+  pageMargin: 42,
+  sectionSpacing: 16,
+  hide: {},
+  columns: {
+    showNumero: true,
+    showQuantite: true,
+    showUnite: true,
+    showPrixUnitaire: true,
+    showTva: false,
+  },
+  showSignatureBox: true,
+  showPaymentMethods: true,
+  showConditions: true,
+  showFooter: true,
+  showPageNumbers: true,
+  showDraftWatermark: true,
+  showDocumentBorder: true,
+  compactMode: false,
+  showSectionSubtotals: false,
+  roundedRowBorders: true,
+  layoutPreset: "premium-split",
+};
+
+const PDF_APPEARANCE_BY_TYPE = {
+  devis: {
+    primaryColor: "#1a5490",
+    secondaryColor: "#d7e3ee",
+    borderRadius: 8,
+  },
+  facture: {
+    primaryColor: "#0e3a5c",
+    secondaryColor: "#c7d7e6",
+    borderRadius: 10,
+    showSectionSubtotals: true,
+  },
+  avoir: {
+    primaryColor: "#7d3b20",
+    secondaryColor: "#efdcd1",
+    borderRadius: 8,
+  },
+};
+
+const getPdfAppearanceDefaults = (docType) => {
+  const typeOverrides = PDF_APPEARANCE_BY_TYPE[docType] || {};
+  const base = { ...BASE_PDF_APPEARANCE, ...typeOverrides };
+  base.columns = { ...(BASE_PDF_APPEARANCE.columns || {}), ...(typeOverrides.columns || {}) };
+  base.hide = { ...(BASE_PDF_APPEARANCE.hide || {}), ...(typeOverrides.hide || {}) };
+  return base;
+};
+
 // Helper to lighten a color
 const lightenColor = (hex, percent) => {
   const num = parseInt(hex.replace("#", ""), 16);
@@ -164,21 +245,86 @@ const lightenColor = (hex, percent) => {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 };
 
+const toNumber = (value, fallback) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+};
+
 const buildDocumentPdfDefinition = (doc) => {
-  // Extract appearance options
-  const appearance = doc.appearance || {};
+  const docType = doc.type || "devis";
+  const baseAppearance = getPdfAppearanceDefaults(docType);
+  const rawAppearance = doc.appearance || {};
+  const appearance = { ...baseAppearance, ...rawAppearance };
+  appearance.columns = { ...(baseAppearance.columns || {}), ...(rawAppearance.columns || {}) };
+  appearance.hide = { ...(baseAppearance.hide || {}), ...(rawAppearance.hide || {}) };
+
   const PDF_BLUE = appearance.primaryColor || DEFAULT_PDF_BLUE;
   const PDF_BLUE_LIGHT = lightenColor(PDF_BLUE, 0.92);
-  const PDF_BORDER = lightenColor(PDF_BLUE, 0.65);
+  const PDF_BLUE_SOFT = lightenColor(PDF_BLUE, 0.96);
+  const PDF_ACCENT = lightenColor(PDF_BLUE, docType === "facture" ? 0.82 : 0.88);
+  const PDF_CARD_LAYER = lightenColor(PDF_BLUE, docType === "facture" ? 0.94 : 0.97);
+  const PDF_BORDER = appearance.secondaryColor || lightenColor(PDF_BLUE, 0.65);
   const PDF_GRAY = DEFAULT_PDF_GRAY;
   const PDF_TEXT = DEFAULT_PDF_TEXT;
+  const PDF_MUTED = lightenColor(PDF_TEXT, 0.45);
+
+  const resolveColumn = (primaryKey, legacyKey, defaultValue = true) => {
+    if (appearance.columns && appearance.columns[primaryKey] !== undefined) {
+      return appearance.columns[primaryKey] !== false;
+    }
+    if (appearance.columns && appearance.columns[legacyKey] !== undefined) {
+      return appearance.columns[legacyKey] !== false;
+    }
+    return defaultValue;
+  };
+
+  // Typography options
   const pdfFont = appearance.font || "Helvetica";
-  const fontSizeMultiplier = appearance.fontSize === "large" ? 1.1 : 1;
+  const baseFontSize = toNumber(appearance.baseFontSize ?? appearance.fontSize, 9);
+  const lineHeight = toNumber(appearance.lineHeight, 1.2);
+  const compactMode = appearance.compactMode || false;
+
+  // Table options
   const tableStyle = appearance.tableStyle || "striped";
+  const borderWidth = toNumber(appearance.borderWidth, 0.5);
+  const borderRadius = toNumber(appearance.borderRadius, 0);
+  const cellPadding = toNumber(appearance.cellPadding, 4);
+  const showNumero = resolveColumn("showNumero", "numero", true);
+  const showQuantite = resolveColumn("showQuantite", "quantite", true);
+  const showUnite = resolveColumn("showUnite", "unite", true);
+  const showPrixUnitaire = resolveColumn("showPrixUnitaire", "prixUnitaire", true);
+  const showTva = appearance.columns && appearance.columns.showTva === true;
+
+  // Layout options
+  const headerStyle = appearance.headerStyle || "classic";
+  const clientPosition = appearance.clientPosition || "right";
   const hideOptions = appearance.hide || {};
   const showSectionSubtotals = appearance.showSectionSubtotals !== false;
 
-  const typeLabel = doc.type === "devis" ? "Devis" : doc.type === "facture" ? "Facture" : "Avoir";
+  // Logo options
+  const logo = appearance.logo || null;
+  const logoSize = appearance.logoSize || 50;
+  const logoPosition = appearance.logoPosition || "left";
+
+  // Footer options
+  const showSignatureBox = appearance.showSignatureBox !== false;
+  const showPaymentMethods = appearance.showPaymentMethods !== false;
+  const showConditions = appearance.showConditions ?? appearance.showPaymentConditions ?? true;
+  const showFooter = appearance.showFooter !== false;
+  const showPageNumbers = appearance.showPageNumbers !== false;
+  const layoutPreset = appearance.layoutPreset || "premium-split";
+
+  // Page options
+  const pageMargin = toNumber(appearance.pageMargin ?? appearance.pageMargins, 40);
+  const sectionSpacing = toNumber(appearance.sectionSpacing, 15);
+  const showDraftWatermark = appearance.showDraftWatermark ?? appearance.draftWatermark ?? false;
+  const showDocumentBorder = appearance.showDocumentBorder ?? appearance.documentBorder ?? false;
+  const pageWidth = 595.28;
+  const contentWidth = pageWidth - (pageMargin * 2);
+
+  const typeLabel = docType === "devis" ? "Devis" : docType === "facture" ? "Facture" : "Avoir";
+  const isFacture = docType === "facture";
+  const cardRadius = borderRadius > 0 ? borderRadius : 8;
   const docNumero = doc.numero || "";
   const clientName = [doc.client_nom, doc.client_prenom].filter(Boolean).join(" ") || "Client";
   const clientAddress = [
@@ -198,6 +344,8 @@ const buildDocumentPdfDefinition = (doc) => {
   const netAPayer = Number(doc.net_a_payer) || totalTtc - retenue;
 
   const mentionTva = doc.tva_applicable ? "" : (doc.mention_tva || "TVA non applicable, art. 293 B du CGI");
+  const conditionsPaiement = doc.conditions_paiement || "";
+  const notesClient = (doc.notes_client || "").trim();
   const dateEmission = formatDateFr(doc.date_emission) || "-";
   const dateValidite = doc.date_validite ? formatDateFr(doc.date_validite) : "";
   const dateEcheance = doc.date_echeance ? formatDateFr(doc.date_echeance) : "";
@@ -205,18 +353,76 @@ const buildDocumentPdfDefinition = (doc) => {
   const modesLabels = { virement: "Virement", cheque: "Chèque", especes: "Espèces", cb: "CB" };
   const modesPaiementText = modesPaiement.map((m) => modesLabels[m] || m).filter(Boolean).join(", ") || "Virement";
 
+  // Build dynamic table columns based on visibility settings
+  const tableHeaders = [];
+  const tableWidths = [];
+
+  if (showNumero) {
+    tableHeaders.push({ text: "N°", style: "tHead", alignment: "center" });
+    tableWidths.push(24);
+  }
+  tableHeaders.push({ text: "Désignation", style: "tHead" });
+  tableWidths.push("*");
+
+  if (showQuantite) {
+    tableHeaders.push({ text: "Qté", style: "tHead", alignment: "center" });
+    tableWidths.push(40);
+  }
+  if (showPrixUnitaire) {
+    tableHeaders.push({ text: "P.U. HT", style: "tHead", alignment: "right" });
+    tableWidths.push(50);
+  }
+  if (showTva) {
+    tableHeaders.push({ text: "TVA", style: "tHead", alignment: "center" });
+    tableWidths.push(35);
+  }
+  tableHeaders.push({ text: "Total HT", style: "tHead", alignment: "right" });
+  tableWidths.push(55);
+
+  const numCols = tableHeaders.length;
+
   // Build table body
-  const tableBody = [[
-    { text: "N°", style: "tHead", alignment: "center" },
-    { text: "Désignation", style: "tHead" },
-    { text: "Qté", style: "tHead", alignment: "center" },
-    { text: "P.U. HT", style: "tHead", alignment: "right" },
-    { text: "Total HT", style: "tHead", alignment: "right" },
-  ]];
+  const tableBody = [tableHeaders];
+  const rowKinds = ["header"];
+  const rowHeights = [null];
 
   const sectionTotals = [];
   let currentSection = null;
   let sectionSum = 0;
+
+  // Helper to build a row with dynamic columns
+  const buildRow = (cells) => {
+    const row = [];
+    if (showNumero) row.push(cells.num || { text: "" });
+    row.push(cells.designation || { text: "" });
+    if (showQuantite) row.push(cells.qte || { text: "" });
+    if (showPrixUnitaire) row.push(cells.pu || { text: "" });
+    if (showTva) row.push(cells.tva || { text: "" });
+    row.push(cells.total || { text: "" });
+    return row;
+  };
+
+  // Helper for colspan rows
+  const buildColSpanRow = (firstCell, content) => {
+    const row = [];
+    if (showNumero) row.push(firstCell);
+    row.push({ ...content, colSpan: numCols - (showNumero ? 1 : 0) });
+    for (let i = 1; i < numCols - (showNumero ? 1 : 0); i++) row.push({});
+    return row;
+  };
+
+  const fontSize = compactMode ? baseFontSize - 1 : baseFontSize;
+
+  const estimateLineRowHeight = (ligne) => {
+    const baseHeight = compactMode ? 22 : 26;
+    const lineHeight = fontSize + 3;
+    const designation = (ligne.designation || "").trim();
+    const description = (ligne.description || "").trim();
+    const designationLines = Math.max(1, Math.ceil(designation.length / 45));
+    const descriptionLines = description ? Math.max(1, Math.ceil(description.length / 60)) : 0;
+    const lineCount = designationLines + descriptionLines;
+    return Math.max(baseHeight, (lineCount * lineHeight) + (compactMode ? 8 : 10));
+  };
 
   numberedLignes.forEach((ligne, idx) => {
     const num = ligne.numero_affiche || "";
@@ -227,41 +433,50 @@ const buildDocumentPdfDefinition = (doc) => {
       }
       currentSection = ligne.designation || "Section";
       sectionSum = 0;
-      tableBody.push([
+      const sectionRow = buildColSpanRow(
         { text: num, style: "sectionCell", alignment: "center" },
-        { text: currentSection, style: "sectionCell", colSpan: 4 },
-        {}, {}, {},
-      ]);
+        { text: currentSection, style: "sectionCell" }
+      );
+      tableBody.push(sectionRow);
+      rowKinds.push("section");
+      rowHeights.push(null);
       return;
     }
 
     if (ligne.type === "entete") {
-      tableBody.push([
+      const row = buildColSpanRow(
         { text: "" },
-        { text: (ligne.designation || "").toUpperCase(), fontSize: 7, bold: true, color: PDF_GRAY, colSpan: 4 },
-        {}, {}, {},
-      ]);
+        { text: (ligne.designation || "").toUpperCase(), fontSize: fontSize - 2, bold: true, color: PDF_GRAY }
+      );
+      tableBody.push(row);
+      rowKinds.push("entete");
+      rowHeights.push(null);
       return;
     }
 
     if (ligne.type === "texte") {
-      tableBody.push([
+      const row = buildColSpanRow(
         { text: "" },
-        { text: ligne.designation || "", colSpan: 4, italics: true, color: PDF_GRAY, fontSize: 8 },
-        {}, {}, {},
-      ]);
+        { text: ligne.designation || "", italics: true, color: PDF_GRAY, fontSize: fontSize - 1 }
+      );
+      tableBody.push(row);
+      rowKinds.push("texte");
+      rowHeights.push(null);
       return;
     }
 
     if (ligne.type === "sous_total") {
       const st = calculerSousTotalAvantIndex(numberedLignes, idx);
-      tableBody.push([
-        { text: "" },
-        { text: "" },
-        { text: "" },
-        { text: ligne.designation || "Sous-total", alignment: "right", fontSize: 8, bold: true },
-        { text: formatMoney(st), alignment: "right", fontSize: 8, bold: true, fillColor: PDF_BLUE_LIGHT },
-      ]);
+      tableBody.push(buildRow({
+        num: { text: "", border: [false, false, false, false] },
+        designation: { text: "", border: [false, false, false, false] },
+        qte: { text: "", border: [false, false, false, false] },
+        pu: { text: ligne.designation || "Sous-total", alignment: "right", fontSize: fontSize - 1, bold: true, border: [false, false, false, false] },
+        tva: { text: "", border: [false, false, false, false] },
+        total: { text: formatMoney(st), alignment: "right", fontSize: fontSize - 1, bold: true, fillColor: PDF_BLUE_LIGHT, border: [false, false, false, false] },
+      }));
+      rowKinds.push("sous_total");
+      rowHeights.push(null);
       return;
     }
 
@@ -269,21 +484,25 @@ const buildDocumentPdfDefinition = (doc) => {
     const qte = ligne.quantite || 0;
     const unite = ligne.unite || "";
     const pu = ligne.prix_unitaire_ht || 0;
+    const tva = ligne.taux_tva || 0;
     const tot = calculerLigneTotal(ligne);
     sectionSum += tot;
 
-    const qteText = unite ? `${qte} ${unite}` : String(qte);
+    const qteText = showUnite && unite ? `${qte} ${unite}` : String(qte);
     const designation = ligne.description
-      ? { stack: [{ text: ligne.designation || "" }, { text: ligne.description, fontSize: 7, color: PDF_GRAY, margin: [0, 1, 0, 0] }] }
+      ? { stack: [{ text: ligne.designation || "" }, { text: ligne.description, fontSize: fontSize - 2, color: PDF_GRAY, margin: [0, 1, 0, 0] }] }
       : { text: ligne.designation || "" };
 
-    tableBody.push([
-      { text: num, alignment: "center", color: PDF_GRAY, fontSize: 8 },
+    tableBody.push(buildRow({
+      num: { text: num, alignment: "center", color: PDF_GRAY, fontSize: fontSize - 1 },
       designation,
-      { text: qteText, alignment: "center", fontSize: 8 },
-      { text: formatMoney(pu), alignment: "right", fontSize: 8 },
-      { text: formatMoney(tot), alignment: "right", fontSize: 8 },
-    ]);
+      qte: { text: qteText, alignment: "center", fontSize: fontSize - 1 },
+      pu: { text: formatMoney(pu), alignment: "right", fontSize: fontSize - 1 },
+      tva: { text: `${tva}%`, alignment: "center", fontSize: fontSize - 1, color: PDF_GRAY },
+      total: { text: formatMoney(tot), alignment: "right", fontSize: fontSize - 1 },
+    }));
+    rowKinds.push("line");
+    rowHeights.push(estimateLineRowHeight(ligne));
   });
 
   // Last section total
@@ -294,183 +513,717 @@ const buildDocumentPdfDefinition = (doc) => {
   // Insert section totals if enabled
   if (showSectionSubtotals) {
     sectionTotals.reverse().forEach((st) => {
-      tableBody.splice(st.afterRow + 1, 0, [
-        { text: "", border: [false, false, false, false] },
-        { text: "", border: [false, false, false, false] },
-        { text: "", border: [false, false, false, false] },
-        { text: `${st.name} :`, alignment: "right", fontSize: 8, bold: true, border: [false, false, false, false] },
-        { text: formatMoney(st.total), alignment: "right", fontSize: 8, bold: true, fillColor: PDF_BLUE_LIGHT, border: [false, false, false, false] },
-      ]);
+      const stRow = buildRow({
+        num: { text: "", border: [false, false, false, false] },
+        designation: { text: "", border: [false, false, false, false] },
+        qte: { text: "", border: [false, false, false, false] },
+        pu: { text: `${st.name} :`, alignment: "right", fontSize: fontSize - 1, bold: true, border: [false, false, false, false] },
+        tva: { text: "", border: [false, false, false, false] },
+        total: { text: formatMoney(st.total), alignment: "right", fontSize: fontSize - 1, bold: true, fillColor: PDF_BLUE_LIGHT, border: [false, false, false, false] },
+      });
+      tableBody.splice(st.afterRow + 1, 0, stRow);
+      rowKinds.splice(st.afterRow + 1, 0, "section_total");
+      rowHeights.splice(st.afterRow + 1, 0, null);
     });
   }
 
-  // Build company info
-  const companyInfo = [];
-  if (!hideOptions.companyName) companyInfo.push({ text: "Thomas Bonnardel", fontSize: 14, bold: true, color: PDF_BLUE });
-  if (!hideOptions.companyActivity) companyInfo.push({ text: "Design - Rénovation", fontSize: 8, color: PDF_GRAY });
-  if (!hideOptions.companyAddress) companyInfo.push({ text: "944 Chemin de Tardinaou, 13190 Allauch", fontSize: 8, color: PDF_GRAY });
-  const contactParts = [];
-  if (!hideOptions.companyPhone) contactParts.push("06 95 07 10 84");
-  if (!hideOptions.companyEmail) contactParts.push("thomasromeo.bonnardel@gmail.com");
-  if (contactParts.length) companyInfo.push({ text: contactParts.join(" • "), fontSize: 8, color: PDF_TEXT, margin: [0, 3, 0, 0] });
-  if (!hideOptions.companySiren) companyInfo.push({ text: "SIREN 992 454 694", fontSize: 7, color: PDF_GRAY });
+  // Build company info with logo support
+  const buildCompanyInfo = () => {
+    const textInfo = [];
+    if (!hideOptions.companyName && logoPosition !== "replace") {
+      textInfo.push({ text: "Thomas Bonnardel", fontSize: compactMode ? 12 : 14, bold: true, color: PDF_BLUE });
+    }
+    if (!hideOptions.companyActivity) textInfo.push({ text: "Design - Rénovation", fontSize: fontSize - 1, color: PDF_GRAY });
+    if (!hideOptions.companyAddress) textInfo.push({ text: "944 Chemin de Tardinaou, 13190 Allauch", fontSize: fontSize - 1, color: PDF_GRAY });
+    const contactParts = [];
+    if (!hideOptions.companyPhone) contactParts.push("06 95 07 10 84");
+    if (!hideOptions.companyEmail) contactParts.push("thomasromeo.bonnardel@gmail.com");
+    if (contactParts.length) textInfo.push({ text: contactParts.join(" • "), fontSize: fontSize - 1, color: PDF_TEXT, margin: [0, 3, 0, 0] });
+    if (!hideOptions.companySiren) textInfo.push({ text: "SIREN 992 454 694", fontSize: fontSize - 2, color: PDF_GRAY });
 
-  // Table layout
+    if (!logo) return textInfo;
+
+    const logoImg = { image: logo, width: logoSize, height: logoSize * 0.6 };
+
+    if (logoPosition === "above") {
+      return [logoImg, { text: "", margin: [0, 4, 0, 0] }, ...textInfo];
+    }
+    if (logoPosition === "replace") {
+      return [{ ...logoImg, width: logoSize * 1.5, height: logoSize }];
+    }
+    // left position - logo next to text
+    return [{
+      columns: [
+        { ...logoImg, width: logoSize, margin: [0, 0, 10, 0] },
+        { stack: textInfo, width: "*" },
+      ],
+    }];
+  };
+
+  const companyInfo = buildCompanyInfo();
+
+  // Table layout with dynamic settings
   const getTableLayout = () => {
+    const pad = compactMode ? Math.max(2, cellPadding - 1) : cellPadding;
     const base = {
-      paddingLeft: () => 4,
-      paddingRight: () => 4,
-      paddingTop: () => 3,
-      paddingBottom: () => 3,
+      paddingLeft: () => pad,
+      paddingRight: () => pad,
+      paddingTop: () => Math.max(2, pad - 1),
+      paddingBottom: () => Math.max(2, pad - 1),
     };
     switch (tableStyle) {
+      case "bordered":
+        // Full borders on all cells
+        return {
+          ...base,
+          hLineWidth: () => borderWidth,
+          vLineWidth: () => borderWidth,
+          hLineColor: () => PDF_BORDER,
+          vLineColor: () => PDF_BORDER,
+        };
       case "horizontal":
-        return { ...base, hLineWidth: (i, node) => (i <= 1 || i === node.table.body.length) ? 0.5 : 0.2, vLineWidth: () => 0, hLineColor: () => PDF_BORDER };
-      case "vertical":
-        return { ...base, hLineWidth: (i, node) => (i <= 1 || i === node.table.body.length) ? 0.5 : 0, vLineWidth: () => 0.5, hLineColor: () => PDF_BORDER, vLineColor: () => PDF_BORDER };
-      case "rounded":
-        return { ...base, hLineWidth: (i, node) => (i <= 1 || i === node.table.body.length) ? 0.5 : 0.2, vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length) ? 0.5 : 0, hLineColor: () => PDF_BORDER, vLineColor: () => PDF_BORDER };
+        // Only horizontal lines between rows
+        return {
+          ...base,
+          hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? borderWidth : borderWidth * 0.5,
+          vLineWidth: () => 0,
+          hLineColor: () => PDF_BORDER,
+        };
+      case "minimal":
+        // Only header bottom line and table bottom line
+        return {
+          ...base,
+          hLineWidth: (i, node) => (i === 1 || i === node.table.body.length) ? borderWidth : 0,
+          vLineWidth: () => 0,
+          hLineColor: () => PDF_BORDER,
+        };
       default: // striped
-        return { ...base, hLineWidth: (i, node) => (i <= 1 || i === node.table.body.length) ? 0.5 : 0, vLineWidth: () => 0, hLineColor: () => PDF_BORDER, fillColor: (i) => (i > 0 && i % 2 === 0) ? "#f8f9fa" : null };
+        // Alternating row colors, header and footer lines only
+        return {
+          ...base,
+          hLineWidth: (i, node) => (i <= 1 || i === node.table.body.length) ? borderWidth : 0,
+          vLineWidth: () => 0,
+          hLineColor: () => PDF_BORDER,
+          fillColor: (i) => (i > 0 && i % 2 === 0)
+            ? (headerStyle === "ultra" ? PDF_BLUE_SOFT : "#f8f9fa")
+            : null,
+        };
     }
   };
 
   // Build totals rows
   const totalsRows = [];
-  totalsRows.push([{ text: "Total HT", fontSize: 8 }, { text: formatMoney(totalHt), fontSize: 8, bold: true, alignment: "right" }]);
-  if (totalRemise > 0) totalsRows.push([{ text: "Remise", fontSize: 8 }, { text: `- ${formatMoney(totalRemise)}`, fontSize: 8, alignment: "right" }]);
-  if (doc.tva_applicable && totalTva > 0) totalsRows.push([{ text: "TVA", fontSize: 8 }, { text: formatMoney(totalTva), fontSize: 8, alignment: "right" }]);
-  if (totalTtc !== totalHt) totalsRows.push([{ text: "Total TTC", fontSize: 8 }, { text: formatMoney(totalTtc), fontSize: 8, bold: true, alignment: "right" }]);
-  if (retenue > 0) totalsRows.push([{ text: "Retenue garantie", fontSize: 8 }, { text: `- ${formatMoney(retenue)}`, fontSize: 8, alignment: "right" }]);
+  const totFontSize = fontSize - 1;
+  totalsRows.push([{ text: "Total HT", fontSize: totFontSize }, { text: formatMoney(totalHt), fontSize: totFontSize, bold: true, alignment: "right" }]);
+  if (totalRemise > 0) totalsRows.push([{ text: "Remise", fontSize: totFontSize }, { text: `- ${formatMoney(totalRemise)}`, fontSize: totFontSize, alignment: "right" }]);
+  if (doc.tva_applicable && totalTva > 0) totalsRows.push([{ text: "TVA", fontSize: totFontSize }, { text: formatMoney(totalTva), fontSize: totFontSize, alignment: "right" }]);
+  if (totalTtc !== totalHt) totalsRows.push([{ text: "Total TTC", fontSize: totFontSize }, { text: formatMoney(totalTtc), fontSize: totFontSize, bold: true, alignment: "right" }]);
+  if (retenue > 0) totalsRows.push([{ text: "Retenue garantie", fontSize: totFontSize }, { text: `- ${formatMoney(retenue)}`, fontSize: totFontSize, alignment: "right" }]);
+  totalsRows.push([
+    { text: "", margin: [0, 4, 0, 0] },
+    { text: "", margin: [0, 4, 0, 0] },
+  ]);
+  const netRowFill = isFacture ? PDF_BLUE : null;
+  const netRowColor = isFacture ? "white" : PDF_BLUE;
+  const netRowMargin = isFacture ? [4, 2, 4, 2] : undefined;
+  totalsRows.push([
+    { text: "Net a payer", fontSize: fontSize, bold: true, color: netRowColor, fillColor: netRowFill, margin: netRowMargin },
+    { text: formatMoney(netAPayer), fontSize: fontSize + 1, bold: true, color: netRowColor, alignment: "right", fillColor: netRowFill, margin: netRowMargin },
+  ]);
 
-  return {
-    pageSize: "A4",
-    pageMargins: [40, 40, 40, 50],
-    defaultStyle: { font: pdfFont, fontSize: Math.round(9 * fontSizeMultiplier), color: PDF_TEXT, lineHeight: 1.2 },
-    styles: {
-      tHead: { bold: true, fontSize: Math.round(8 * fontSizeMultiplier), color: "white", fillColor: PDF_BLUE },
-      sectionCell: { fillColor: PDF_BLUE_LIGHT, bold: true, fontSize: Math.round(9 * fontSizeMultiplier), color: PDF_BLUE },
-    },
-    content: [
-      // Header
-      {
-        columns: [
-          { width: "50%", stack: companyInfo },
+  // Build header based on style
+  const buildHeader = () => {
+    const docAlign = clientPosition === "left" ? "left" : "right";
+
+    const docInfo = {
+      width: "50%",
+      stack: [
+        { text: typeLabel.toUpperCase(), fontSize: compactMode ? 16 : 20, bold: true, color: PDF_BLUE, alignment: docAlign },
+        docNumero ? { text: `N° ${docNumero}`, fontSize: fontSize, alignment: docAlign, margin: [0, 2, 0, 0] } : {},
+        { text: `Date : ${dateEmission}`, fontSize: fontSize - 1, color: PDF_GRAY, alignment: docAlign, margin: [0, 8, 0, 0] },
+        dateValidite ? { text: `Valide jusqu'au : ${dateValidite}`, fontSize: fontSize - 1, color: PDF_GRAY, alignment: docAlign } : {},
+        dateEcheance ? { text: `Échéance : ${dateEcheance}`, fontSize: fontSize - 1, color: PDF_GRAY, alignment: docAlign } : {},
+      ],
+    };
+
+    // Ultra modern style - clean header with a rounded info card
+    if (headerStyle === "ultra") {
+      const cardWidth = compactMode ? 200 : 220;
+      const cardPadding = compactMode ? 8 : 10;
+      const metaLines = [
+        { text: typeLabel.toUpperCase(), fontSize: compactMode ? 10 : 11, color: "white", bold: true },
+        docNumero ? { text: `N° ${docNumero}`, fontSize: fontSize + 1, bold: true, color: "white", margin: [0, 3, 0, 0] } : null,
+        { text: `Date : ${dateEmission}`, fontSize: fontSize - 1, color: "white", margin: [0, 4, 0, 0] },
+        dateValidite ? { text: `Valide jusqu'au : ${dateValidite}`, fontSize: fontSize - 2, color: "white" } : null,
+        dateEcheance ? { text: `Echeance : ${dateEcheance}`, fontSize: fontSize - 2, color: "white" } : null,
+      ].filter(Boolean);
+
+      const cardHeight = Math.max(compactMode ? 64 : 78, (metaLines.length * (fontSize + 3)) + (cardPadding * 2));
+      const docCard = {
+        width: cardWidth,
+        stack: [
           {
-            width: "50%",
-            stack: [
-              { text: typeLabel.toUpperCase(), fontSize: 20, bold: true, color: PDF_BLUE, alignment: "right" },
-              docNumero ? { text: `N° ${docNumero}`, fontSize: 9, alignment: "right", margin: [0, 2, 0, 0] } : {},
-              { text: `Date : ${dateEmission}`, fontSize: 8, color: PDF_GRAY, alignment: "right", margin: [0, 8, 0, 0] },
-              dateValidite ? { text: `Valide jusqu'au : ${dateValidite}`, fontSize: 8, color: PDF_GRAY, alignment: "right" } : {},
-              dateEcheance ? { text: `Échéance : ${dateEcheance}`, fontSize: 8, color: PDF_GRAY, alignment: "right" } : {},
+            canvas: [{
+              type: "rect",
+              x: 0,
+              y: 0,
+              w: cardWidth,
+              h: cardHeight,
+              r: Math.max(0, borderRadius),
+              color: PDF_BLUE,
+            }],
+          },
+          {
+            stack: metaLines,
+            margin: [cardPadding, -cardHeight + cardPadding, cardPadding, cardPadding],
+          },
+        ],
+      };
+
+      return {
+        stack: [
+          {
+            columns: [
+              { width: "*", stack: companyInfo },
+              docCard,
             ],
+            columnGap: 16,
           },
-        ],
-      },
-
-      // Client box
-      {
-        margin: [0, 20, 0, 15],
-        columns: [
-          { width: "*", text: "" },
           {
-            width: 200,
-            table: {
-              widths: ["*"],
-              body: [[{
-                stack: [
-                  { text: "DESTINATAIRE", fontSize: 7, color: PDF_BLUE, bold: true, margin: [0, 0, 0, 4] },
-                  { text: clientName, fontSize: 10, bold: true },
-                  clientAddress ? { text: clientAddress, fontSize: 8, color: PDF_GRAY, margin: [0, 2, 0, 0] } : {},
-                ],
-                margin: [8, 6, 8, 6],
-              }]],
-            },
-            layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => PDF_BORDER, vLineColor: () => PDF_BORDER },
+            canvas: [{
+              type: "line",
+              x1: 0,
+              y1: 0,
+              x2: contentWidth,
+              y2: 0,
+              lineWidth: 1.5,
+              lineColor: PDF_BORDER,
+            }],
+            margin: [0, sectionSpacing - 6, 0, sectionSpacing],
           },
         ],
+      };
+    }
+
+    // Modern style - colored banner with document type
+    if (headerStyle === "modern") {
+      const banner = {
+        table: {
+          widths: ["*"],
+          body: [[{
+            text: typeLabel.toUpperCase(),
+            fontSize: compactMode ? 14 : 18,
+            bold: true,
+            color: "white",
+            alignment: "center",
+            margin: [0, 8, 0, 8],
+          }]],
+        },
+        layout: {
+          hLineWidth: () => 0,
+          vLineWidth: () => 0,
+          fillColor: () => PDF_BLUE,
+        },
+        margin: [0, 0, 0, sectionSpacing],
+      };
+
+      const modernDocInfo = {
+        columns: [
+          docNumero ? { text: `N° ${docNumero}`, fontSize: fontSize, bold: true } : {},
+          { text: `Date : ${dateEmission}`, fontSize: fontSize - 1, color: PDF_MUTED, alignment: "right" },
+        ],
+        margin: [0, 0, 0, 4],
+      };
+
+      const headerContent = clientPosition === "left"
+        ? { columns: [docInfo, { width: "50%", stack: companyInfo }] }
+        : { columns: [{ width: "50%", stack: companyInfo }, { width: "50%", stack: [modernDocInfo] }] };
+
+      return { stack: [banner, headerContent] };
+    }
+
+    // Minimal style - just text, no decorations
+    if (headerStyle === "minimal") {
+      const minimalInfo = [
+        { text: `${typeLabel} ${docNumero}`, fontSize: fontSize + 2, bold: true, color: PDF_TEXT },
+        { text: `${dateEmission}`, fontSize: fontSize - 1, color: PDF_GRAY, margin: [0, 2, 0, 0] },
+      ];
+
+      if (clientPosition === "left") {
+        return { columns: [{ stack: minimalInfo, width: "50%" }, { width: "50%", stack: companyInfo }] };
+      }
+      return { columns: [{ width: "50%", stack: companyInfo }, { stack: minimalInfo, width: "50%", alignment: "right" }] };
+    }
+
+    // Classic style (default)
+    if (clientPosition === "left") {
+      return { columns: [docInfo, { width: "50%", stack: companyInfo }] };
+    }
+    return { columns: [{ width: "50%", stack: companyInfo }, docInfo] };
+  };
+
+  // Build client box with optional rounded corners
+  const buildClientBox = () => {
+    const boxWidth = compactMode ? 190 : 210;
+    const innerMargin = compactMode ? 6 : 8;
+    const innerPadding = compactMode ? 4 : 6;
+    const clientContact = [doc.client_email, doc.client_telephone].filter(Boolean).join(" • ");
+    const addressLines = clientAddress ? clientAddress.split("\n").length : 0;
+    const contentLineCount = 2 + addressLines + (clientContact ? 1 : 0);
+    const boxHeight = Math.max(compactMode ? 70 : 84, (contentLineCount * (fontSize + 2)) + (innerPadding * 2) + 6);
+
+    // Content stack
+    const contentStack = [
+      { text: "DESTINATAIRE", fontSize: fontSize - 2, color: PDF_BLUE, bold: true, margin: [0, 0, 0, 4] },
+      { text: clientName, fontSize: fontSize + 1, bold: true },
+      clientAddress ? { text: clientAddress, fontSize: fontSize - 1, color: PDF_MUTED, margin: [0, 2, 0, 0] } : {},
+      clientContact ? { text: clientContact, fontSize: fontSize - 2, color: PDF_MUTED, margin: [0, 2, 0, 0] } : {},
+    ];
+
+    let clientBox;
+    if (borderRadius > 0) {
+      // Use canvas for rounded corners
+      clientBox = {
+        width: boxWidth,
+        stack: [
+          {
+            canvas: [{
+              type: "rect",
+              x: 0,
+              y: 0,
+              w: boxWidth,
+              h: boxHeight,
+              r: borderRadius,
+              lineWidth: borderWidth,
+              lineColor: PDF_BORDER,
+              color: PDF_BLUE_SOFT,
+            }],
+          },
+          {
+            stack: contentStack,
+            margin: [innerMargin, -boxHeight + innerPadding + 6, innerMargin, innerPadding],
+          },
+        ],
+      };
+    } else {
+      // Standard table layout
+      clientBox = {
+        width: boxWidth,
+        table: {
+          widths: ["*"],
+          body: [[{
+            stack: contentStack,
+            margin: [innerMargin, innerPadding, innerMargin, innerPadding],
+          }]],
+        },
+        layout: { hLineWidth: () => borderWidth, vLineWidth: () => borderWidth, hLineColor: () => PDF_BORDER, vLineColor: () => PDF_BORDER },
+      };
+    }
+
+    if (clientPosition === "left") {
+      return { margin: [0, sectionSpacing, 0, sectionSpacing], columns: [clientBox, { width: "*", text: "" }] };
+    }
+    return { margin: [0, sectionSpacing, 0, sectionSpacing], columns: [{ width: "*", text: "" }, clientBox] };
+  };
+
+  // Build signature box (for devis) with optional rounded corners
+  const buildCardTitle = (text, { fillColor = PDF_ACCENT, textColor = PDF_BLUE, titleFont = fontSize - 1 } = {}) => {
+    const padX = 8;
+    const padY = 3;
+    const height = Math.max(16, Math.round(titleFont + (padY * 2)));
+    const width = Math.min(contentWidth, Math.max(90, Math.round(text.length * (titleFont + 1) * 0.55 + (padX * 2))));
+
+    return {
+      stack: [
+        { canvas: [{ type: "rect", x: 0, y: 0, w: width, h: height, r: Math.round(height / 2), color: fillColor }] },
+        { text, fontSize: titleFont, bold: true, color: textColor, margin: [padX, -height + padY + 1, 0, 0] },
+      ],
+      margin: [0, 0, 0, 6],
+    };
+  };
+
+  const buildLayeredCard = ({ width, height, padding, content, accentColor = PDF_CARD_LAYER, fillColor = "white", innerOffset = 4 }) => {
+    const offset = Math.max(0, innerOffset);
+    const innerWidth = Math.max(0, width - offset);
+    const innerHeight = Math.max(0, height - offset);
+
+    return {
+      width,
+      stack: [
+        {
+          canvas: [
+            { type: "rect", x: 0, y: 0, w: width, h: height, r: cardRadius, color: accentColor },
+            {
+              type: "rect",
+              x: offset,
+              y: offset,
+              w: innerWidth,
+              h: innerHeight,
+              r: Math.max(0, cardRadius - 2),
+              color: fillColor,
+              lineWidth: borderWidth,
+              lineColor: PDF_BORDER,
+            },
+          ],
+        },
+        {
+          ...content,
+          margin: [padding + offset, -height + padding + offset, padding, padding],
+        },
+      ],
+    };
+  };
+
+  const buildSignatureBox = (targetWidth) => {
+    if (!showSignatureBox || doc.type !== "devis") return {};
+
+    const innerPadding = compactMode ? 8 : 10;
+    const boxHeight = compactMode ? 78 : 92;
+    const cardWidth = targetWidth || Math.round(contentWidth * 0.55);
+
+    const contentStack = [
+      buildCardTitle("Signature", { fillColor: PDF_BLUE_LIGHT, textColor: PDF_BLUE }),
+      { text: "Bon pour accord", fontSize: fontSize - 1, bold: true, margin: [0, 0, 0, 3] },
+      { text: "Date et signature :", fontSize: fontSize - 2, color: PDF_GRAY },
+      { text: "", margin: [0, compactMode ? 18 : 24, 0, 0] },
+    ];
+
+    return {
+      margin: [0, sectionSpacing, 0, 0],
+      ...buildLayeredCard({
+        width: cardWidth,
+        height: boxHeight,
+        padding: innerPadding,
+        accentColor: PDF_CARD_LAYER,
+        fillColor: "white",
+        content: { stack: contentStack },
+      }),
+    };
+  };
+
+  const buildClientNoteBlock = (targetWidth) => {
+    if (!notesClient) return null;
+
+    const notePadding = compactMode ? 10 : 12;
+    const noteWidth = targetWidth || contentWidth;
+    const widthRatio = Math.max(0.55, Math.min(1, noteWidth / contentWidth));
+    const maxCharsPerLine = Math.max(50, Math.round((compactMode ? 90 : 100) * widthRatio));
+    const estimatedLines = Math.max(1, Math.ceil(notesClient.length / maxCharsPerLine)) + 1;
+    const noteHeight = Math.max(compactMode ? 72 : 86, (estimatedLines * (fontSize + 2)) + (notePadding * 2) + 10);
+    const noteStack = [
+      buildCardTitle("Note au client", { fillColor: PDF_BLUE_LIGHT, textColor: PDF_BLUE }),
+      { text: notesClient, fontSize: fontSize - 1, color: PDF_TEXT, margin: [0, 2, 0, 0] },
+    ];
+
+    return {
+      margin: [0, sectionSpacing, 0, 0],
+      ...buildLayeredCard({
+        width: noteWidth,
+        height: noteHeight,
+        padding: notePadding,
+        accentColor: PDF_CARD_LAYER,
+        fillColor: "white",
+        content: { stack: noteStack },
+      }),
+    };
+  };
+
+  const buildTotalsCard = (targetWidth) => {
+    const cardPadding = compactMode ? 10 : 12;
+    const rowHeight = compactMode ? 14 : 16;
+    const cardWidth = targetWidth || Math.round(contentWidth * 0.4);
+    const cardHeight = Math.max(88, (totalsRows.length * rowHeight) + (cardPadding * 2) + 12);
+
+    const totalsTable = {
+      table: {
+        widths: ["*", "auto"],
+        body: totalsRows,
       },
+      layout: "noBorders",
+    };
 
-      // Objet
-      doc.objet ? { text: `Objet : ${doc.objet}`, fontSize: 9, bold: true, margin: [0, 0, 0, 10] } : {},
+    const title = isFacture ? "Total facture" : "Totaux";
+    const totalsContent = {
+      stack: [
+        buildCardTitle(title, { fillColor: PDF_BLUE_LIGHT, textColor: PDF_BLUE }),
+        totalsTable,
+      ],
+    };
 
-      // Table
-      {
+    return buildLayeredCard({
+      width: cardWidth,
+      height: cardHeight,
+      padding: cardPadding,
+      accentColor: PDF_CARD_LAYER,
+      fillColor: "white",
+      content: totalsContent,
+    });
+  };
+
+  const buildLineCard = (rowCells, rowHeight) => {
+    const safeHeight = rowHeight || (compactMode ? 22 : 26);
+    const marginBottom = compactMode ? 6 : 8;
+    const columns = rowCells.map((cell, index) => ({
+      ...cell,
+      width: tableWidths[index],
+      border: undefined,
+    }));
+
+    return {
+      margin: [0, 0, 0, marginBottom],
+      stack: [
+        {
+          canvas: [{
+            type: "rect",
+            x: 0,
+            y: 0,
+            w: contentWidth,
+            h: safeHeight,
+            r: borderRadius,
+            lineWidth: borderWidth,
+            lineColor: PDF_BORDER,
+            color: "white",
+          }],
+        },
+        {
+          columns,
+          columnGap: 0,
+          margin: [cellPadding, -safeHeight + cellPadding + 2, cellPadding, cellPadding],
+        },
+      ],
+    };
+  };
+
+  const buildPaymentCard = (targetWidth) => {
+    const cardPadding = compactMode ? 10 : 12;
+    const cardWidth = targetWidth || Math.round(contentWidth * 0.55);
+    const lines = [];
+
+    if (showPaymentMethods && modesPaiementText) {
+      lines.push({ text: `Paiement : ${modesPaiementText}`, fontSize: fontSize - 1, color: PDF_TEXT });
+    }
+    if (showConditions && conditionsPaiement) {
+      lines.push({ text: `Conditions : ${conditionsPaiement}`, fontSize: fontSize - 2, color: PDF_MUTED, margin: [0, 2, 0, 0] });
+    }
+    if (showConditions && mentionTva) {
+      lines.push({ text: mentionTva, fontSize: fontSize - 2, italics: true, color: PDF_MUTED, margin: [0, 2, 0, 0] });
+    }
+
+    if (!lines.length) return null;
+
+    const estimatedHeight = Math.max(
+      compactMode ? 78 : 92,
+      (lines.length * (fontSize + 4)) + (cardPadding * 2) + 18
+    );
+
+    return {
+      ...buildLayeredCard({
+        width: cardWidth,
+        height: estimatedHeight,
+        padding: cardPadding,
+        accentColor: PDF_CARD_LAYER,
+        fillColor: "white",
+        content: {
+          stack: [
+            buildCardTitle("Paiement et conditions", { fillColor: PDF_BLUE_LIGHT, textColor: PDF_BLUE }),
+            ...lines,
+          ],
+        },
+      }),
+    };
+  };
+
+  const isBlock = (block) => Boolean(block && (block.stack || block.table || block.columns || block.canvas));
+  const applyMargin = (block, margin) => (isBlock(block) ? { ...block, margin } : null);
+  const centerBlock = (block) => {
+    if (!isBlock(block) || !block.width) return block;
+    const margin = Array.isArray(block.margin) ? block.margin : [0, 0, 0, 0];
+    const left = Math.max(0, Math.round((contentWidth - block.width) / 2));
+    return { ...block, margin: [left, margin[1] || 0, margin[2] || 0, margin[3] || 0] };
+  };
+
+  const layoutConfigs = {
+    "premium-split": {
+      noteWidth: "full",
+      paymentWidth: 0.55,
+      totalsWidth: 0.4,
+      signatureWidth: 0.55,
+    },
+    "premium-grid": {
+      noteWidth: 0.55,
+      paymentWidth: 0.55,
+      totalsWidth: 0.4,
+      signatureWidth: 0.4,
+    },
+    "centered-stack": {
+      noteWidth: 0.82,
+      paymentWidth: 0.72,
+      totalsWidth: 0.72,
+      signatureWidth: 0.72,
+    },
+  };
+
+  const layoutConfig = layoutConfigs[layoutPreset] || layoutConfigs["premium-split"];
+  const resolveWidth = (value, fallback) => {
+    if (!value) return fallback;
+    if (value === "full") return contentWidth;
+    return Math.round(contentWidth * value);
+  };
+
+  const noteWidth = resolveWidth(layoutConfig.noteWidth, contentWidth);
+  const paymentWidth = resolveWidth(layoutConfig.paymentWidth, Math.round(contentWidth * 0.55));
+  const totalsWidth = resolveWidth(layoutConfig.totalsWidth, Math.round(contentWidth * 0.4));
+  const signatureWidth = resolveWidth(layoutConfig.signatureWidth, Math.round(contentWidth * 0.55));
+  const cardGap = compactMode ? 8 : 10;
+
+  const signatureBox = buildSignatureBox(signatureWidth);
+  const paymentCard = buildPaymentCard(paymentWidth);
+  const totalsCard = buildTotalsCard(totalsWidth);
+  const clientNoteBlock = buildClientNoteBlock(noteWidth);
+
+  const stackCards = (cards, { center = false } = {}) => {
+    const filtered = cards.filter(isBlock);
+    return filtered.map((card, index) => {
+      const margin = [0, 0, 0, index === filtered.length - 1 ? 0 : cardGap];
+      const withSpacing = applyMargin(card, margin);
+      return center ? centerBlock(withSpacing) : withSpacing;
+    });
+  };
+
+  let noteBlockForContent = null;
+  let bottomSection = null;
+
+  if (layoutPreset === "premium-grid") {
+    const leftStack = stackCards([clientNoteBlock, paymentCard]);
+    const rightStack = stackCards([totalsCard, signatureBox]);
+    bottomSection = {
+      margin: [0, sectionSpacing, 0, 0],
+      columns: [
+        { width: "55%", stack: leftStack },
+        { width: "5%", text: "" },
+        { width: "40%", stack: rightStack },
+      ],
+    };
+  } else if (layoutPreset === "centered-stack") {
+    noteBlockForContent = clientNoteBlock ? centerBlock(applyMargin(clientNoteBlock, [0, sectionSpacing, 0, 0])) : null;
+    bottomSection = {
+      margin: [0, sectionSpacing, 0, 0],
+      stack: stackCards([paymentCard, totalsCard, signatureBox], { center: true }),
+    };
+  } else {
+    noteBlockForContent = clientNoteBlock ? applyMargin(clientNoteBlock, [0, sectionSpacing, 0, 0]) : null;
+    const leftStack = stackCards([paymentCard, signatureBox]);
+    const rightStack = stackCards([totalsCard]);
+    bottomSection = {
+      margin: [0, sectionSpacing, 0, 0],
+      columns: [
+        { width: "55%", stack: leftStack },
+        { width: "5%", text: "" },
+        { width: "40%", stack: rightStack },
+      ],
+    };
+  }
+
+  // Build watermark if enabled
+  const watermark = showDraftWatermark ? {
+    text: "BROUILLON",
+    color: "#cccccc",
+    opacity: 0.3,
+    bold: true,
+    italics: false,
+  } : undefined;
+
+  // Build background for document border
+  const background = showDocumentBorder ? (currentPage, pageSize) => [{
+    canvas: [{
+      type: "rect",
+      x: pageMargin - 5,
+      y: pageMargin - 5,
+      w: pageSize.width - (pageMargin * 2) + 10,
+      h: pageSize.height - (pageMargin * 2) + 10,
+      r: borderRadius,
+      lineWidth: borderWidth,
+      lineColor: PDF_BORDER,
+    }],
+  }] : undefined;
+
+  const useRoundedRows = borderRadius > 0 && appearance.roundedRowBorders !== false;
+
+  const tableContent = useRoundedRows
+    ? [
+        {
+          table: {
+            headerRows: 1,
+            widths: tableWidths,
+            body: [tableHeaders],
+          },
+          layout: getTableLayout(),
+          margin: [0, 0, 0, compactMode ? 6 : 8],
+        },
+        ...tableBody.slice(1).map((row, index) => {
+          const rowIndex = index + 1;
+          const kind = rowKinds[rowIndex];
+          if (kind === "line") {
+            return buildLineCard(row, rowHeights[rowIndex]);
+          }
+          return {
+            table: {
+              widths: tableWidths,
+              body: [row],
+            },
+            layout: "noBorders",
+            margin: [0, 0, 0, compactMode ? 6 : 8],
+          };
+        }),
+      ]
+    : {
         table: {
           headerRows: 1,
-          widths: [24, "*", 40, 50, 55],
+          widths: tableWidths,
           body: tableBody,
         },
         layout: getTableLayout(),
+      };
+
+  return {
+    pageSize: "A4",
+    pageMargins: [pageMargin, pageMargin, pageMargin, pageMargin + 10],
+    defaultStyle: { font: pdfFont, fontSize: fontSize, color: PDF_TEXT, lineHeight },
+    styles: {
+      tHead: {
+        bold: true,
+        fontSize: fontSize - 1,
+        color: headerStyle === "ultra" ? PDF_BLUE : "white",
+        fillColor: headerStyle === "ultra" ? PDF_BLUE_SOFT : PDF_BLUE,
       },
+      sectionCell: { fillColor: PDF_BLUE_LIGHT, bold: true, fontSize: fontSize, color: PDF_BLUE },
+    },
+    watermark,
+    background,
+    content: [
+      // Header
+      buildHeader(),
+
+      // Client box
+      buildClientBox(),
+
+      // Objet
+      doc.objet ? { text: `Objet : ${doc.objet}`, fontSize: fontSize, bold: true, margin: [0, 0, 0, compactMode ? 8 : 10] } : {},
+
+      // Table
+      ...(Array.isArray(tableContent) ? tableContent : [tableContent]),
+      ...(noteBlockForContent ? [noteBlockForContent] : []),
 
       // Bottom section
-      {
-        margin: [0, 15, 0, 0],
-        columns: [
-          // Left side - conditions
-          {
-            width: "55%",
-            stack: [
-              modesPaiementText ? { text: `Paiement : ${modesPaiementText}`, fontSize: 8, color: PDF_GRAY } : {},
-              mentionTva ? { text: mentionTva, fontSize: 7, italics: true, color: PDF_GRAY, margin: [0, 4, 0, 0] } : {},
-              doc.type === "devis" ? {
-                margin: [0, 15, 0, 0],
-                table: {
-                  widths: ["*"],
-                  body: [[{
-                    stack: [
-                      { text: "Bon pour accord", fontSize: 8, bold: true, margin: [0, 0, 0, 3] },
-                      { text: "Date et signature :", fontSize: 7, color: PDF_GRAY },
-                      { text: "", margin: [0, 25, 0, 0] },
-                    ],
-                    margin: [8, 6, 8, 6],
-                  }]],
-                },
-                layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => PDF_BORDER, vLineColor: () => PDF_BORDER },
-              } : {},
-            ],
-          },
-          { width: "5%", text: "" },
-          // Right side - totals
-          {
-            width: "40%",
-            stack: [
-              {
-                table: {
-                  widths: ["*", "auto"],
-                  body: totalsRows,
-                },
-                layout: "noBorders",
-              },
-              {
-                margin: [0, 6, 0, 0],
-                table: {
-                  widths: ["*"],
-                  body: [[{
-                    columns: [
-                      { text: "NET À PAYER", fontSize: 10, bold: true, color: "white" },
-                      { text: formatMoney(netAPayer), fontSize: 12, bold: true, color: "white", alignment: "right" },
-                    ],
-                    margin: [10, 8, 10, 8],
-                    fillColor: PDF_BLUE,
-                  }]],
-                },
-                layout: { hLineWidth: () => 0, vLineWidth: () => 0 },
-              },
-            ],
-          },
-        ],
-      },
+      ...(bottomSection ? [bottomSection] : []),
     ],
-    footer: (currentPage, pageCount) => ({
-      margin: [40, 0, 40, 0],
+    footer: showFooter || showPageNumbers ? (currentPage, pageCount) => ({
+      margin: [pageMargin, 0, pageMargin, 0],
       columns: [
-        { text: "Thomas Bonnardel EI • 944 Chemin de Tardinaou 13190 Allauch • SIREN 992 454 694", fontSize: 6, color: PDF_GRAY },
-        { text: `${currentPage}/${pageCount}`, fontSize: 6, color: PDF_GRAY, alignment: "right" },
+        showFooter ? { text: "Thomas Bonnardel EI • 944 Chemin de Tardinaou 13190 Allauch • SIREN 992 454 694", fontSize: 6, color: PDF_MUTED } : { text: "" },
+        showPageNumbers ? { text: `${currentPage}/${pageCount}`, fontSize: 6, color: PDF_MUTED, alignment: "right" } : { text: "" },
       ],
-    }),
+    }) : undefined,
   };
 };
 
@@ -498,6 +1251,7 @@ const buildPreviewDocument = (payload = {}) => {
   const modesPaiement = Array.isArray(payload.modes_paiement)
     ? payload.modes_paiement
     : parseJsonField(payload.modes_paiement, []);
+  const defaultAppearance = getPdfAppearanceDefaults(payload.type || "devis");
 
   const doc = {
     type: payload.type || "devis",
@@ -528,7 +1282,7 @@ const buildPreviewDocument = (payload = {}) => {
     client_ville: payload.client_ville || client.ville || "",
     client_pays: payload.client_pays || client.pays || "",
     siret: payload.siret || "",
-    appearance: payload.appearance || {},
+    appearance: payload.appearance || defaultAppearance,
   };
 
   if (doc.total_ht === 0 && lignes.length) {
@@ -691,11 +1445,212 @@ const saveChatRecord = async (cid, record) => {
   );
 };
 
+// ============================================
+// GOOGLE CALENDAR SERVICE
+// ============================================
+const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID;
+const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+const getGoogleAuth = () => {
+  if (!GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {
+    return null;
+  }
+  return new google.auth.JWT(
+    GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    null,
+    GOOGLE_PRIVATE_KEY,
+    ['https://www.googleapis.com/auth/calendar']
+  );
+};
+
+const googleCalendarService = {
+  async listEvents(timeMin, timeMax) {
+    const auth = getGoogleAuth();
+    if (!auth || !GOOGLE_CALENDAR_ID) {
+      console.warn("Google Calendar not configured");
+      return [];
+    }
+    try {
+      const calendar = google.calendar({ version: 'v3', auth });
+      const response = await calendar.events.list({
+        calendarId: GOOGLE_CALENDAR_ID,
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 250,
+      });
+      return response.data.items || [];
+    } catch (error) {
+      console.error("Google Calendar listEvents error:", error.message);
+      return [];
+    }
+  },
+
+  async createEvent({ title, description, start, end, location }) {
+    const auth = getGoogleAuth();
+    if (!auth || !GOOGLE_CALENDAR_ID) {
+      console.warn("Google Calendar not configured");
+      return null;
+    }
+    try {
+      const calendar = google.calendar({ version: 'v3', auth });
+      const event = {
+        summary: title,
+        description: description || '',
+        location: location || '',
+        start: { dateTime: new Date(start).toISOString(), timeZone: 'Europe/Paris' },
+        end: { dateTime: new Date(end).toISOString(), timeZone: 'Europe/Paris' },
+      };
+      const response = await calendar.events.insert({
+        calendarId: GOOGLE_CALENDAR_ID,
+        resource: event,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Google Calendar createEvent error:", error.message);
+      throw error;
+    }
+  },
+
+  async updateEvent(googleEventId, { title, description, start, end, location }) {
+    const auth = getGoogleAuth();
+    if (!auth || !GOOGLE_CALENDAR_ID) {
+      console.warn("Google Calendar not configured");
+      return null;
+    }
+    try {
+      const calendar = google.calendar({ version: 'v3', auth });
+      const event = {
+        summary: title,
+        description: description || '',
+        location: location || '',
+        start: { dateTime: new Date(start).toISOString(), timeZone: 'Europe/Paris' },
+        end: { dateTime: new Date(end).toISOString(), timeZone: 'Europe/Paris' },
+      };
+      const response = await calendar.events.update({
+        calendarId: GOOGLE_CALENDAR_ID,
+        eventId: googleEventId,
+        resource: event,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Google Calendar updateEvent error:", error.message);
+      throw error;
+    }
+  },
+
+  async deleteEvent(googleEventId) {
+    const auth = getGoogleAuth();
+    if (!auth || !GOOGLE_CALENDAR_ID) {
+      console.warn("Google Calendar not configured");
+      return;
+    }
+    try {
+      const calendar = google.calendar({ version: 'v3', auth });
+      await calendar.events.delete({
+        calendarId: GOOGLE_CALENDAR_ID,
+        eventId: googleEventId,
+      });
+    } catch (error) {
+      console.error("Google Calendar deleteEvent error:", error.message);
+      throw error;
+    }
+  },
+};
+
+const DEFAULT_PRESTATIONS = [
+  {
+    titre: "Renovation interieure",
+    description: "Renovation complete, tous corps d'etat, pour transformer votre interieur.",
+  },
+  {
+    titre: "Amenagement interieur",
+    description: "Optimisation des volumes, circulation et rangements sur mesure.",
+  },
+  {
+    titre: "Conception 3D",
+    description: "Plans et visuels 3D pour valider les choix avant travaux.",
+  },
+  {
+    titre: "Platrerie",
+    description: "Cloisons, doublages, faux plafonds et finitions lisses.",
+  },
+  {
+    titre: "Peinture",
+    description: "Preparation des supports et mise en peinture durable.",
+  },
+  {
+    titre: "Carrelage",
+    description: "Pose murale et sol, joints precis et finitions soignees.",
+  },
+  {
+    titre: "Parquet",
+    description: "Pose et renovation de parquets pour une ambiance chaleureuse.",
+  },
+];
+
+const normalizePrestationTitle = (value) => {
+  if (!value) return "";
+  return value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+};
+
+const seedBasePrestations = async (pool) => {
+  if (!DEFAULT_PRESTATIONS.length) return;
+  const [rows] = await pool.query("SELECT titre, ordre FROM prestations");
+  const existing = new Set(rows.map((row) => normalizePrestationTitle(row.titre)));
+  const maxOrdre = rows.reduce((max, row) => {
+    const value = Number(row.ordre);
+    if (Number.isFinite(value) && value > max) return value;
+    return max;
+  }, -1);
+  let nextOrdre = maxOrdre + 1;
+
+  const values = [];
+  const placeholders = [];
+
+  for (const prestation of DEFAULT_PRESTATIONS) {
+    const normalized = normalizePrestationTitle(prestation.titre);
+    if (existing.has(normalized)) continue;
+    values.push(
+      crypto.randomUUID(),
+      prestation.titre,
+      prestation.description,
+      1,
+      nextOrdre
+    );
+    placeholders.push("(?, ?, ?, ?, ?)");
+    nextOrdre += 1;
+  }
+
+  if (!placeholders.length) return;
+  await pool.query(
+    "INSERT INTO prestations (id, titre, description, visible, ordre) VALUES " + placeholders.join(","),
+    values
+  );
+};
+
 const initDb = async () => {
   const pool = getMySQLPool();
   if (!pool) return;
 
   const statements = [
+    `CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(64) PRIMARY KEY,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password_hash VARCHAR(255) NOT NULL,
+      name VARCHAR(255),
+      role ENUM('admin', 'user') DEFAULT 'user',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_email (email)
+    )`,
     `CREATE TABLE IF NOT EXISTS projets (
       id VARCHAR(64) PRIMARY KEY,
       titre VARCHAR(255) NOT NULL,
@@ -734,8 +1689,14 @@ const initDb = async () => {
       end DATETIME,
       color VARCHAR(32),
       ordre INT DEFAULT 0,
+      client_id VARCHAR(64),
+      type ENUM('rdv_client', 'interne', 'autre') DEFAULT 'autre',
+      location VARCHAR(255),
+      google_event_id VARCHAR(255),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_client (client_id),
+      INDEX idx_google_event (google_event_id)
     )`,
     `CREATE TABLE IF NOT EXISTS liste_courses (
       id VARCHAR(64) PRIMARY KEY,
@@ -880,16 +1841,93 @@ const initDb = async () => {
       pdf_generated_at DATETIME,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      deleted_at DATETIME DEFAULT NULL,
       INDEX idx_type_statut (type, statut),
       INDEX idx_client (client_id),
       INDEX idx_chantier (chantier_id),
       INDEX idx_date_emission (date_emission),
-      INDEX idx_token (token_public)
+      INDEX idx_token (token_public),
+      INDEX idx_deleted (deleted_at)
+    )`,
+    // Table des paiements
+    `CREATE TABLE IF NOT EXISTS paiements (
+      id VARCHAR(64) PRIMARY KEY,
+      document_id VARCHAR(64) NOT NULL,
+      montant DECIMAL(12,2) NOT NULL,
+      date_paiement DATE NOT NULL,
+      mode VARCHAR(50),
+      reference VARCHAR(100),
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_document (document_id),
+      FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+    )`,
+    // Table des configurations d'apparence PDF
+    `CREATE TABLE IF NOT EXISTS appearance_configs (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64),
+      document_id VARCHAR(64),
+      config JSON NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_user_doc (user_id, document_id),
+      INDEX idx_user (user_id),
+      INDEX idx_document (document_id)
+    )`,
+    // Table d'audit
+    `CREATE TABLE IF NOT EXISTS audit_logs (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64),
+      action VARCHAR(50) NOT NULL,
+      entity_type VARCHAR(50) NOT NULL,
+      entity_id VARCHAR(64),
+      old_data JSON,
+      new_data JSON,
+      metadata JSON,
+      ip_address VARCHAR(45),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_entity (entity_type, entity_id),
+      INDEX idx_created (created_at),
+      INDEX idx_action (action)
+    )`,
+    // Table des templates de documents
+    `CREATE TABLE IF NOT EXISTS document_templates (
+      id VARCHAR(64) PRIMARY KEY,
+      nom VARCHAR(100) NOT NULL,
+      type ENUM('devis', 'facture', 'avoir') NOT NULL,
+      lignes JSON,
+      conditions_paiement TEXT,
+      notes_defaut TEXT,
+      appearance_config JSON,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )`,
   ];
 
   for (const sql of statements) {
     await pool.query(sql);
+  }
+
+  // Ajouter colonne deleted_at si elle n'existe pas (migration)
+  try {
+    await pool.query(`ALTER TABLE documents ADD COLUMN deleted_at DATETIME DEFAULT NULL`);
+    await pool.query(`ALTER TABLE documents ADD INDEX idx_deleted (deleted_at)`);
+  } catch (e) {
+    // Colonne existe déjà, ignorer
+  }
+
+  // Ajouter colonne devis_source_id pour lien devis->facture
+  try {
+    await pool.query(`ALTER TABLE documents ADD COLUMN devis_source_id VARCHAR(64)`);
+  } catch (e) {
+    // Colonne existe déjà, ignorer
+  }
+
+  try {
+    await seedBasePrestations(pool);
+  } catch (error) {
+    console.error("Seed prestations error:", error.message);
   }
 };
 
@@ -987,7 +2025,7 @@ const ENTITY_CONFIG = {
     defaultSort: "start",
     jsonFields: [],
     booleanFields: [],
-    columns: ["id", "title", "description", "start", "end", "color", "ordre"],
+    columns: ["id", "title", "description", "start", "end", "color", "ordre", "client_id", "type", "location", "google_event_id"],
   },
   "liste-courses": {
     table: "liste_courses",
@@ -1199,6 +2237,119 @@ app.get("/api/db/health", async (_req, res) => {
   }
 });
 
+// ============================================
+// AUTHENTICATION ENDPOINTS
+// ============================================
+
+const BCRYPT_ROUNDS = 12;
+
+// Register new user
+app.post("/api/auth/register", async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  const { email, password, name } = req.body || {};
+
+  // Validation
+  if (!email || !password) {
+    return res.status(400).json({ error: "validation_error", message: "Email et mot de passe requis" });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: "validation_error", message: "Email invalide" });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: "validation_error", message: "Mot de passe trop court (min 6 caracteres)" });
+  }
+
+  try {
+    // Check if email already exists
+    const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [email.toLowerCase().trim()]);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: "email_exists", message: "Cet email est deja utilise" });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    // Create user
+    const userId = crypto.randomUUID();
+    const role = "admin"; // For now, all users are admins
+
+    await pool.query(
+      "INSERT INTO users (id, email, password_hash, name, role) VALUES (?, ?, ?, ?, ?)",
+      [userId, email.toLowerCase().trim(), passwordHash, name?.trim() || null, role]
+    );
+
+    // Generate token
+    const user = {
+      id: userId,
+      email: email.toLowerCase().trim(),
+      full_name: name?.trim() || email.split("@")[0],
+      role,
+    };
+    const token = signToken(user);
+
+    res.status(201).json({ token, user });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ error: "server_error", message: "Erreur lors de l'inscription" });
+  }
+});
+
+// Login with email/password
+app.post("/api/auth/login", async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res.status(400).json({ error: "validation_error", message: "Email et mot de passe requis" });
+  }
+
+  try {
+    // Find user by email
+    const [users] = await pool.query(
+      "SELECT id, email, password_hash, name, role FROM users WHERE email = ?",
+      [email.toLowerCase().trim()]
+    );
+
+    if (users.length === 0) {
+      return res.status(401).json({ error: "invalid_credentials", message: "Email ou mot de passe incorrect" });
+    }
+
+    const dbUser = users[0];
+
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, dbUser.password_hash);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: "invalid_credentials", message: "Email ou mot de passe incorrect" });
+    }
+
+    // Generate token
+    const user = {
+      id: dbUser.id,
+      email: dbUser.email,
+      full_name: dbUser.name || dbUser.email.split("@")[0],
+      role: dbUser.role,
+    };
+    const token = signToken(user);
+
+    res.json({ token, user });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "server_error", message: "Erreur lors de la connexion" });
+  }
+});
+
+// Legacy admin login (keep for backward compatibility)
 app.post("/api/admin/login", (req, res) => {
   const { code, email, name } = req.body || {};
   if (!code || code.trim() !== ADMIN_CODE) {
@@ -1567,6 +2718,51 @@ const genererNumeroDocument = async (pool, type) => {
 // Générer un token public sécurisé
 const genererTokenPublic = () => crypto.randomBytes(32).toString("base64url");
 
+// Fonction de validation des lignes de document
+const validateDocumentLignes = (lignes) => {
+  if (!Array.isArray(lignes)) {
+    return { valid: false, error: "Les lignes doivent être un tableau" };
+  }
+
+  const lignesFacturables = lignes.filter(l => l.type === "ligne");
+  if (lignesFacturables.length === 0) {
+    return { valid: false, error: "Au moins une ligne facturable est requise" };
+  }
+
+  for (let i = 0; i < lignes.length; i++) {
+    const ligne = lignes[i];
+
+    if (!ligne.type || !["ligne", "section", "texte", "entete", "sous_total"].includes(ligne.type)) {
+      return { valid: false, error: `Ligne ${i + 1}: type invalide` };
+    }
+
+    if (ligne.type === "ligne") {
+      if (!ligne.designation || typeof ligne.designation !== "string" || ligne.designation.trim() === "") {
+        return { valid: false, error: `Ligne ${i + 1}: désignation requise` };
+      }
+
+      const quantite = Number(ligne.quantite);
+      if (isNaN(quantite) || quantite < 0) {
+        return { valid: false, error: `Ligne ${i + 1}: quantité invalide (doit être >= 0)` };
+      }
+
+      const prix = Number(ligne.prix_unitaire_ht);
+      if (isNaN(prix) || prix < 0) {
+        return { valid: false, error: `Ligne ${i + 1}: prix unitaire invalide (doit être >= 0)` };
+      }
+
+      if (ligne.taux_tva !== undefined && ligne.taux_tva !== null) {
+        const tva = Number(ligne.taux_tva);
+        if (isNaN(tva) || tva < 0 || tva > 100) {
+          return { valid: false, error: `Ligne ${i + 1}: taux TVA invalide (0-100)` };
+        }
+      }
+    }
+  }
+
+  return { valid: true };
+};
+
 // Créer un document avec numérotation automatique
 app.post("/api/documents", requireAdmin, async (req, res) => {
   const pool = getMySQLPool();
@@ -1578,7 +2774,13 @@ app.post("/api/documents", requireAdmin, async (req, res) => {
     const { type = "devis", client_id, lignes = [], ...rest } = req.body;
 
     if (!client_id) {
-      return res.status(400).json({ error: "client_id_required" });
+      return res.status(400).json({ error: "client_id_required", message: "Un client est requis" });
+    }
+
+    // Validation des lignes
+    const validation = validateDocumentLignes(lignes);
+    if (!validation.valid) {
+      return res.status(400).json({ error: "validation_error", message: validation.error });
     }
 
     const id = crypto.randomUUID();
@@ -1630,9 +2832,13 @@ app.post("/api/documents", requireAdmin, async (req, res) => {
       values
     );
 
-    // Récupérer le document créé avec les infos client
+    // Récupérer le document créé avec les infos client complètes
     const [docs] = await pool.query(
-      `SELECT d.*, c.nom as client_nom, c.email as client_email
+      `SELECT d.*, c.nom as client_nom, c.prenom as client_prenom, c.email as client_email,
+              c.telephone as client_telephone, c.adresse_ligne1 as client_adresse_ligne1,
+              c.adresse_ligne2 as client_adresse_ligne2, c.code_postal as client_code_postal,
+              c.ville as client_ville, c.pays as client_pays,
+              c.siret as client_siret, c.type as client_type
        FROM documents d
        LEFT JOIN clients c ON d.client_id = c.id
        WHERE d.id = ?`,
@@ -1642,6 +2848,20 @@ app.post("/api/documents", requireAdmin, async (req, res) => {
     const doc = docs[0];
     doc.lignes = parseJsonField(doc.lignes, []);
     doc.modes_paiement = parseJsonField(doc.modes_paiement, []);
+    doc.client = {
+      id: doc.client_id,
+      nom: doc.client_nom,
+      prenom: doc.client_prenom,
+      email: doc.client_email,
+      telephone: doc.client_telephone,
+      adresse_ligne1: doc.client_adresse_ligne1,
+      adresse_ligne2: doc.client_adresse_ligne2,
+      code_postal: doc.client_code_postal,
+      ville: doc.client_ville,
+      pays: doc.client_pays,
+      siret: doc.client_siret,
+      type: doc.client_type,
+    };
 
     res.json(doc);
   } catch (error) {
@@ -1664,7 +2884,7 @@ app.get("/api/documents", requireAdmin, async (req, res) => {
       SELECT d.*, c.nom as client_nom, c.email as client_email
       FROM documents d
       LEFT JOIN clients c ON d.client_id = c.id
-      WHERE 1=1
+      WHERE d.deleted_at IS NULL
     `;
     const params = [];
 
@@ -1696,6 +2916,110 @@ app.get("/api/documents", requireAdmin, async (req, res) => {
   }
 });
 
+// Export Excel des documents
+app.get("/api/documents/export/excel", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { type, statut, dateDebut, dateFin } = req.query;
+
+    let sql = `
+      SELECT d.*, c.nom as client_nom, c.prenom as client_prenom, c.email as client_email
+      FROM documents d
+      LEFT JOIN clients c ON d.client_id = c.id
+      WHERE d.deleted_at IS NULL
+    `;
+    const params = [];
+
+    if (type && type !== "all") {
+      sql += " AND d.type = ?";
+      params.push(type);
+    }
+    if (statut && statut !== "all") {
+      sql += " AND d.statut = ?";
+      params.push(statut);
+    }
+    if (dateDebut) {
+      sql += " AND d.date_emission >= ?";
+      params.push(dateDebut);
+    }
+    if (dateFin) {
+      sql += " AND d.date_emission <= ?";
+      params.push(dateFin);
+    }
+
+    sql += " ORDER BY d.date_emission DESC, d.created_at DESC";
+
+    const [rows] = await pool.query(sql, params);
+
+    // Préparer les données pour Excel
+    const excelData = rows.map((row) => {
+      const lignes = parseJsonField(row.lignes, []);
+      const lignesFacturables = lignes.filter(l => l.type === "ligne");
+      const totalHT = lignesFacturables.reduce((sum, l) => {
+        const base = (l.quantite || 0) * (l.prix_unitaire_ht || 0);
+        const remise = l.remise_valeur > 0
+          ? (l.remise_type === "pourcentage" ? base * l.remise_valeur / 100 : l.remise_valeur)
+          : 0;
+        return sum + (base - remise);
+      }, 0);
+
+      return {
+        "Numéro": row.numero || "",
+        "Type": row.type === "devis" ? "Devis" : row.type === "facture" ? "Facture" : "Avoir",
+        "Statut": row.statut || "",
+        "Date émission": row.date_emission ? formatDateFr(row.date_emission) : "",
+        "Date échéance": row.date_echeance ? formatDateFr(row.date_echeance) : "",
+        "Client": [row.client_nom, row.client_prenom].filter(Boolean).join(" "),
+        "Email client": row.client_email || "",
+        "Objet": row.objet || "",
+        "Total HT": Math.round(totalHT * 100) / 100,
+        "Total TTC": row.total_ttc || 0,
+        "Nb lignes": lignesFacturables.length,
+        "Conditions paiement": row.conditions_paiement || "",
+        "Créé le": row.created_at ? formatDateFr(row.created_at) : "",
+      };
+    });
+
+    // Créer le classeur Excel
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Documents");
+
+    // Ajuster la largeur des colonnes
+    const colWidths = [
+      { wch: 18 }, // Numéro
+      { wch: 10 }, // Type
+      { wch: 12 }, // Statut
+      { wch: 12 }, // Date émission
+      { wch: 12 }, // Date échéance
+      { wch: 25 }, // Client
+      { wch: 25 }, // Email
+      { wch: 30 }, // Objet
+      { wch: 12 }, // Total HT
+      { wch: 12 }, // Total TTC
+      { wch: 10 }, // Nb lignes
+      { wch: 18 }, // Conditions
+      { wch: 12 }, // Créé le
+    ];
+    ws["!cols"] = colWidths;
+
+    // Générer le fichier en buffer
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    const filename = `documents_${new Date().toISOString().split("T")[0]}.xlsx`;
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error("Excel export error:", error);
+    res.status(500).json({ error: "export_error", message: "Erreur lors de l'export Excel" });
+  }
+});
+
 // Détail d'un document
 app.get("/api/documents/:id", requireAdmin, async (req, res) => {
   const pool = getMySQLPool();
@@ -1705,12 +3029,14 @@ app.get("/api/documents/:id", requireAdmin, async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      `SELECT d.*, c.nom as client_nom, c.email as client_email, c.telephone as client_telephone,
-              c.adresse_ligne1 as client_adresse, c.code_postal as client_cp, c.ville as client_ville,
+      `SELECT d.*, c.nom as client_nom, c.prenom as client_prenom, c.email as client_email,
+              c.telephone as client_telephone, c.adresse_ligne1 as client_adresse_ligne1,
+              c.adresse_ligne2 as client_adresse_ligne2, c.code_postal as client_code_postal,
+              c.ville as client_ville, c.pays as client_pays,
               c.siret as client_siret, c.type as client_type
        FROM documents d
        LEFT JOIN clients c ON d.client_id = c.id
-       WHERE d.id = ?`,
+       WHERE d.id = ? AND d.deleted_at IS NULL`,
       [req.params.id]
     );
 
@@ -1725,11 +3051,14 @@ app.get("/api/documents/:id", requireAdmin, async (req, res) => {
     doc.client = {
       id: doc.client_id,
       nom: doc.client_nom,
+      prenom: doc.client_prenom,
       email: doc.client_email,
       telephone: doc.client_telephone,
-      adresse_ligne1: doc.client_adresse,
-      code_postal: doc.client_cp,
+      adresse_ligne1: doc.client_adresse_ligne1,
+      adresse_ligne2: doc.client_adresse_ligne2,
+      code_postal: doc.client_code_postal,
       ville: doc.client_ville,
+      pays: doc.client_pays,
       siret: doc.client_siret,
       type: doc.client_type,
     };
@@ -1856,6 +3185,18 @@ app.put("/api/documents/:id", requireAdmin, async (req, res) => {
   }
 
   try {
+    // Vérifier que le document existe et son statut
+    const [existing] = await pool.query(
+      "SELECT id, statut, numero FROM documents WHERE id = ? AND deleted_at IS NULL",
+      [req.params.id]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ error: "document_not_found" });
+    }
+
+    const currentDoc = existing[0];
+
     const { lignes, modes_paiement, ...rest } = req.body;
 
     const updates = { ...rest };
@@ -1876,9 +3217,29 @@ app.put("/api/documents/:id", requireAdmin, async (req, res) => {
 
     await pool.query(`UPDATE documents SET ${sets} WHERE id = ?`, [...values, req.params.id]);
 
-    // Retourner le document mis à jour
+    // Log audit si changement de statut
+    if (req.body.statut && req.body.statut !== currentDoc.statut) {
+      await pool.query(
+        `INSERT INTO audit_logs (id, action, entity_type, entity_id, metadata, created_at)
+         VALUES (?, 'STATUS_CHANGE', 'document', ?, ?, NOW())`,
+        [
+          crypto.randomUUID(),
+          req.params.id,
+          JSON.stringify({
+            old_status: currentDoc.statut,
+            new_status: req.body.statut,
+            numero: currentDoc.numero
+          })
+        ]
+      );
+    }
+
+    // Retourner le document mis à jour avec infos client complètes
     const [rows] = await pool.query(
-      `SELECT d.*, c.nom as client_nom FROM documents d LEFT JOIN clients c ON d.client_id = c.id WHERE d.id = ?`,
+      `SELECT d.*, c.nom as client_nom, c.email as client_email, c.telephone as client_telephone,
+              c.adresse_ligne1 as client_adresse, c.code_postal as client_cp, c.ville as client_ville,
+              c.siret as client_siret, c.type as client_type
+       FROM documents d LEFT JOIN clients c ON d.client_id = c.id WHERE d.id = ?`,
       [req.params.id]
     );
 
@@ -1890,11 +3251,218 @@ app.put("/api/documents/:id", requireAdmin, async (req, res) => {
     doc.lignes = parseJsonField(doc.lignes, []);
     doc.modes_paiement = parseJsonField(doc.modes_paiement, []);
     doc.pieces_jointes = parseJsonField(doc.pieces_jointes, []);
+    doc.client = {
+      id: doc.client_id,
+      nom: doc.client_nom,
+      email: doc.client_email,
+      telephone: doc.client_telephone,
+      adresse_ligne1: doc.client_adresse,
+      code_postal: doc.client_cp,
+      ville: doc.client_ville,
+      siret: doc.client_siret,
+      type: doc.client_type,
+    };
 
     res.json(doc);
   } catch (error) {
     console.error("Document update error:", error);
     res.status(500).json({ error: "document_error" });
+  }
+});
+
+// Supprimer un document (soft delete)
+app.delete("/api/documents/:id", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    // Récupérer le document
+    const [docs] = await pool.query(
+      "SELECT id, statut, numero, type FROM documents WHERE id = ? AND deleted_at IS NULL",
+      [req.params.id]
+    );
+
+    if (docs.length === 0) {
+      return res.status(404).json({ error: "document_not_found" });
+    }
+
+    const doc = docs[0];
+
+    // Seuls les brouillons peuvent être supprimés
+    if (doc.statut !== "brouillon") {
+      return res.status(403).json({
+        error: "document_not_deletable",
+        message: `Seuls les brouillons peuvent être supprimés. Ce document a le statut "${doc.statut}".`,
+        statut_actuel: doc.statut,
+        solution: "Pour supprimer ce document, changez d'abord son statut en brouillon ou archivez-le."
+      });
+    }
+
+    // Soft delete
+    await pool.query(
+      "UPDATE documents SET deleted_at = NOW() WHERE id = ?",
+      [req.params.id]
+    );
+
+    // Log audit
+    await pool.query(
+      `INSERT INTO audit_logs (id, action, entity_type, entity_id, metadata, created_at)
+       VALUES (?, 'DELETE', 'document', ?, ?, NOW())`,
+      [
+        crypto.randomUUID(),
+        req.params.id,
+        JSON.stringify({
+          numero: doc.numero,
+          type: doc.type,
+          statut: doc.statut
+        })
+      ]
+    );
+
+    res.json({ success: true, message: "Document supprimé" });
+  } catch (error) {
+    console.error("Document delete error:", error);
+    res.status(500).json({ error: "document_error" });
+  }
+});
+
+// Convertir un devis en facture
+app.post("/api/documents/:id/convertir", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const [docs] = await pool.query(
+      "SELECT * FROM documents WHERE id = ? AND deleted_at IS NULL",
+      [req.params.id]
+    );
+
+    if (docs.length === 0) {
+      return res.status(404).json({ error: "document_not_found" });
+    }
+
+    const source = docs[0];
+
+    // Vérifier que c'est un devis accepté
+    if (source.type !== "devis") {
+      return res.status(400).json({
+        error: "invalid_document_type",
+        message: "Seuls les devis peuvent être convertis en facture."
+      });
+    }
+
+    // Créer la facture
+    const newId = crypto.randomUUID();
+    const numero = await genererNumeroDocument(pool, "facture");
+    const token_public = genererTokenPublic();
+
+    const lignesValue = ensureJsonString(source.lignes, []);
+    const modesPaiementValue = ensureJsonString(source.modes_paiement, []);
+    const [devisSourceRows] = await pool.query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'documents'
+         AND COLUMN_NAME = 'devis_source_id'`
+    );
+    const hasDevisSource = devisSourceRows.length > 0;
+
+    const devisSourceColumn = hasDevisSource ? ", devis_source_id" : "";
+    const devisSourcePlaceholder = hasDevisSource ? ", ?" : "";
+
+    const values = [
+      newId,
+      numero,
+      source.client_id,
+      source.chantier_id,
+      source.date_visite,
+      source.date_debut_travaux,
+      source.duree_estimee,
+      source.duree_unite,
+      source.tva_applicable,
+      source.mention_tva,
+      source.conditions_paiement,
+      modesPaiementValue,
+      lignesValue,
+      source.notes_client,
+      `Facture issue du devis ${source.numero}`,
+      source.objet,
+      source.total_ht,
+      source.total_tva,
+      source.total_ttc,
+      source.total_remise,
+      source.remise_type,
+      source.remise_valeur,
+      source.retenue_garantie_pct,
+      source.retenue_garantie_montant,
+      source.net_a_payer,
+      token_public,
+    ];
+
+    if (hasDevisSource) {
+      values.push(req.params.id);
+    }
+
+    await pool.query(
+      `INSERT INTO documents (id, type, numero, client_id, chantier_id, date_emission, date_echeance,
+        date_visite, date_debut_travaux, duree_estimee, duree_unite,
+        tva_applicable, mention_tva, conditions_paiement, modes_paiement, lignes, pieces_jointes,
+        notes_client, notes_internes, objet, total_ht, total_tva, total_ttc, total_remise,
+        remise_type, remise_valeur, retenue_garantie_pct, retenue_garantie_montant, net_a_payer,
+        token_public, statut${devisSourceColumn})
+       VALUES (?, 'facture', ?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 30 DAY),
+        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, JSON_ARRAY(),
+        ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, 'brouillon'${devisSourcePlaceholder})`,
+      values
+    );
+
+    // Log audit
+    await pool.query(
+      `INSERT INTO audit_logs (id, action, entity_type, entity_id, metadata, created_at)
+       VALUES (?, 'CONVERT_TO_INVOICE', 'document', ?, ?, NOW())`,
+      [
+        crypto.randomUUID(),
+        newId,
+        JSON.stringify({
+          devis_id: req.params.id,
+          devis_numero: source.numero,
+          facture_numero: numero
+        })
+      ]
+    );
+
+    // Récupérer la facture créée
+    const [newDocs] = await pool.query(
+      `SELECT d.*, c.nom as client_nom
+       FROM documents d
+       LEFT JOIN clients c ON d.client_id = c.id
+       WHERE d.id = ?`,
+      [newId]
+    );
+
+    const facture = newDocs[0];
+    facture.lignes = parseJsonField(facture.lignes, []);
+    facture.modes_paiement = parseJsonField(facture.modes_paiement, []);
+    facture.pieces_jointes = parseJsonField(facture.pieces_jointes, []);
+
+    res.json({
+      success: true,
+      message: `Facture ${numero} créée à partir du devis ${source.numero}`,
+      facture
+    });
+  } catch (error) {
+    console.error("Document conversion error:", error);
+    res.status(500).json({
+      error: "document_error",
+      message: error?.message || "Erreur lors de la conversion",
+    });
   }
 });
 
@@ -2018,7 +3586,549 @@ app.post("/api/documents/:id/envoyer", requireAdmin, async (req, res) => {
   }
 });
 
+// === APPEARANCE CONFIG ===
+
+const DEFAULT_APPEARANCE = {
+  primaryColor: "#1a5490",
+  secondaryColor: "#e5e7eb",
+  font: "Helvetica",
+  baseFontSize: 9,
+  lineHeight: 1.3,
+  headerStyle: "ultra",
+  clientPosition: "right",
+  tableStyle: "minimal",
+  borderWidth: 0.5,
+  borderRadius: 8,
+  cellPadding: 5,
+  pageMargin: 42,
+  sectionSpacing: 16,
+  hide: {},
+  columns: {
+    showNumero: true,
+    showQuantite: true,
+    showUnite: true,
+    showPrixUnitaire: true,
+    showTva: false,
+  },
+  showSignatureBox: true,
+  showPaymentMethods: true,
+  showConditions: true,
+  showFooter: true,
+  showPageNumbers: true,
+  showDraftWatermark: true,
+  showDocumentBorder: true,
+  compactMode: false,
+  showSectionSubtotals: false,
+};
+
+// Récupérer la config d'apparence
+app.get("/api/appearance-config", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { document_id } = req.query;
+    const user_id = "default"; // À remplacer par req.admin.id quand auth complète
+
+    // Chercher config spécifique au document
+    if (document_id) {
+      const [rows] = await pool.query(
+        "SELECT config FROM appearance_configs WHERE user_id = ? AND document_id = ?",
+        [user_id, document_id]
+      );
+      if (rows.length > 0) {
+        return res.json(parseJsonField(rows[0].config, DEFAULT_APPEARANCE));
+      }
+    }
+
+    // Sinon config par défaut de l'utilisateur
+    const [defaultRows] = await pool.query(
+      "SELECT config FROM appearance_configs WHERE user_id = ? AND document_id IS NULL",
+      [user_id]
+    );
+
+    if (defaultRows.length > 0) {
+      return res.json(parseJsonField(defaultRows[0].config, DEFAULT_APPEARANCE));
+    }
+
+    res.json(DEFAULT_APPEARANCE);
+  } catch (error) {
+    console.error("Appearance config get error:", error);
+    res.status(500).json({ error: "config_error" });
+  }
+});
+
+// Sauvegarder la config d'apparence
+app.put("/api/appearance-config", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { document_id, config } = req.body;
+    const user_id = "default"; // À remplacer par req.admin.id quand auth complète
+
+    if (!config) {
+      return res.status(400).json({ error: "config_required" });
+    }
+
+    const id = crypto.randomUUID();
+    const configJson = JSON.stringify(config);
+
+    // Upsert
+    await pool.query(
+      `INSERT INTO appearance_configs (id, user_id, document_id, config, updated_at)
+       VALUES (?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE config = VALUES(config), updated_at = NOW()`,
+      [id, user_id, document_id || null, configJson]
+    );
+
+    res.json({ success: true, config });
+  } catch (error) {
+    console.error("Appearance config save error:", error);
+    res.status(500).json({ error: "config_error" });
+  }
+});
+
+// === PAIEMENTS ===
+
+// Liste des paiements (tous ou par document)
+app.get("/api/paiements", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { document_id, limit = 100 } = req.query;
+
+    let sql = `
+      SELECT p.*, d.numero as document_numero, d.type as document_type, c.nom as client_nom
+      FROM paiements p
+      LEFT JOIN documents d ON p.document_id = d.id
+      LEFT JOIN clients c ON d.client_id = c.id
+    `;
+    const params = [];
+
+    if (document_id) {
+      sql += " WHERE p.document_id = ?";
+      params.push(document_id);
+    }
+
+    sql += " ORDER BY p.date_paiement DESC, p.created_at DESC LIMIT ?";
+    params.push(Math.min(Number(limit), 500));
+
+    const [rows] = await pool.query(sql, params);
+    res.json(rows);
+  } catch (error) {
+    console.error("Paiements list error:", error);
+    res.status(500).json({ error: "paiements_error" });
+  }
+});
+
+// Créer un paiement
+app.post("/api/paiements", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { document_id, montant, date_paiement, mode, reference, notes } = req.body;
+
+    if (!document_id || !montant || !date_paiement) {
+      return res.status(400).json({ error: "missing_fields", required: ["document_id", "montant", "date_paiement"] });
+    }
+
+    // Vérifier que le document existe et est une facture
+    const [docs] = await pool.query(
+      "SELECT id, type, statut, net_a_payer, numero FROM documents WHERE id = ? AND deleted_at IS NULL",
+      [document_id]
+    );
+
+    if (docs.length === 0) {
+      return res.status(404).json({ error: "document_not_found" });
+    }
+
+    const doc = docs[0];
+    if (doc.type !== "facture") {
+      return res.status(400).json({ error: "invalid_document_type", message: "Les paiements ne peuvent être enregistrés que sur des factures." });
+    }
+
+    const id = crypto.randomUUID();
+
+    await pool.query(
+      `INSERT INTO paiements (id, document_id, montant, date_paiement, mode, reference, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, document_id, montant, date_paiement, mode || null, reference || null, notes || null]
+    );
+
+    // Calculer le total des paiements et mettre à jour le statut
+    const [paiements] = await pool.query(
+      "SELECT SUM(montant) as total FROM paiements WHERE document_id = ?",
+      [document_id]
+    );
+
+    const totalPaye = Number(paiements[0].total) || 0;
+    const resteAPayer = Number(doc.net_a_payer) - totalPaye;
+    let nouveauStatut = doc.statut;
+
+    if (resteAPayer <= 0) {
+      nouveauStatut = "paye";
+    } else if (totalPaye > 0) {
+      nouveauStatut = "paye_partiel";
+    }
+
+    if (nouveauStatut !== doc.statut) {
+      await pool.query("UPDATE documents SET statut = ? WHERE id = ?", [nouveauStatut, document_id]);
+    }
+
+    // Log audit
+    await pool.query(
+      `INSERT INTO audit_logs (id, action, entity_type, entity_id, metadata, created_at)
+       VALUES (?, 'CREATE_PAYMENT', 'paiement', ?, ?, NOW())`,
+      [
+        crypto.randomUUID(),
+        id,
+        JSON.stringify({
+          document_id,
+          document_numero: doc.numero,
+          montant,
+          total_paye: totalPaye,
+          reste_a_payer: resteAPayer,
+          nouveau_statut: nouveauStatut
+        })
+      ]
+    );
+
+    const [newPaiement] = await pool.query("SELECT * FROM paiements WHERE id = ?", [id]);
+    res.json({
+      ...newPaiement[0],
+      total_paye: totalPaye,
+      reste_a_payer: Math.max(0, resteAPayer),
+      statut_document: nouveauStatut
+    });
+  } catch (error) {
+    console.error("Paiement create error:", error);
+    res.status(500).json({ error: "paiements_error" });
+  }
+});
+
+// Supprimer un paiement
+app.delete("/api/paiements/:id", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const [paiements] = await pool.query("SELECT * FROM paiements WHERE id = ?", [req.params.id]);
+
+    if (paiements.length === 0) {
+      return res.status(404).json({ error: "paiement_not_found" });
+    }
+
+    const paiement = paiements[0];
+    const document_id = paiement.document_id;
+
+    // Supprimer le paiement
+    await pool.query("DELETE FROM paiements WHERE id = ?", [req.params.id]);
+
+    // Recalculer le statut du document
+    const [docs] = await pool.query("SELECT net_a_payer, numero FROM documents WHERE id = ?", [document_id]);
+    const [restePaiements] = await pool.query("SELECT SUM(montant) as total FROM paiements WHERE document_id = ?", [document_id]);
+
+    const totalPaye = Number(restePaiements[0].total) || 0;
+    const resteAPayer = Number(docs[0].net_a_payer) - totalPaye;
+    let nouveauStatut = "envoye";
+
+    if (resteAPayer <= 0 && totalPaye > 0) {
+      nouveauStatut = "paye";
+    } else if (totalPaye > 0) {
+      nouveauStatut = "paye_partiel";
+    }
+
+    await pool.query("UPDATE documents SET statut = ? WHERE id = ?", [nouveauStatut, document_id]);
+
+    // Log audit
+    await pool.query(
+      `INSERT INTO audit_logs (id, action, entity_type, entity_id, metadata, created_at)
+       VALUES (?, 'DELETE_PAYMENT', 'paiement', ?, ?, NOW())`,
+      [
+        crypto.randomUUID(),
+        req.params.id,
+        JSON.stringify({
+          document_id,
+          document_numero: docs[0].numero,
+          montant_supprime: paiement.montant,
+          nouveau_total_paye: totalPaye,
+          nouveau_statut: nouveauStatut
+        })
+      ]
+    );
+
+    res.json({ success: true, statut_document: nouveauStatut, total_paye: totalPaye, reste_a_payer: Math.max(0, resteAPayer) });
+  } catch (error) {
+    console.error("Paiement delete error:", error);
+    res.status(500).json({ error: "paiements_error" });
+  }
+});
+
+// Résumé paiements d'un document
+app.get("/api/documents/:id/paiements", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const [docs] = await pool.query(
+      "SELECT net_a_payer, total_ttc FROM documents WHERE id = ? AND deleted_at IS NULL",
+      [req.params.id]
+    );
+
+    if (docs.length === 0) {
+      return res.status(404).json({ error: "document_not_found" });
+    }
+
+    const [paiements] = await pool.query(
+      "SELECT * FROM paiements WHERE document_id = ? ORDER BY date_paiement ASC",
+      [req.params.id]
+    );
+
+    const totalPaye = paiements.reduce((sum, p) => sum + Number(p.montant), 0);
+    const resteAPayer = Number(docs[0].net_a_payer) - totalPaye;
+
+    res.json({
+      paiements,
+      total_paye: totalPaye,
+      reste_a_payer: Math.max(0, resteAPayer),
+      net_a_payer: Number(docs[0].net_a_payer),
+      est_solde: resteAPayer <= 0
+    });
+  } catch (error) {
+    console.error("Document paiements error:", error);
+    res.status(500).json({ error: "paiements_error" });
+  }
+});
+
 // === FIN DOCUMENTS ===
+
+// ============================================
+// CALENDAR API ENDPOINTS
+// ============================================
+
+// GET /api/calendar/events - Liste les événements avec données clients
+app.get("/api/calendar/events", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { start, end } = req.query;
+    const timeMin = start ? new Date(start) : new Date();
+    const timeMax = end ? new Date(end) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Fetch from local DB with client info
+    const [localEvents] = await pool.query(`
+      SELECT e.*,
+             c.nom as client_nom,
+             c.prenom as client_prenom,
+             c.telephone as client_telephone,
+             c.email as client_email
+      FROM events e
+      LEFT JOIN clients c ON e.client_id = c.id
+      WHERE e.start >= ? AND e.start <= ?
+      ORDER BY e.start
+    `, [timeMin.toISOString().slice(0, 19).replace('T', ' '),
+        timeMax.toISOString().slice(0, 19).replace('T', ' ')]);
+
+    // Also fetch from Google Calendar
+    const googleEvents = await googleCalendarService.listEvents(timeMin, timeMax);
+
+    res.json({
+      localEvents,
+      googleEvents: googleEvents.map(ge => ({
+        id: ge.id,
+        title: ge.summary,
+        description: ge.description,
+        start: ge.start?.dateTime || ge.start?.date,
+        end: ge.end?.dateTime || ge.end?.date,
+        location: ge.location,
+        isGoogleOnly: true
+      }))
+    });
+  } catch (error) {
+    console.error("Calendar events error:", error);
+    res.status(500).json({ error: "calendar_error", message: error.message });
+  }
+});
+
+// POST /api/calendar/events - Créer un événement (sync Google)
+app.post("/api/calendar/events", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { title, description, start, end, color, client_id, type, location } = req.body;
+
+    if (!title || !start) {
+      return res.status(400).json({ error: "validation_error", message: "title et start requis" });
+    }
+
+    // Build description with client info if linked
+    let fullDescription = description || '';
+    let eventLocation = location || '';
+
+    if (client_id) {
+      const [clients] = await pool.query('SELECT * FROM clients WHERE id = ?', [client_id]);
+      if (clients[0]) {
+        const clientInfo = clients[0];
+        fullDescription = `Client: ${clientInfo.prenom || ''} ${clientInfo.nom}\n` +
+          `Tel: ${clientInfo.telephone || 'N/A'}\n` +
+          `Email: ${clientInfo.email || 'N/A'}\n\n${description || ''}`;
+
+        if (!eventLocation && clientInfo.adresse) {
+          eventLocation = `${clientInfo.adresse}, ${clientInfo.code_postal || ''} ${clientInfo.ville || ''}`.trim();
+        }
+      }
+    }
+
+    const eventEnd = end || new Date(new Date(start).getTime() + 60 * 60 * 1000).toISOString();
+
+    // Create on Google Calendar
+    let googleEventId = null;
+    try {
+      const googleEvent = await googleCalendarService.createEvent({
+        title,
+        description: fullDescription,
+        start,
+        end: eventEnd,
+        location: eventLocation,
+      });
+      googleEventId = googleEvent?.id || null;
+    } catch (gcError) {
+      console.warn("Google Calendar sync failed:", gcError.message);
+      // Continue without Google sync
+    }
+
+    // Save to local DB
+    const id = crypto.randomUUID();
+    await pool.query(`
+      INSERT INTO events (id, title, description, start, end, color, client_id, type, location, google_event_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [id, title, description || null, start, eventEnd, color || null, client_id || null, type || 'autre', eventLocation || null, googleEventId]);
+
+    res.json({ id, google_event_id: googleEventId, synced: !!googleEventId });
+  } catch (error) {
+    console.error("Create calendar event error:", error);
+    res.status(500).json({ error: "calendar_error", message: error.message });
+  }
+});
+
+// PUT /api/calendar/events/:id - Modifier un événement (sync Google)
+app.put("/api/calendar/events/:id", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { id } = req.params;
+    const { title, description, start, end, color, client_id, type, location } = req.body;
+
+    // Get existing event
+    const [events] = await pool.query('SELECT * FROM events WHERE id = ?', [id]);
+    if (!events[0]) {
+      return res.status(404).json({ error: "event_not_found" });
+    }
+
+    const existingEvent = events[0];
+
+    // Build update fields
+    const updates = {};
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (start !== undefined) updates.start = start;
+    if (end !== undefined) updates.end = end;
+    if (color !== undefined) updates.color = color;
+    if (client_id !== undefined) updates.client_id = client_id;
+    if (type !== undefined) updates.type = type;
+    if (location !== undefined) updates.location = location;
+
+    if (Object.keys(updates).length === 0) {
+      return res.json({ success: true, message: "No changes" });
+    }
+
+    // Update local DB
+    const setClauses = Object.keys(updates).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(updates);
+    await pool.query(`UPDATE events SET ${setClauses} WHERE id = ?`, [...values, id]);
+
+    // Sync to Google Calendar if linked
+    if (existingEvent.google_event_id) {
+      try {
+        await googleCalendarService.updateEvent(existingEvent.google_event_id, {
+          title: title || existingEvent.title,
+          description: description || existingEvent.description,
+          start: start || existingEvent.start,
+          end: end || existingEvent.end,
+          location: location || existingEvent.location,
+        });
+      } catch (gcError) {
+        console.warn("Google Calendar update sync failed:", gcError.message);
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Update calendar event error:", error);
+    res.status(500).json({ error: "calendar_error", message: error.message });
+  }
+});
+
+// DELETE /api/calendar/events/:id - Supprimer un événement (sync Google)
+app.delete("/api/calendar/events/:id", requireAdmin, async (req, res) => {
+  const pool = getMySQLPool();
+  if (!pool) {
+    return res.status(503).json({ error: "db_not_configured" });
+  }
+
+  try {
+    const { id } = req.params;
+
+    // Get event to find Google ID
+    const [events] = await pool.query('SELECT google_event_id FROM events WHERE id = ?', [id]);
+    if (!events[0]) {
+      return res.status(404).json({ error: "event_not_found" });
+    }
+
+    // Delete from Google Calendar
+    if (events[0].google_event_id) {
+      try {
+        await googleCalendarService.deleteEvent(events[0].google_event_id);
+      } catch (gcError) {
+        console.warn("Google Calendar delete sync failed:", gcError.message);
+      }
+    }
+
+    // Delete from local DB
+    await pool.query('DELETE FROM events WHERE id = ?', [id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Delete calendar event error:", error);
+    res.status(500).json({ error: "calendar_error", message: error.message });
+  }
+});
+
+// === FIN CALENDAR ===
 
 app.use(optionalAuth);
 

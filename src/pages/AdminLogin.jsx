@@ -2,16 +2,33 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { api } from "@/api/apiClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Shield, Key, Lock, AlertCircle, Mail, User } from "lucide-react";
+import {
+  LogIn,
+  UserPlus,
+  Mail,
+  Lock,
+  User,
+  AlertCircle,
+  Loader2,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  CheckCircle2
+} from "lucide-react";
+
+const ASSET_BASE_URL = import.meta.env.BASE_URL || "/";
 
 export default function AdminLogin() {
+  const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
-  const [code, setCode] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
@@ -27,135 +44,249 @@ export default function AdminLogin() {
     checkAuth();
   }, [navigate]);
 
+  const resetForm = () => {
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setName("");
+    setError("");
+    setSuccess("");
+  };
+
+  const switchMode = (newMode) => {
+    resetForm();
+    setMode(newMode);
+  };
+
+  const validateForm = () => {
+    if (!email.trim()) {
+      setError("L'email est requis");
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Email invalide");
+      return false;
+    }
+    if (!password) {
+      setError("Le mot de passe est requis");
+      return false;
+    }
+    if (password.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caracteres");
+      return false;
+    }
+    if (mode === "register" && password !== confirmPassword) {
+      setError("Les mots de passe ne correspondent pas");
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (!code.trim()) {
-      setError("Entre le code d'acces.");
-      return;
-    }
+    setSuccess("");
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     try {
-      await api.auth.login({ code: code.trim(), email, name });
-      navigate(createPageUrl("Gestion"));
+      if (mode === "login") {
+        await api.auth.login({ email: email.trim(), password });
+        navigate(createPageUrl("Gestion"));
+      } else {
+        await api.auth.register({
+          email: email.trim(),
+          password,
+          name: name.trim() || undefined
+        });
+        navigate(createPageUrl("Gestion"));
+      }
     } catch (err) {
-      console.error(err);
-      setError("Code incorrect ou serveur indisponible.");
-      setCode("");
+      console.error("Auth error:", err);
+      let errorMessage = mode === "login"
+        ? "Email ou mot de passe incorrect"
+        : "Impossible de creer le compte";
+
+      try {
+        const errorData = JSON.parse(err.message);
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch {
+        if (err.message?.includes("503") || err.message?.includes("db_not_configured")) {
+          errorMessage = "Base de donnees non disponible";
+        } else if (err.message?.includes("Failed to fetch") || err.message?.includes("NetworkError")) {
+          errorMessage = "Erreur de connexion au serveur";
+        }
+      }
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-[radial-gradient(circle_at_20%_25%,rgba(59,130,246,0.12),transparent_38%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.12),transparent_32%),radial-gradient(circle_at_50%_80%,rgba(14,26,51,0.55),rgba(5,9,21,0.85))] bg-[#0b1529] text-slate-100">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage: "radial-gradient(circle, rgba(59,130,246,0.4) 1px, transparent 1px)",
-            backgroundSize: "30px 30px",
-          }}
-        ></div>
-        <div className="absolute top-1/4 right-1/4 w-96 h-96 border border-white/10 rounded-full"></div>
-        <div className="absolute -bottom-48 -left-48 w-[600px] h-[600px] border border-white/10 rounded-full"></div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-stone-100">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <img
+            src={`${ASSET_BASE_URL}logo.png`}
+            alt="L'Atelier des Espaces"
+            className="w-14 h-14 mx-auto mb-3"
+          />
+          <h1 className="text-xl font-semibold text-stone-800">
+            L'Atelier des Espaces
+          </h1>
+          <p className="text-stone-500 text-sm mt-1">
+            Administration
+          </p>
+        </div>
 
-      <Card className="w-full max-w-md relative z-10 border border-white/10 shadow-apple glass">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-amber-500 to-emerald-500"></div>
-
-        <CardHeader className="relative p-8 md:p-12 border-b border-white/10">
-          <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "radial-gradient(circle at 2px 2px, rgba(255,255,255,0.5) 1px, transparent 0)", backgroundSize: "40px 40px" }}></div>
-
-          <div className="relative flex flex-col items-center gap-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-blue-500/20 rounded-2xl blur-xl"></div>
-              <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-600 via-amber-500 to-cyan-400 flex items-center justify-center shadow-apple border border-white/20">
-                <Shield className="w-10 h-10 text-white" />
-              </div>
-            </div>
-            <div className="text-center space-y-2">
-              <CardTitle className="text-3xl font-bold tracking-tight text-white">Administration</CardTitle>
-              <p className="text-sm text-slate-200 font-medium">Acces reserve</p>
-            </div>
+        {/* Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-stone-200 p-6">
+          {/* Tabs */}
+          <div className="flex mb-6 border-b border-stone-200">
+            <button
+              type="button"
+              onClick={() => switchMode("login")}
+              className={`flex-1 pb-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                mode === "login"
+                  ? "text-amber-700 border-amber-600"
+                  : "text-stone-400 border-transparent hover:text-stone-600"
+              }`}
+            >
+              Connexion
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("register")}
+              className={`flex-1 pb-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                mode === "register"
+                  ? "text-amber-700 border-amber-600"
+                  : "text-stone-400 border-transparent hover:text-stone-600"
+              }`}
+            >
+              Inscription
+            </button>
           </div>
-        </CardHeader>
 
-        <CardContent className="p-8 md:p-12 space-y-6">
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-900/30 border border-white/15 mb-4">
-              <Key className="w-7 h-7 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-white">Connexion</h2>
-            <p className="text-slate-200 text-sm mt-1">Entre le code d'acces pour continuer.</p>
-          </div>
-
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200 flex items-center gap-2">
-                <User className="w-4 h-4" /> Nom (optionnel)
-              </label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ton nom"
-                className="bg-slate-900/50 border border-white/20 text-white placeholder:text-slate-400"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200 flex items-center gap-2">
-                <Mail className="w-4 h-4" /> Email (optionnel)
+            {mode === "register" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-stone-700">
+                  Nom
+                </label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Votre nom"
+                  className="border-stone-300 focus:border-amber-500 focus:ring-amber-500/20"
+                />
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-stone-700">
+                Email
               </label>
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@email.fr"
-                className="bg-slate-900/50 border border-white/20 text-white placeholder:text-slate-400"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200 flex items-center gap-2">
-                <Lock className="w-4 h-4" /> Code d'acces
-              </label>
-              <Input
-                type="password"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Code administrateur"
-                className="text-lg py-5 bg-slate-900/50 border border-white/20 text-white placeholder:text-slate-400"
-                autoFocus
+                placeholder="votre@email.fr"
+                autoComplete="email"
+                className="border-stone-300 focus:border-amber-500 focus:ring-amber-500/20"
               />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-stone-700">
+                Mot de passe
+              </label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  className="border-stone-300 focus:border-amber-500 focus:ring-amber-500/20 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {mode === "register" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-stone-700">
+                  Confirmer le mot de passe
+                </label>
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  className="border-stone-300 focus:border-amber-500 focus:ring-amber-500/20"
+                />
+              </div>
+            )}
+
             {error && (
-              <div className="flex items-center gap-2 p-4 bg-red-900/30 border border-red-500/40 rounded-xl text-red-100 text-sm">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
+            {success && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{success}</span>
+              </div>
+            )}
+
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 via-amber-500 to-emerald-500 hover:opacity-90 text-white py-3 text-base shadow-apple rounded-xl border border-white/20"
               disabled={isSubmitting}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
             >
-              <Lock className="w-5 h-5 mr-2" />
-              {isSubmitting ? "Connexion..." : "Se connecter"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {mode === "login" ? "Connexion..." : "Creation..."}
+                </>
+              ) : (
+                mode === "login" ? "Se connecter" : "Creer mon compte"
+              )}
             </Button>
           </form>
+        </div>
 
-          <Button
-            variant="ghost"
-            onClick={() => navigate(createPageUrl("Accueil"))}
-            className="w-full text-slate-200 hover:text-white hover:bg-white/10 rounded-xl"
-          >
-            Retour au site
-          </Button>
-        </CardContent>
-      </Card>
+        {/* Back link */}
+        <button
+          type="button"
+          onClick={() => navigate(createPageUrl("Accueil"))}
+          className="w-full mt-4 text-sm text-stone-500 hover:text-stone-700 flex items-center justify-center gap-1"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Retour au site
+        </button>
+
+        <p className="text-center text-stone-400 text-xs mt-6">
+          {new Date().getFullYear()} L'Atelier des Espaces
+        </p>
+      </div>
     </div>
   );
 }

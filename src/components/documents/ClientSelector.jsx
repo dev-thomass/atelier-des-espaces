@@ -4,6 +4,7 @@ import { api } from "@/api/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -20,7 +21,20 @@ import {
   UserPlus,
 } from "lucide-react";
 
+const getResponseErrorMessage = async (response, fallback) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload === "object") {
+      return payload.message || payload.error || fallback;
+    }
+  } catch (error) {
+    return fallback;
+  }
+  return fallback;
+};
+
 export default function ClientSelector({ onSelect, selectedId }) {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("select");
   const [isCreating, setIsCreating] = useState(false);
@@ -67,7 +81,10 @@ export default function ClientSelector({ onSelect, selectedId }) {
         },
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error("Erreur création client");
+      if (!response.ok) {
+        const message = await getResponseErrorMessage(response, "Erreur creation client");
+        throw new Error(message);
+      }
       return response.json();
     },
     onSuccess: (data) => {
@@ -90,7 +107,11 @@ export default function ClientSelector({ onSelect, selectedId }) {
 
   const handleCreateClient = async () => {
     if (!newClient.nom) {
-      alert("Le nom est obligatoire");
+      toast({
+        variant: "destructive",
+        title: "Nom requis",
+        description: "Le nom est obligatoire.",
+      });
       return;
     }
 
@@ -99,7 +120,12 @@ export default function ClientSelector({ onSelect, selectedId }) {
       await createClientMutation.mutateAsync(newClient);
     } catch (error) {
       console.error("Erreur:", error);
-      alert("Erreur lors de la création du client");
+      const message = error?.message || "Erreur lors de la creation du client";
+      toast({
+        variant: "destructive",
+        title: "Creation impossible",
+        description: message,
+      });
     } finally {
       setIsCreating(false);
     }

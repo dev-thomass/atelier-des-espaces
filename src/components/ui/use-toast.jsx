@@ -2,7 +2,8 @@
 import { useState, useEffect, createContext, useContext } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 1000;
+const TOAST_DEFAULT_DURATION = 5000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -112,6 +113,8 @@ function dispatch(action) {
 
 function toast({ ...props }) {
   const id = genId();
+  const duration =
+    typeof props.duration === "number" ? props.duration : TOAST_DEFAULT_DURATION;
 
   const update = (props) =>
     dispatch({
@@ -133,6 +136,12 @@ function toast({ ...props }) {
       },
     },
   });
+
+  if (duration !== Infinity && duration > 0) {
+    setTimeout(() => {
+      dismiss();
+    }, duration);
+  }
 
   return {
     id,

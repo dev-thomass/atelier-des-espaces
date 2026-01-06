@@ -242,7 +242,41 @@ export default function DocumentLignes({
   // État pour le traitement par lots
   const [aiProgress, setAiProgress] = useState({ current: 0, total: 0, status: "" });
 
-  // Appel IA pour un seul chunk
+  // Configuration retry et timeout pour l'IA
+  const AI_CONFIG = {
+    maxRetries: 3,
+    retryDelay: 1000,
+    timeout: 60000, // 60 secondes
+  };
+
+  // Fonction utilitaire pour retry avec délai exponentiel
+  const withRetry = async (fn, maxRetries = AI_CONFIG.maxRetries, baseDelay = AI_CONFIG.retryDelay) => {
+    let lastError;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        if (attempt < maxRetries - 1) {
+          const delay = baseDelay * Math.pow(2, attempt);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    throw lastError;
+  };
+
+  // Fonction utilitaire pour timeout
+  const withTimeout = (promise, ms = AI_CONFIG.timeout) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("TIMEOUT")), ms)
+      ),
+    ]);
+  };
+
+  // Appel IA pour un seul chunk avec retry et timeout
   const parseChunkWithAI = async (chunkContent, chunkIndex, totalChunks) => {
     const chunkLines = countQuoteLines(chunkContent);
 
@@ -265,31 +299,35 @@ FORMAT JSON:
 
 Unités: u, h, j, m², m³, ml, kg, forfait, lot`;
 
-    const response = await api.integrations.Core.InvokeLLM({
-      prompt,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          lignes: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                type: { type: "string", enum: ["section", "ligne"] },
-                designation: { type: "string" },
-                quantite: { type: "number" },
-                unite: { type: "string" },
-                prix_unitaire_ht: { type: "number" }
-              },
-              required: ["type", "designation"]
+    const makeRequest = async () => {
+      const response = await api.integrations.Core.InvokeLLM({
+        prompt,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            lignes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  type: { type: "string", enum: ["section", "ligne"] },
+                  designation: { type: "string" },
+                  quantite: { type: "number" },
+                  unite: { type: "string" },
+                  prix_unitaire_ht: { type: "number" }
+                },
+                required: ["type", "designation"]
+              }
             }
-          }
-        },
-        required: ["lignes"]
-      }
-    });
+          },
+          required: ["lignes"]
+        }
+      });
+      return response?.lignes || [];
+    };
 
-    return response?.lignes || [];
+    // Appel avec retry et timeout
+    return withRetry(() => withTimeout(makeRequest()));
   };
 
   const generateWithAI = async () => {
@@ -322,7 +360,8 @@ Unités: u, h, j, m², m³, ml, kg, forfait, lot`;
 
           try {
             const chunkLignes = await parseChunkWithAI(chunks[i].content, i, chunks.length);
-            allLignes = [...allLignes, ...chunkLignes];
+            // Optimisation: push() au lieu de spread pour éviter O(n²)
+            allLignes.push(...chunkLignes);
 
             // Mise à jour progressive des lignes pour feedback visuel
             const progressLignes = allLignes.map((ligne) => ({
@@ -466,7 +505,23 @@ FORMAT JSON: {"lignes":[{"type":"section","designation":"TITRE"},{"type":"ligne"
       }
     } catch (error) {
       console.error("Erreur génération IA:", error);
-      setAiError("Erreur lors de la génération. Réessayez.");
+
+      // Messages d'erreur spécifiques selon le type d'erreur
+      let errorMessage = "Erreur lors de la génération. Réessayez.";
+
+      if (error.message === "TIMEOUT") {
+        errorMessage = "La génération a pris trop de temps. Essayez avec moins de contenu ou réessayez.";
+      } else if (error.message?.includes("network") || error.message?.includes("fetch")) {
+        errorMessage = "Erreur de connexion réseau. Vérifiez votre connexion et réessayez.";
+      } else if (error.message?.includes("JSON") || error.message?.includes("parse")) {
+        errorMessage = "Format de réponse invalide. Réessayez avec un texte plus simple.";
+      } else if (error.message?.includes("rate") || error.message?.includes("limit")) {
+        errorMessage = "Limite de requêtes atteinte. Attendez quelques secondes et réessayez.";
+      } else if (error.message?.includes("unauthorized") || error.message?.includes("401")) {
+        errorMessage = "Session expirée. Veuillez vous reconnecter.";
+      }
+
+      setAiError(errorMessage);
     } finally {
       setAiLoading(false);
       setAiProgress({ current: 0, total: 0, status: "" });

@@ -67,6 +67,8 @@ const entities = {
   Prestation: entityClient("prestations"),
   Projet: entityClient("projets"),
   Chantier: entityClient("chantiers"),
+  Client: entityClient("clients"),
+  Document: entityClient("documents"),
   Tache: entityClient("taches"),
   ComptaURSSAF: entityClient("compta-urssaf"),
   ListeCourse: entityClient("liste-courses"),
@@ -157,7 +159,28 @@ const agents = {
 };
 
 const auth = {
-  login: async ({ code, email, name }) => {
+  // New secure login with email/password
+  login: async ({ email, password }) => {
+    const res = await request("/api/auth/login", {
+      method: "POST",
+      body: { email, password },
+      auth: false,
+    });
+    setToken(res.token);
+    return res.user;
+  },
+  // Register new user
+  register: async ({ email, password, name }) => {
+    const res = await request("/api/auth/register", {
+      method: "POST",
+      body: { email, password, name },
+      auth: false,
+    });
+    setToken(res.token);
+    return res.user;
+  },
+  // Legacy login with code (deprecated)
+  loginWithCode: async ({ code, email, name }) => {
     const res = await request("/api/admin/login", {
       method: "POST",
       body: { code, email, name },
@@ -185,6 +208,17 @@ const leads = {
   createPublic: async (payload) => request("/api/leads", { method: "POST", body: payload, auth: false }),
 };
 
+const calendar = {
+  listEvents: async (start, end) =>
+    request("/api/calendar/events", { params: { start, end }, auth: true }),
+  createEvent: async (payload) =>
+    request("/api/calendar/events", { method: "POST", body: payload, auth: true }),
+  updateEvent: async (id, payload) =>
+    request(`/api/calendar/events/${id}`, { method: "PUT", body: payload, auth: true }),
+  deleteEvent: async (id) =>
+    request(`/api/calendar/events/${id}`, { method: "DELETE", auth: true }),
+};
+
 export const api = {
   entities,
   integrations,
@@ -192,4 +226,5 @@ export const api = {
   agents,
   leads,
   auth,
+  calendar,
 };

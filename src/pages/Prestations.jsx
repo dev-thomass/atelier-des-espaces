@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Clock, X, ChevronLeft, ChevronRight, ZoomIn, Sparkles, Briefcase } from "lucide-react";
+import { CheckCircle2, Clock, X, ChevronLeft, ChevronRight, Briefcase } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/use-scroll-animation";
 import { useSEO } from "@/hooks/use-seo";
 
@@ -34,6 +34,10 @@ export default function Prestations() {
     queryKey: ['projets-all'],
     queryFn: () => api.entities.Projet.filter({ visible: true }, 'ordre'),
   });
+
+  const prestationsCount = prestations.length;
+  const isLastSingleSm = prestationsCount % 2 === 1;
+  const isLastSingleLg = prestationsCount % 3 === 1;
 
   const handleProjetClick = (projet) => {
     setSelectedProjet(projet);
@@ -183,17 +187,23 @@ export default function Prestations() {
       <section className="py-16 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {isLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Card key={i} className="border-none shadow-lg">
-                  <CardContent className="p-4 md:p-8">
-                    <Skeleton className="w-10 h-10 md:w-14 md:h-14 rounded-xl mb-3 md:mb-6" />
-                    <Skeleton className="h-5 md:h-8 w-3/4 mb-2 md:mb-4" />
-                    <Skeleton className="h-3 md:h-4 w-full mb-2" />
-                    <Skeleton className="h-3 md:h-4 w-full mb-2" />
-                    <Skeleton className="h-3 md:h-4 w-2/3 mb-3 md:mb-6" />
-                  </CardContent>
-                </Card>
+                <div key={i} className="relative h-full rounded-3xl bg-gradient-to-br from-amber-100/70 via-white to-stone-100/80 p-[1px] shadow-[0_18px_45px_-32px_rgba(15,23,42,0.35)]">
+                  <Card className="relative h-full overflow-hidden rounded-[calc(1.5rem-1px)] border-none bg-white/95">
+                    <CardContent className="p-5 md:p-8">
+                      <div className="flex items-center justify-between mb-4 md:mb-6">
+                        <Skeleton className="w-11 h-11 md:w-14 md:h-14 rounded-2xl" />
+                        <Skeleton className="h-3 w-6" />
+                      </div>
+                      <Skeleton className="h-5 md:h-7 w-3/4 mb-3 md:mb-4" />
+                      <Skeleton className="h-3 md:h-4 w-full mb-2" />
+                      <Skeleton className="h-3 md:h-4 w-full mb-2" />
+                      <Skeleton className="h-3 md:h-4 w-2/3" />
+                      <div className="mt-6 md:mt-8 h-px w-full bg-gradient-to-r from-amber-100/0 via-amber-200/60 to-amber-100/0" />
+                    </CardContent>
+                  </Card>
+                </div>
               ))}
             </div>
           ) : prestations.length === 0 ? (
@@ -205,37 +215,57 @@ export default function Prestations() {
               <p className="text-stone-600">Les prestations seront bientôt ajoutées.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-              {prestations.map((prestation, index) => (
-                <Card 
-                  key={prestation.id} 
-                  className="border-none shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 bg-white group"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <CardContent className="p-4 md:p-8">
-                    <div className="w-10 h-10 md:w-16 md:h-16 bg-gradient-to-br from-amber-700 to-amber-900 rounded-xl md:rounded-2xl flex items-center justify-center mb-3 md:mb-6 transform group-hover:rotate-6 transition-transform duration-300 shadow-lg">
-                      <CheckCircle2 className="w-5 h-5 md:w-8 md:h-8 text-white" />
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+              {prestations.map((prestation, index) => {
+                const isLast = index === prestationsCount - 1;
+                const spanClass = [
+                  isLast && isLastSingleSm ? "sm:col-span-2" : "",
+                  isLast && isLastSingleLg ? "lg:col-span-3" : "",
+                ].join(" ").trim();
+                const numberLabel = String(index + 1).padStart(2, "0");
 
-                    <h3 className="text-sm md:text-2xl font-bold text-stone-800 mb-2 md:mb-4 group-hover:text-amber-800 transition-colors leading-tight">
-                      {prestation.titre}
-                    </h3>
-
-                    <p className="text-xs md:text-base text-stone-600 mb-3 md:mb-6 leading-relaxed line-clamp-3 md:line-clamp-none min-h-[60px] md:min-h-[100px]">
-                      {prestation.description}
-                    </p>
-
-                    {prestation.duree_estimee && (
-                      <div className="pt-3 md:pt-6 border-t border-stone-200">
-                        <div className="flex items-center gap-2 text-stone-600">
-                          <Clock className="w-3 h-3 md:w-5 md:h-5 text-amber-700 flex-shrink-0" />
-                          <span className="text-xs md:text-base">{prestation.duree_estimee}</span>
+                return (
+                  <div
+                    key={prestation.id}
+                    className={`group relative h-full rounded-3xl bg-gradient-to-br from-amber-100/70 via-white to-stone-100/80 p-[1px] shadow-[0_18px_45px_-32px_rgba(15,23,42,0.45)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_30px_70px_-40px_rgba(120,53,15,0.55)] ${spanClass}`}
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <Card className="relative h-full overflow-hidden rounded-[calc(1.5rem-1px)] border-none bg-white/95">
+                      <div className="pointer-events-none absolute -right-16 -top-16 h-32 w-32 rounded-full bg-amber-200/50 blur-3xl opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                      <div className="pointer-events-none absolute -left-20 -bottom-20 h-36 w-36 rounded-full bg-stone-200/70 blur-3xl" />
+                      <CardContent className="relative flex h-full flex-col p-5 md:p-8">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 md:h-14 md:w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-600 to-amber-900 text-white shadow-[0_14px_30px_-15px_rgba(120,53,15,0.8)]">
+                              <CheckCircle2 className="h-5 w-5 md:h-7 md:w-7" />
+                            </div>
+                            <span className="text-[10px] md:text-[11px] uppercase tracking-[0.35em] text-amber-900/60">Service</span>
+                          </div>
+                          <span className="text-xs font-semibold text-stone-400">{numberLabel}</span>
                         </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+
+                        <h3 className="mt-4 text-base md:text-2xl font-bold text-stone-800 group-hover:text-amber-800 transition-colors leading-tight">
+                          {prestation.titre}
+                        </h3>
+
+                        <p className="mt-3 text-xs md:text-base text-stone-600 leading-relaxed flex-1">
+                          {prestation.description}
+                        </p>
+
+                        <div className="mt-5 pt-4">
+                          <div className="h-px w-full bg-gradient-to-r from-amber-100/0 via-amber-200/80 to-amber-100/0" />
+                          {prestation.duree_estimee && (
+                            <div className="mt-3 flex items-center gap-2 text-stone-600">
+                              <Clock className="w-3 h-3 md:w-5 md:h-5 text-amber-700 flex-shrink-0" />
+                              <span className="text-xs md:text-base">{prestation.duree_estimee}</span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

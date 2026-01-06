@@ -40,6 +40,7 @@ import {
   ArrowDown,
   RefreshCw,
   User,
+  Users,
   FileText,
   Pin,
   PinOff,
@@ -52,23 +53,27 @@ import {
   Copy,
   Sun,
   Moon,
-  Receipt
+  Receipt,
+  Euro,
+  FolderOpen
 } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import AdminProjetCard from "../components/admin/AdminProjetCard";
 import AdminProjetForm from "../components/admin/AdminProjetForm";
 import PlanningChatBot from "../components/admin/PlanningChatBot";
 import GestionChatBot from "../components/admin/GestionChatBot";
-import { AdminHero } from "../components/admin/AdminHero";
+import { AdminHero, AdminPanel } from "../components/admin/AdminHero";
 import { useTheme } from "@/context/ThemeContext";
 import { sendAssistantMessage } from "@/api/assistantClient";
 import { DocumentsContent } from "../components/documents";
+import ClientsDirectory from "../components/documents/ClientsDirectory";
+import { CalendarTimeline } from "../components/calendar";
 
 export default function Gestion() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const [activeSection, setActiveSection] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -205,6 +210,7 @@ export default function Gestion() {
     { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, section: "main" },
     { id: "divider-pratique", label: "Gestion Pratique", section: "divider" },
     { id: "documents", label: "Devis & Factures", icon: Receipt, section: "pratique" },
+    { id: "clients", label: "Clients", icon: Users, section: "pratique" },
     { id: "planning", label: "Planning", icon: Calendar, section: "pratique" },
     { id: "listes", label: "Notes", icon: FileText, section: "pratique" },
     { id: "assistant", label: "Assistant", icon: Lightbulb, section: "pratique" },
@@ -233,7 +239,7 @@ export default function Gestion() {
   }, [handleNavigation]);
 
   if (isLoading) {
-    return (
+  return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <Loader2 className="w-12 h-12 text-neutral-700 animate-spin" />
       </div>
@@ -396,8 +402,8 @@ export default function Gestion() {
             </div>
 
               <div className="flex items-center gap-2">
-                <ThemeToggle />
                 <QuickAccessLinks activeSection={activeSection} onNavigate={handleNavigation} />
+                <ThemeToggle />
               </div>
             </div>
           </div>
@@ -425,6 +431,7 @@ export default function Gestion() {
             />
           )}
           {activeSection === "documents" && <DocumentsContent />}
+          {activeSection === "clients" && <ClientsDirectory />}
           {activeSection === "assistant-client" && <AssistantClientContent />}
           {activeSection === "assistant" && <AssistantContent />}
           {activeSection === "planning" && <PlanningContent />}
@@ -443,6 +450,7 @@ export default function Gestion() {
 function QuickAccessLinks({ activeSection, onNavigate }) {
   const quickLinks = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, color: "var(--color-primary-500)" },
+    { id: "documents", label: "Devis/Factures", icon: Receipt, color: "var(--page-documents)" },
     { id: "planning", label: "Planning", icon: Calendar, color: "var(--color-secondary-500)" },
     { id: "listes", label: "Notes", icon: FileText, color: "var(--color-accent-olive-500)" },
     { id: "assistant", label: "Assistant", icon: Lightbulb, color: "var(--color-accent-warm-500)" }
@@ -474,317 +482,337 @@ function QuickAccessLinks({ activeSection, onNavigate }) {
   );
 }
 
+// Mini chart component for CA
+function MiniChart({ data, color = "#10b981" }) {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const width = 100 / data.length;
+
+  return (
+    <div className="flex items-end gap-1 h-16">
+      {data.map((d, i) => (
+        <div key={i} className="flex flex-col items-center flex-1">
+          <div
+            className="w-full rounded-t transition-all hover:opacity-80"
+            style={{
+              height: `${(d.value / max) * 100}%`,
+              minHeight: d.value > 0 ? '4px' : '0',
+              backgroundColor: color,
+            }}
+            title={`${d.label}: ${d.value.toLocaleString('fr-FR')} €`}
+          />
+          <span className="text-[9px] text-[var(--color-text-tertiary)] mt-1">{d.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DashboardContent({ stats, setActiveSection }) {
+  useEffect(() => { window.scrollTo(0, 0); }, []);
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  const { data: notes = [] } = useQuery({
-    queryKey: ['notes'],
-    queryFn: () => api.entities.Note.list('updated_at'),
+  const { data: documents = [] } = useQuery({
+    queryKey: ['documents-dashboard'],
+    queryFn: async () => {
+      try {
+        return await api.entities.Document.list() || [];
+      } catch {
+        return [];
+      }
+    },
   });
 
-  const visibleNotes = notes.filter((note) => !note?.archived);
-  const pinnedNotes = visibleNotes.filter((note) => Boolean(note?.pinned));
-  const now = Date.now();
-  const recentNotesCount = visibleNotes.filter((note) => {
-    const dateValue = new Date(note?.updated_at || note?.created_at || 0).getTime();
-    if (!dateValue) return false;
-    return now - dateValue <= 7 * 24 * 60 * 60 * 1000;
-  }).length;
-  const recentNotes = visibleNotes
-    .slice()
-    .sort((a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0))
-    .slice(0, 3);
+  // Documents stats
+  const devis = documents.filter(d => d.type === 'devis');
+  const factures = documents.filter(d => d.type === 'facture');
+  const devisEnAttente = devis.filter(d => d.statut === 'envoye').length;
+  const devisAcceptes = devis.filter(d => d.statut === 'accepte').length;
+  const facturesPayees = factures.filter(d => d.statut === 'paye');
+  const facturesEnAttente = factures.filter(d => d.statut === 'envoyee' || d.statut === 'envoye');
 
+  const totalCA = facturesPayees.reduce((sum, d) => sum + (Number(d.total_ttc) || 0), 0);
+  const totalEnCours = facturesEnAttente.reduce((sum, d) => sum + (Number(d.total_ttc) || 0), 0);
+  const totalDevis = devis.reduce((sum, d) => sum + (Number(d.total_ttc) || 0), 0);
+
+  // CA par mois (6 derniers mois)
+  const monthlyCA = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthLabel = date.toLocaleDateString('fr-FR', { month: 'short' });
+    const monthFactures = facturesPayees.filter(f => {
+      const fDate = new Date(f.date_emission || f.created_at);
+      return fDate.getMonth() === date.getMonth() && fDate.getFullYear() === date.getFullYear();
+    });
+    monthlyCA.push({
+      label: monthLabel,
+      value: monthFactures.reduce((sum, f) => sum + (Number(f.total_ttc) || 0), 0),
+    });
+  }
+
+  // Derniers documents
+  const recentDocs = [...documents]
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+    .slice(0, 8);
+
+  const formatMoney = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
   const todayLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const statusColors = {
+    brouillon: 'border-[var(--color-border-light)] bg-[var(--color-bg-surface-hover)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-secondary)]',
+    envoye: 'border-transparent bg-blue-100 text-blue-700 hover:text-blue-700',
+    envoyee: 'border-transparent bg-blue-100 text-blue-700 hover:text-blue-700',
+    accepte: 'border-transparent bg-green-100 text-green-700 hover:text-green-700',
+    refuse: 'border-transparent bg-red-100 text-red-700 hover:text-red-700',
+    paye: 'border-transparent bg-emerald-100 text-emerald-700 hover:text-emerald-700',
+    annule: 'border-[var(--color-border-light)] bg-[var(--color-bg-surface-hover)] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-tertiary)]',
+  };
+
+  const statusLabels = {
+    brouillon: 'Brouillon',
+    envoye: 'Envoye',
+    envoyee: 'Envoyee',
+    accepte: 'Accepte',
+    refuse: 'Refuse',
+    paye: 'Paye',
+    annule: 'Annule',
+  };
 
   return (
     <div className="space-y-6">
       <AdminHero
         icon={LayoutDashboard}
-        eyebrow="Gestion Web • Assistant Client"
+        eyebrow="Gestion pratique"
         title="Tableau de bord"
-        subtitle={`Synthèse du jour — ${todayLabel}`}
-        badges={["Vue globale", "Accès rapide"]}
-        gradient="linear-gradient(135deg, var(--color-primary-500), var(--color-primary-400))"
+        subtitle={`Aujourd'hui, ${todayLabel}`}
+        badges={[
+          `${devis.length} devis`,
+          `${factures.length} factures`,
+          `${formatMoney(totalCA)} encaisse`,
+        ]}
+        color="var(--page-dashboard)"
+        rightContent={
+          <Button
+            variant="outline"
+            size="sm"
+            className="hero-action hero-action--solid"
+            onClick={() => setActiveSection("documents")}
+          >
+            <Plus className="w-4 h-4" />
+            Nouveau document
+          </Button>
+        }
       />
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 admin-card" style={{ borderColor: "var(--color-border-light)" }}>
-          <CardHeader className="p-5 border-b" style={{ borderColor: "var(--color-border-light)" }}>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2 font-bold" style={{ color: "var(--color-text-primary)" }}>
-                <Calendar className="w-5 h-5" />Planning
-              </CardTitle>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setActiveSection("planning")}
-                className="btn-tertiary"
-                style={{ color: "var(--color-secondary-600)" }}
-              >
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="admin-card p-4" style={{ borderColor: "var(--color-border-light)" }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: "var(--color-success-bg)" }}
+            >
+              <Euro className="w-5 h-5" style={{ color: "var(--color-success-text)" }} />
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="w-full" style={{ height: '500px', backgroundColor: isDark ? "var(--color-bg-surface)" : "#ffffff" }}>
-              <iframe
-                src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0&mode=AGENDA"
-                style={{ border: 0, filter: isDark ? "invert(0.92) hue-rotate(180deg)" : "none" }}
-                width="100%"
-                height="100%"
-                frameBorder="0"
-                scrolling="yes"
-                title="Google Calendar"
-                className="w-full h-full"
-              />
+            <div>
+              <p className="text-lg font-bold text-[var(--color-text-primary)]">{formatMoney(totalCA)}</p>
+              <p className="text-xs text-[var(--color-text-secondary)]">CA encaisse</p>
             </div>
-            <div className="p-3 border-t" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-secondary-100)" }}>
-              <p className="text-xs text-center flex items-center justify-center gap-2" style={{ color: "var(--color-secondary-700)" }}>
-                <Sparkles className="w-3 h-3" />Synchronise avec Google Calendar
-              </p>
-            </div>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="lg:col-span-1 admin-card" style={{ borderColor: "var(--color-border-light)" }}>
-          <CardHeader className="p-5 border-b" style={{ borderColor: "var(--color-border-light)" }}>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2 font-bold" style={{ color: "var(--color-text-primary)" }}>
-                <FileText className="w-5 h-5" />Notes
-              </CardTitle>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setActiveSection("listes")}
-                className="btn-tertiary"
-                style={{ color: "var(--color-primary-600)" }}
-              >
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+        <Card className="admin-card p-4" style={{ borderColor: "var(--color-border-light)" }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: "var(--color-warning-bg)" }}
+            >
+              <Clock className="w-5 h-5" style={{ color: "var(--color-warning-text)" }} />
             </div>
-          </CardHeader>
-          <CardContent className="p-5">
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <div
-                className="rounded-lg p-2 text-center border"
-                style={{
-                  backgroundColor: "var(--color-secondary-100)",
-                  borderColor: "var(--color-secondary-300)",
-                  color: "var(--color-secondary-700)",
-                }}
-              >
-                <div className="text-xl font-bold" style={{ color: "var(--color-secondary-700)" }}>{visibleNotes.length}</div>
-                <div className="text-xs" style={{ color: "var(--color-secondary-600)" }}>Total</div>
-              </div>
-              <div
-                className="rounded-lg p-2 text-center border"
-                style={{
-                  backgroundColor: "var(--color-warning-bg)",
-                  borderColor: "var(--color-warning-border)",
-                  color: "var(--color-warning-text)",
-                }}
-              >
-                <div className="text-xl font-bold">{pinnedNotes.length}</div>
-                <div className="text-xs" style={{ color: "var(--color-warning-text)" }}>Epingles</div>
-              </div>
-              <div
-                className="rounded-lg p-2 text-center border"
-                style={{
-                  backgroundColor: "var(--color-success-bg)",
-                  borderColor: "var(--color-success-border)",
-                  color: "var(--color-success-text)",
-                }}
-              >
-                <div className="text-xl font-bold">{recentNotesCount}</div>
-                <div className="text-xs" style={{ color: "var(--color-success-text)" }}>7 derniers jours</div>
-              </div>
+            <div>
+              <p className="text-lg font-bold text-[var(--color-text-primary)]">{formatMoney(totalEnCours)}</p>
+              <p className="text-xs text-[var(--color-text-secondary)]">En attente</p>
             </div>
+          </div>
+        </Card>
 
-            {pinnedNotes.length > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Pin className="w-4 h-4 text-[var(--color-secondary-600)]" />
-                  <span className="text-sm font-semibold text-[var(--color-secondary-700)]">Epingles</span>
-                </div>
-                <div className="space-y-2">
-                  {pinnedNotes.slice(0, 3).map((note) => {
-                    const label = note?.title || note?.content || "Note sans titre";
-                    return (
-                      <div key={note.id} className="flex items-center gap-2 p-2 bg-[var(--color-secondary-100)] rounded-lg border border-[var(--color-secondary-300)]">
-                        <Pin className="w-3.5 h-3.5 text-[var(--color-secondary-600)]" />
-                        <span className="text-sm text-[var(--color-secondary-700)] flex-1 truncate">{label}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+        <Card className="admin-card p-4" style={{ borderColor: "var(--color-border-light)" }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: "var(--color-primary-100)" }}
+            >
+              <Receipt className="w-5 h-5" style={{ color: "var(--color-primary-600)" }} />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-[var(--color-text-primary)]">{devis.length}</p>
+              <p className="text-xs text-[var(--color-text-secondary)]">Devis ({devisAcceptes} acceptes)</p>
+            </div>
+          </div>
+        </Card>
 
+        <Card className="admin-card p-4" style={{ borderColor: "var(--color-border-light)" }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: "var(--color-secondary-100)" }}
+            >
+              <FileText className="w-5 h-5" style={{ color: "var(--color-secondary-600)" }} />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-[var(--color-text-primary)]">{factures.length}</p>
+              <p className="text-xs text-[var(--color-text-secondary)]">Factures ({facturesPayees.length} payees)</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Documents et Actions */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        <AdminPanel
+          icon={FileText}
+          title="Documents recents"
+          accent="secondary"
+          rightContent={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+              onClick={() => setActiveSection("documents")}
+            >
+              Voir tout <ArrowRight className="w-3 h-3 ml-1" />
+            </Button>
+          }
+        >
+          {recentDocs.length > 0 ? (
             <div className="space-y-2">
-              {recentNotes.map((note) => {
-                const label = note?.title || note?.content || "Note sans titre";
+              {recentDocs.slice(0, 4).map((doc) => {
+                const docLabel = doc.type === "devis" ? "Devis" : doc.type === "facture" ? "Facture" : "Document";
+                const clientLabel = [doc.client_nom, doc.client_prenom].filter(Boolean).join(" ");
                 return (
                   <div
-                    key={note.id}
-                    className="flex items-center justify-between p-2 rounded-lg border transition-all hover:shadow-sm"
-                    style={{ backgroundColor: "var(--color-primary-100)", borderColor: "var(--color-primary-200)" }}
+                    key={doc.id}
+                    onClick={() => setActiveSection("documents")}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors text-[var(--color-text-primary)]"
                   >
-                    <div className="flex items-center gap-2">
-                      {note?.pinned ? (
-                        <Pin className="w-4 h-4 text-[var(--color-secondary-600)]" />
+                    <div
+                      className={`w-8 h-8 rounded flex items-center justify-center ${
+                        doc.type === "devis" ? "bg-blue-100 dark:bg-blue-900/30" : "bg-green-100 dark:bg-green-900/30"
+                      }`}
+                    >
+                      {doc.type === "devis" ? (
+                        <Receipt className="w-4 h-4 text-blue-600" />
                       ) : (
-                        <FileText className="w-4 h-4 text-[var(--color-secondary-600)]" />
+                        <FileText className="w-4 h-4 text-green-600" />
                       )}
-                      <span className="text-sm font-medium text-[var(--color-secondary-700)] truncate">{label}</span>
                     </div>
-                    {note?.pinned && <Badge className="bg-white/80 text-[var(--color-secondary-700)] text-xs">Epinglee</Badge>}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
+                          {docLabel} {doc.numero || "#"}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 ${statusColors[doc.statut] || "border-transparent bg-gray-100 text-gray-700"}`}
+                        >
+                          {statusLabels[doc.statut] || doc.statut}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-[var(--color-text-secondary)] truncate">
+                        {clientLabel || "Client"} - {formatMoney(doc.total_ttc || 0)}
+                      </p>
+                    </div>
+                    <span className="text-xs text-[var(--color-text-secondary)]">
+                      {new Date(doc.date_emission || doc.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                    </span>
                   </div>
                 );
               })}
             </div>
-
-            {visibleNotes.length === 0 && (
-              <div className="text-center py-8">
-                <FileText className="w-12 h-12 mx-auto mb-3 text-[var(--color-secondary-300)]" />
-                <p className="text-sm text-[var(--color-secondary-600)]">Aucune note pour le moment.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1 admin-card" style={{ borderColor: "var(--color-border-light)" }}>
-          <CardHeader className="border-b p-5" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-primary-100)" }}>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2 font-bold" style={{ color: "var(--color-primary-600)" }}>
-                <Sparkles className="w-5 h-5" />Assistant
-              </CardTitle>
+          ) : (
+            <div className="text-center py-6">
+              <FileText className="w-8 h-8 mx-auto mb-2 text-[var(--color-text-tertiary)] opacity-40" />
+              <p className="text-sm text-[var(--color-text-secondary)]">Aucun document</p>
               <Button
                 size="sm"
-                variant="ghost"
-                onClick={() => setActiveSection("assistant")}
-                className="btn-tertiary"
-                style={{ color: "var(--color-primary-600)" }}
+                variant="outline"
+                className="mt-2 border-[var(--color-border-light)] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)]"
+                onClick={() => setActiveSection("documents")}
               >
-                <ArrowRight className="w-4 h-4" />
+                Creer un devis
               </Button>
             </div>
-          </CardHeader>
-          <CardContent className="p-5">
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-semibold mb-3" style={{ color: "var(--color-text-secondary)" }}>Actions rapides</p>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setActiveSection("assistant")}
-                    className="w-full text-left p-3 rounded-xl border transition-all group"
-                    style={{ backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: "var(--color-primary-100)" }}
-                      >
-                        <MessageSquare className="w-5 h-5" color="var(--color-primary-600)" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Discuter</p>
-                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Pose tes questions a l'IA</p>
-                      </div>
-                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" color="var(--color-primary-600)" />
-                    </div>
-                  </button>
+          )}
+        </AdminPanel>
 
-                  <button
-                    onClick={() => setActiveSection("planning")}
-                    className="w-full text-left p-3 rounded-xl border transition-all group"
-                    style={{ backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-secondary-300)" }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: "var(--color-secondary-100)" }}
-                      >
-                        <Calendar className="w-5 h-5" color="var(--color-secondary-600)" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Planning</p>
-                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Gerer mes evenements</p>
-                      </div>
-                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" color="var(--color-secondary-600)" />
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => setActiveSection("listes")}
-                    className="w-full text-left p-3 rounded-xl border transition-all group"
-                    style={{ backgroundColor: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors"
-                        style={{ backgroundColor: "var(--color-accent-warm-100)" }}
-                      >
-                        <FileText className="w-5 h-5" color="var(--color-primary-600)" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Notes</p>
-                        <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>Ecrire une note rapide</p>
-                      </div>
-                      <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" color="var(--color-primary-600)" />
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--color-accent-warm-100)", borderColor: "var(--color-accent-warm-300)" }}>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                    <Lightbulb className="w-5 h-5" color="var(--color-primary-600)" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-text-primary)" }}> Astuce</p>
-                    <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
-                      Utilise l'assistant pour creer rapidement des evenements, noter des idees et suivre tes projets en langage naturel.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Actions rapides */}
+        <AdminPanel icon={Sparkles} title="Actions rapides" accent="primary">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Nouveau devis", icon: Receipt, section: "documents", bg: "bg-blue-50 dark:bg-blue-900/20", iconColor: "text-blue-600" },
+              { label: "Nouvelle facture", icon: FileText, section: "documents", bg: "bg-green-50 dark:bg-green-900/20", iconColor: "text-green-600" },
+              { label: "Gerer clients", icon: Users, section: "clients", bg: "bg-purple-50 dark:bg-purple-900/20", iconColor: "text-purple-600" },
+              { label: "Planning", icon: Calendar, section: "planning", bg: "bg-cyan-50 dark:bg-cyan-900/20", iconColor: "text-cyan-600" },
+              { label: "Projets", icon: FolderOpen, section: "projets", bg: "bg-orange-50 dark:bg-orange-900/20", iconColor: "text-orange-600" },
+              { label: "Assistant IA", icon: Sparkles, section: "assistant", bg: "bg-amber-50 dark:bg-amber-900/20", iconColor: "text-amber-600" },
+            ].map((action) => (
+              <button
+                key={action.label}
+                onClick={() => setActiveSection(action.section)}
+                className={`flex items-center gap-3 p-3 rounded-xl border hover:shadow-md transition-all ${action.bg}`}
+                style={{ borderColor: "var(--color-border-light)" }}
+              >
+                <action.icon className={`w-5 h-5 ${action.iconColor}`} />
+                <span className="text-sm font-medium text-foreground">{action.label}</span>
+              </button>
+            ))}
+          </div>
+        </AdminPanel>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Projets", value: stats.totalProjets, icon: Globe, gradient: "from-[var(--color-primary-600)] to-[var(--color-primary-400)]" },
-          { label: "Prestations", value: stats.totalPrestations, icon: Briefcase, gradient: "from-[var(--color-secondary-500)] to-[var(--color-secondary-300)]" },
-          { label: "Conv. Clients", value: stats.totalConversationsProjet, icon: MessageSquare, gradient: "from-[var(--color-accent-olive-400)] to-[var(--color-accent-olive-300)]" },
-          { label: "Sessions", value: stats.totalConversationsChantier || 0, icon: Wrench, gradient: "from-[var(--color-accent-olive-400)] to-[var(--color-accent-olive-300)]" },
-        ].map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <Card key={idx} className="admin-card" style={{ borderColor: "var(--color-border-light)" }}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs mb-1" style={{ color: "var(--color-text-tertiary)" }}>{item.label}</p>
-                    <p className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>{item.value}</p>
-                  </div>
-                  <div
-                    className="w-10 h-10 rounded-lg flex items-center justify-center text-white"
-                    style={{ backgroundColor: idx === 0 ? "var(--color-primary-500)" : idx === 1 ? "var(--color-secondary-500)" : idx === 2 ? "var(--color-accent-warm-500)" : "var(--color-accent-olive-500)" }}
-                  >
-                    <Icon className="w-5 h-5" color="var(--color-text-inverse)" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Evolution du CA */}
+      <AdminPanel
+        icon={Euro}
+        title="Evolution du CA"
+        rightContent={<span className="text-xs text-[var(--color-text-tertiary)]">6 derniers mois</span>}
+      >
+        <MiniChart data={monthlyCA} color="#10b981" />
+        <div className="mt-3 pt-3 border-t flex justify-between text-xs">
+          <span className="text-[var(--color-text-secondary)]">Total periode</span>
+          <span className="font-semibold">{formatMoney(monthlyCA.reduce((s, m) => s + m.value, 0))}</span>
+        </div>
+      </AdminPanel>
+
+      {/* Aperçu Google Calendar - Pleine largeur */}
+      <AdminPanel
+        icon={Calendar}
+        title="Agenda du mois"
+        accent="olive"
+        contentClassName="p-0"
+        rightContent={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+            onClick={() => setActiveSection("planning")}
+          >
+            Voir tout <ArrowRight className="w-3 h-3 ml-1" />
+          </Button>
+        }
+      >
+        <div className="w-full rounded-b-lg overflow-hidden" style={{ height: '340px' }}>
+          <iframe
+            src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis&mode=MONTH&showTitle=0&showNav=0&showPrint=0&showCalendars=0&showTabs=0"
+            style={{ border: 0, filter: isDark ? "invert(0.92) hue-rotate(180deg)" : "none" }}
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            scrolling="no"
+            title="Google Calendar"
+          />
+        </div>
+      </AdminPanel>
     </div>
   );
 }
@@ -845,8 +873,7 @@ function ProjetsContent({ showProjetForm, setShowProjetForm, editingProjet, setE
         title="Projets & Prestations"
         subtitle="Pilote ton portfolio, visibilité et services"
         badges={["Publies", "En avant", "SEO-ready"]}
-        gradient="linear-gradient(135deg, var(--color-primary-500), var(--color-accent-warm-400))"
-        iconTint="rgba(255,255,255,0.14)"
+        color="var(--page-projets)"
       />
 
       <div className="flex items-center gap-2 border-b" style={{ borderColor: "var(--color-border-light)" }}>
@@ -1109,15 +1136,26 @@ function AssistantClientContent() {
   const [summary, setSummary] = useState(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll within the container, not the whole page
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll if user is already near the bottom to avoid interrupting reading
+    if (messagesContainerRef.current && messages.length > 0) {
+      const container = messagesContainerRef.current;
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      if (isNearBottom) {
+        scrollToBottom();
+      }
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -1235,7 +1273,7 @@ function AssistantClientContent() {
         title="Conversations prospects"
         subtitle="Suivi des échanges, relances et résumés pour devis"
         badges={["Live", "Résumé devis", "Base44"]}
-        gradient="linear-gradient(135deg, var(--color-accent-warm-400), var(--color-primary-500))"
+        color="var(--page-clients)"
       />
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -1296,7 +1334,7 @@ function AssistantClientContent() {
               <CardContent className="p-0">
                 {!showSummary ? (
                   <>
-                    <div className="h-[500px] overflow-y-auto p-6" style={{ backgroundColor: "var(--color-accent-warm-100)" }}>
+                    <div ref={messagesContainerRef} className="h-[500px] overflow-y-auto p-6" style={{ backgroundColor: "var(--color-accent-warm-100)" }}>
                       {messages.map((message, index) => (<MessageBubble key={index} message={message} />))}
                       {isLoading && (
                         <div className="flex gap-3 justify-start mb-4">
@@ -1626,7 +1664,7 @@ function AssistantContent() {
         title="Pilotage intelligent"
         subtitle="Gestion des taches, suivi quotidien et conseils"
         badges={["Conseils", "Organisation", "Suivi"]}
-        gradient="linear-gradient(135deg, var(--color-accent-warm-500), var(--color-accent-warm-400))"
+        color="var(--page-assistant)"
       />
 
       <Card className="border-[var(--color-border-light)] shadow-lg" style={{ borderColor: "var(--color-border-light)" }}>
@@ -1757,86 +1795,43 @@ function AssistantContent() {
 }
 
 function PlanningContent() {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-  const [calendarKey, setCalendarKey] = useState(0);
   const queryClient = useQueryClient();
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  const { data: events = [] } = useQuery({
-    queryKey: ['events'],
-    queryFn: () => api.entities.Event.list('start'),
-  });
-
   const handleEventCreatedByChatbot = () => {
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    setCalendarKey(prev => prev + 1);
+    queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
   };
 
-  const todayEvents = events.filter(e => new Date(e.start).toDateString() === new Date().toDateString()).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const handleOpenNewRdv = () => {
+    window.dispatchEvent(new CustomEvent('open-new-rdv'));
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PlanningChatBot onEventCreated={handleEventCreatedByChatbot} />
 
       <AdminHero
         icon={Calendar}
         eyebrow="Gestion pratique"
         title="Planning"
-        subtitle="Synchronisé Google Calendar + chatbot"
-        badges={["Agenda", "Synchro", "Chatbot"]}
-        gradient="linear-gradient(135deg, var(--color-secondary-600), var(--color-secondary-400))"
+        subtitle="Calendrier synchronise avec Google Calendar"
+        badges={["Google Calendar", "RDV Clients", "Synchro temps reel"]}
+        color="var(--page-planning)"
+        rightContent={
+          <Button
+            onClick={handleOpenNewRdv}
+            className="hero-action hero-action--solid"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nouveau RDV
+          </Button>
+        }
       />
 
-      {todayEvents.length > 0 && (
-        <Card className="border-[var(--color-border-light)] shadow-sm bg-white">
-          <CardHeader className="p-3 bg-[var(--color-primary-100)]"><CardTitle className="text-sm font-semibold text-[var(--color-primary-700)] flex items-center gap-2"><Clock className="w-4 h-4" />Aujourd'hui ({todayEvents.length})</CardTitle></CardHeader>
-          <CardContent className="p-3">
-            <div className="flex gap-2 overflow-x-auto">
-              {todayEvents.map(event => (
-                <div key={event.id} className="flex-shrink-0 w-48 p-2 rounded-lg border-l-4 bg-white shadow-sm" style={{ borderLeftColor: event.color || "var(--color-primary-500)" }}>
-                  <div className="font-semibold text-stone-800 text-xs truncate">{event.title}</div>
-                  <div className="text-xs text-stone-600 mt-1">{new Date(event.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card className="border-[var(--color-primary-200)] shadow-2xl">
-        <CardHeader
-          className="border-b p-6 bg-gradient-to-r from-[var(--color-primary-100)] to-[var(--color-primary-200)]"
-          style={isDark ? { background: "var(--color-bg-surface)" } : undefined}
-        >
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg text-[var(--color-primary-700)] flex items-center gap-2"><Calendar className="w-5 h-5" />Calendrier Principal</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setCalendarKey(prev => prev + 1)} className="text-[var(--color-primary-600)] border-[var(--color-primary-500)] hover:bg-[var(--color-primary-100)]">
-              <RefreshCw className="w-4 h-4 mr-2" />Actualiser
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="w-full" style={{ height: '800px', backgroundColor: isDark ? "var(--color-bg-surface)" : "#ffffff" }}>
-            <iframe
-              key={calendarKey}
-              src="https://calendar.google.com/calendar/embed?src=a6a48a265c15f430290454e6e0dd9e885b3eb9fceb572248a4b78da175534a28%40group.calendar.google.com&ctz=Europe%2FParis"
-              style={{ border: 0, filter: isDark ? "invert(0.92) hue-rotate(180deg)" : "none" }}
-              width="100%"
-              height="100%"
-              frameBorder="0"
-              scrolling="no"
-              title="Google Calendar"
-              className="w-full h-full"
-            />
-          </div>
-          <div
-            className="p-3 bg-gradient-to-r from-[var(--color-primary-100)] to-[var(--color-primary-200)] border-t border-[var(--color-primary-200)]"
-            style={isDark ? { background: "var(--color-bg-surface)", borderColor: "var(--color-border-medium)" } : undefined}
-          >
-            <p className="text-xs text-[var(--color-primary-700)] text-center flex items-center justify-center gap-2"><Sparkles className="w-3 h-3" />Synchronise automatiquement avec Google Calendar</p>
-          </div>
+      <Card className="admin-card overflow-hidden" style={{ borderColor: "var(--color-border-light)" }}>
+        <CardContent className="p-0" style={{ height: "calc(100vh - 320px)", minHeight: "600px" }}>
+          <CalendarTimeline />
         </CardContent>
       </Card>
     </div>
@@ -2009,7 +2004,7 @@ function NotesContent() {
         title="Notes"
         subtitle="Un bloc-notes inspire de Google Keep"
         badges={["Epinglage", "Recherche", "Couleurs"]}
-        gradient="linear-gradient(135deg, var(--color-accent-olive-500), var(--color-accent-olive-400))"
+        color="var(--page-notes)"
         iconTint="rgba(255,255,255,0.14)"
       />
 
@@ -2251,63 +2246,18 @@ function NotesContent() {
 }
 
 function SettingsContent({ user, handleLogout }) {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <div className="space-y-6">
-      <div
-        className="relative overflow-hidden rounded-2xl border shadow-lg p-6 sm:p-8"
-        style={{
-          background: "linear-gradient(135deg, var(--color-secondary-500), var(--color-accent-warm-400))",
-          color: "var(--color-text-inverse)",
-          borderColor: "rgba(255,255,255,0.18)",
-          boxShadow: "var(--shadow-lg)",
-        }}
-      >
-        <div
-          className="absolute inset-0 opacity-25"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.45) 0, rgba(255,255,255,0) 40%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.25) 0, rgba(255,255,255,0) 35%)",
-          }}
-        />
-        <div className="relative flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)" }}
-              >
-                <Settings className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/80">Gestion Web • Assistant Client</p>
-                <h2 className="text-2xl sm:text-3xl font-bold">Parametres</h2>
-                <p className="text-sm text-white/80">Personnalise ta console admin et garde les acces au propre.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-white/15 text-white border border-white/25">Profil actif</Badge>
-              <Badge className="bg-white/15 text-white border border-white/25">Derniere maj : aujourd'hui</Badge>
-            </div>
-          </div>
-
-          <div className="grid sm:grid-cols-3 gap-3">
-            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
-              <p className="text-xs text-white/70 mb-1">Identite</p>
-              <p className="text-sm font-semibold truncate">{user?.full_name || "Administrateur"}</p>
-            </div>
-            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
-              <p className="text-xs text-white/70 mb-1">Email</p>
-              <p className="text-sm font-semibold truncate">{user?.email || "admin@site.local"}</p>
-            </div>
-            <div className="rounded-xl border border-white/25 bg-white/10 p-3">
-              <p className="text-xs text-white/70 mb-1">Espace</p>
-              <p className="text-sm font-semibold flex items-center gap-2">
-                Gestion Web <Sparkles className="w-4 h-4 text-white/80" />
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AdminHero
+        icon={Settings}
+        eyebrow="Administration"
+        title="Parametres"
+        subtitle="Personnalise ta console admin et garde les acces au propre"
+        badges={["Profil actif", user?.full_name || "Admin"]}
+        color="var(--page-settings)"
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="border-[var(--color-border-light)] shadow-sm lg:col-span-2" style={{ borderColor: "var(--color-border-light)" }}>
@@ -2368,24 +2318,107 @@ function SettingsContent({ user, handleLogout }) {
         </Card>
       </div>
 
-      <Card className="border-[var(--color-border-light)] shadow-sm">
+      <Card className="border-[var(--color-border-light)] shadow-sm" style={{ backgroundColor: "var(--color-bg-surface)" }}>
         <CardHeader className="border-b" style={{ borderColor: "var(--color-border-light)" }}>
           <CardTitle className="flex items-center gap-2 text-lg" style={{ color: "var(--color-text-primary)" }}>
-            <Wrench className="w-5 h-5 text-[var(--color-accent-olive-500)]" /> Preferences visuelles
+            <Wrench className="w-5 h-5" style={{ color: "var(--page-settings)" }} /> Preferences visuelles
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6 grid sm:grid-cols-3 gap-4">
-          <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", background: "var(--color-primary-100)" }}>
-            <p className="text-sm font-semibold" style={{ color: "var(--color-primary-600)" }}>Mode atelier</p>
-            <p className="text-xs opacity-80" style={{ color: "var(--color-primary-600)" }}>Palette terre cuite</p>
+        <CardContent className="p-6 space-y-6">
+          {/* Theme Toggle */}
+          <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-bg-elevated)" }}>
+            <div className="flex items-center gap-3">
+              {theme === "dark" ? (
+                <Moon className="w-5 h-5" style={{ color: "var(--color-secondary-500)" }} />
+              ) : (
+                <Sun className="w-5 h-5" style={{ color: "var(--color-accent-warm-500)" }} />
+              )}
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                  Mode {theme === "dark" ? "sombre" : "clair"}
+                </p>
+                <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>
+                  {theme === "dark" ? "Nuit Mediterraneenne" : "Atelier lumineux"}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={toggleTheme}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              style={{ borderColor: "var(--color-border-medium)" }}
+            >
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              Basculer
+            </Button>
           </div>
-          <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", background: "var(--color-secondary-100)" }}>
-            <p className="text-sm font-semibold" style={{ color: "var(--color-secondary-600)" }}>Accent calanques</p>
-            <p className="text-xs opacity-80" style={{ color: "var(--color-secondary-600)" }}>Bleu profond</p>
+
+          {/* Palette de couleurs */}
+          <div>
+            <p className="text-sm font-semibold mb-3" style={{ color: "var(--color-text-primary)" }}>Palette active</p>
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-primary-100)" }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "var(--color-primary-500)" }} />
+                  <p className="text-sm font-semibold" style={{ color: "var(--color-primary-600)" }}>Terre cuite</p>
+                </div>
+                <p className="text-xs opacity-80" style={{ color: "var(--color-primary-600)" }}>Couleur principale</p>
+              </div>
+              <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-secondary-100)" }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "var(--color-secondary-500)" }} />
+                  <p className="text-sm font-semibold" style={{ color: "var(--color-secondary-600)" }}>Calanques</p>
+                </div>
+                <p className="text-xs opacity-80" style={{ color: "var(--color-secondary-600)" }}>Couleur secondaire</p>
+              </div>
+              <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", backgroundColor: "var(--color-accent-olive-100)" }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "var(--color-accent-olive-500)" }} />
+                  <p className="text-sm font-semibold" style={{ color: "var(--color-accent-olive-500)" }}>Olivier</p>
+                </div>
+                <p className="text-xs opacity-80" style={{ color: "var(--color-accent-olive-500)" }}>Accent vegetal</p>
+              </div>
+            </div>
           </div>
-          <div className="rounded-lg border p-3" style={{ borderColor: "var(--color-border-light)", background: "var(--color-accent-olive-100)" }}>
-            <p className="text-sm font-semibold" style={{ color: "var(--color-accent-olive-500)" }}>Touches olivier</p>
-            <p className="text-xs opacity-80" style={{ color: "var(--color-accent-olive-500)" }}>Contraste doux</p>
+
+          {/* Couleurs par page */}
+          <div>
+            <p className="text-sm font-semibold mb-3" style={{ color: "var(--color-text-primary)" }}>Couleurs par section</p>
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-dashboard)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Dashboard</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-documents)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Documents</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-projets)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Projets</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-planning)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Planning</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-notes)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Notes</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-assistant)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Assistant</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-clients)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Clients</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-lg shadow-sm" style={{ backgroundColor: "var(--page-settings)" }} />
+                <span className="text-[10px]" style={{ color: "var(--color-text-tertiary)" }}>Params</span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -2396,24 +2429,21 @@ function SettingsContent({ user, handleLogout }) {
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
-  const buttonStyle = isDark
-    ? { color: "var(--color-text-primary)" }
-    : {
-        color: "#FFFFFF",
-        backgroundColor: "rgba(255, 255, 255, 0.18)",
-        border: "1px solid rgba(255, 255, 255, 0.35)",
-      };
+
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="btn-ghost"
+    <button
+      type="button"
       onClick={toggleTheme}
       title={isDark ? "Mode clair" : "Mode sombre"}
-      style={buttonStyle}
+      className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:scale-105"
+      style={{
+        backgroundColor: "var(--color-bg-surface)",
+        border: "1px solid var(--color-border-light)",
+        color: "var(--color-text-secondary)",
+      }}
     >
       {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-    </Button>
+    </button>
   );
 }
 

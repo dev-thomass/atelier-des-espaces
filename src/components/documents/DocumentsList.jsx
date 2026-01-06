@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/apiClient";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useToast } from "@/components/ui/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,10 @@ import {
   AlertCircle,
   Loader2,
   FileDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 const STATUTS = {
@@ -97,6 +102,12 @@ const TYPES = {
   avoir: { label: "Avoir", icon: FileX, color: "text-[var(--color-error-text)]", bg: "bg-[var(--color-error-bg)]" },
 };
 
+const STATUS_OPTIONS_BY_TYPE = {
+  devis: ["brouillon", "envoye", "vu", "accepte", "refuse", "expire"],
+  facture: ["brouillon", "envoye", "paye_partiel", "paye", "annule"],
+  avoir: ["brouillon", "envoye", "paye_partiel", "paye", "annule"],
+};
+
 function formatDate(dateStr) {
   if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
@@ -123,23 +134,53 @@ const STATUS_TABS = [
   { value: "refuse", label: "Refusés" },
 ];
 
+const getResponseErrorMessage = async (response, fallback) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload === "object") {
+      return payload.message || payload.error || fallback;
+    }
+  } catch (error) {
+    return fallback;
+  }
+  return fallback;
+};
+
+const ITEMS_PER_PAGE = 25;
+
 export default function DocumentsList({ onCreateDocument, onEditDocument, onViewDocument }) {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState(""); // Input brut
+  const [searchTerm, setSearchTerm] = useState(""); // Valeur debounced pour le filtrage
   const [filterType, setFilterType] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
   const [previewDoc, setPreviewDoc] = useState(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const previewDocId = previewDoc?.id;
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
+
+  // Debounce du searchTerm (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, activeTab, searchTerm]);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents", filterType],
     queryFn: async () => {
-      const response = await fetch("/api/documents", {
+      const response = await fetch("/api/documents?limit=200", {
         headers: { Authorization: `Bearer ${api.auth.getToken()}` },
       });
       if (!response.ok) return [];
@@ -149,12 +190,20 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
 
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
-      await fetch(`/api/documents/${id}`, {
+      const res = await fetch(`/api/documents/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${api.auth.getToken()}` },
       });
+      if (!res.ok) {
+        const message = await getResponseErrorMessage(res, "Suppression impossible");
+        throw new Error(message);
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents"] }),
+    onError: (error) => {
+      const message = error?.message || "Suppression impossible";
+      toast({ variant: "destructive", title: "Suppression impossible", description: message });
+    },
   });
 
   const duplicateMutation = useMutation({
@@ -163,9 +212,17 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
         method: "POST",
         headers: { Authorization: `Bearer ${api.auth.getToken()}` },
       });
+      if (!res.ok) {
+        const message = await getResponseErrorMessage(res, "Duplication impossible");
+        throw new Error(message);
+      }
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents"] }),
+    onError: (error) => {
+      const message = error?.message || "Duplication impossible";
+      toast({ variant: "destructive", title: "Duplication impossible", description: message });
+    },
   });
 
   const envoyerMutation = useMutation({
@@ -174,10 +231,110 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
         method: "POST",
         headers: { Authorization: `Bearer ${api.auth.getToken()}` },
       });
+      if (!res.ok) {
+        const message = await getResponseErrorMessage(res, "Envoi impossible");
+        throw new Error(message);
+      }
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents"] }),
+    onError: (error) => {
+      const message = error?.message || "Envoi impossible";
+      toast({ variant: "destructive", title: "Envoi impossible", description: message });
+    },
   });
+
+  // Convertir devis en facture
+  const convertirMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await fetch(`/api/documents/${id}/convertir`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${api.auth.getToken()}`,
+        },
+      });
+      if (!res.ok) {
+        const message = await getResponseErrorMessage(res, "Erreur lors de la conversion");
+        throw new Error(message);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      // Optionnellement ouvrir la nouvelle facture
+      if (data.facture && onEditDocument) {
+        onEditDocument(data.facture);
+      }
+    },
+    onError: (error) => {
+      const message = error?.message || "Conversion impossible";
+      toast({ variant: "destructive", title: "Conversion impossible", description: message });
+    },
+  });
+
+  // Changer le statut d'un document
+  const changeStatutMutation = useMutation({
+    mutationFn: async ({ id, statut }) => {
+      const res = await fetch(`/api/documents/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${api.auth.getToken()}`,
+        },
+        body: JSON.stringify({ statut }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Erreur lors du changement de statut");
+      }
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["documents"] }),
+    onError: (error) => {
+      const message = error?.message || "Changement de statut impossible";
+      toast({ variant: "destructive", title: "Changement de statut impossible", description: message });
+    },
+  });
+
+  // Export Excel
+  const handleExportExcel = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filterType !== "all") params.append("type", filterType);
+      if (activeTab !== "all" && activeTab !== "a_facturer") params.append("statut", activeTab);
+
+      const url = `/api/documents/export/excel${params.toString() ? "?" + params.toString() : ""}`;
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${api.auth.getToken()}` },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de l'export");
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `documents_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      a.remove();
+
+      toast({
+        title: "Export réussi",
+        description: "Le fichier Excel a été téléchargé",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur d'export",
+        description: error.message || "Impossible d'exporter les documents",
+      });
+    }
+  }, [filterType, activeTab, toast]);
 
   // Compteurs par statut
   const statusCounts = {
@@ -215,6 +372,16 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
       doc.objet?.toLowerCase().includes(term)
     );
   }
+
+  // Pagination
+  const totalPages = Math.ceil(filteredDocuments.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedDocuments = filteredDocuments.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
 
   // Export CSV
   const exportCSV = () => {
@@ -330,7 +497,11 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
 
   const handleDelete = (doc) => {
     if (doc.statut !== "brouillon") {
-      alert("Seuls les brouillons peuvent être supprimés");
+      toast({
+        variant: "destructive",
+        title: "Suppression impossible",
+        description: "Seuls les brouillons peuvent etre supprimes.",
+      });
       return;
     }
     if (confirm(`Supprimer ${doc.type} ${doc.numero} ?`)) {
@@ -349,26 +520,36 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
         title="Devis & Factures"
         subtitle={`Synthèse ${monthLabel} — ${documents.length} document${documents.length > 1 ? "s" : ""}`}
         badges={[`${stats.devis.count} devis`, `${stats.factures.count} factures`]}
-        gradient="linear-gradient(135deg, var(--color-secondary-500), var(--color-primary-500))"
+        color="var(--page-documents)"
         rightContent={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-                <Plus className="w-4 h-4 mr-2" />
-                Nouveau
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onCreateDocument?.("devis")}>
-                <FileText className="w-4 h-4 mr-2 text-[var(--color-primary-600)]" />
-                Nouveau devis
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onCreateDocument?.("facture")}>
-                <Receipt className="w-4 h-4 mr-2 text-[var(--color-secondary-600)]" />
-                Nouvelle facture
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="hero-action hero-action--ghost"
+              onClick={handleExportExcel}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Export Excel
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="hero-action hero-action--solid">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouveau
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onCreateDocument?.("devis")}>
+                  <FileText className="w-4 h-4 mr-2 text-[var(--color-primary-600)]" />
+                  Nouveau devis
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onCreateDocument?.("facture")}>
+                  <Receipt className="w-4 h-4 mr-2 text-[var(--color-secondary-600)]" />
+                  Nouvelle facture
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         }
       />
 
@@ -482,8 +663,8 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)]" />
               <Input
                 placeholder="Rechercher par numéro, client, objet..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-9"
                 style={{ backgroundColor: "var(--color-bg-elevated)" }}
               />
@@ -534,128 +715,271 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
                 Créer un devis
               </Button>
             </div>
-          ) : (
-            <div className="divide-y divide-[var(--color-border-light)]">
-              {filteredDocuments.map((doc) => {
-                const typeInfo = TYPES[doc.type] || TYPES.devis;
-                const statutInfo = STATUTS[doc.statut] || STATUTS.brouillon;
-                const TypeIcon = typeInfo.icon;
-                const StatutIcon = statutInfo.icon;
-                const joursRetard = getJoursRetard(doc.date_echeance);
-                const isRetard = doc.type === "facture" && !["paye", "annule"].includes(doc.statut) && joursRetard > 0;
+                    ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-[1260px] w-full">
+                <div className="grid grid-cols-[120px_140px_1.3fr_1.4fr_170px_140px_180px_320px] gap-3 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-tertiary)] border-b border-[var(--color-border-light)] bg-[var(--color-bg-surface-hover)]">
+                  <div>Type</div>
+                  <div>Numero</div>
+                  <div>Client</div>
+                  <div>Objet</div>
+                  <div>Dates</div>
+                  <div className="text-right">Montant</div>
+                  <div>Statut</div>
+                  <div className="text-right">Actions</div>
+                </div>
+                <div className="divide-y divide-[var(--color-border-light)]">
+                  {paginatedDocuments.map((doc) => {
+                    const typeInfo = TYPES[doc.type] || TYPES.devis;
+                    const statutInfo = STATUTS[doc.statut] || STATUTS.brouillon;
+                    const TypeIcon = typeInfo.icon;
+                    const StatutIcon = statutInfo.icon;
+                    const joursRetard = getJoursRetard(doc.date_echeance);
+                    const isRetard = doc.type === "facture" && !["paye", "annule"].includes(doc.statut) && joursRetard > 0;
+                    const statusOptions = STATUS_OPTIONS_BY_TYPE[doc.type] || Object.keys(STATUTS);
 
-                return (
-                  <div
-                    key={doc.id}
-                    className="group flex items-center gap-4 p-4 hover:bg-[var(--color-bg-surface-hover)] cursor-pointer transition-colors"
-                    style={{ backgroundColor: isRetard ? "var(--color-error-bg)" : undefined }}
-                    onClick={() => onViewDocument?.(doc)}
-                  >
-                    {/* Type Icon */}
-                    <div className={`p-2.5 rounded-xl ${typeInfo.bg} flex-shrink-0`}>
-                      <TypeIcon className={`w-5 h-5 ${typeInfo.color}`} />
-                    </div>
+                    return (
+                      <div
+                        key={doc.id}
+                        className="group grid grid-cols-[120px_140px_1.3fr_1.4fr_170px_140px_180px_320px] gap-3 px-4 py-3 items-center hover:bg-[var(--color-bg-surface-hover)] cursor-pointer transition-colors"
+                        style={{ backgroundColor: isRetard ? "var(--color-error-bg)" : undefined }}
+                        onClick={() => onViewDocument?.(doc)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className={`p-2 rounded-lg ${typeInfo.bg} flex-shrink-0`}>
+                            <TypeIcon className={`w-4 h-4 ${typeInfo.color}`} />
+                          </div>
+                          <span className="text-sm font-semibold text-[var(--color-text-primary)]">{typeInfo.label}</span>
+                        </div>
 
-                    {/* Main Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                          {doc.numero}
-                        </span>
-                        <Badge className={`text-xs border ${statutInfo.color}`}>
-                          <StatutIcon className="w-3 h-3 mr-1" />
-                          {statutInfo.label}
-                        </Badge>
-                        {isRetard && (
-                          <Badge className="text-xs bg-[var(--color-error-bg)] text-[var(--color-error-text)] border-[var(--color-error-border)]">
-                            {joursRetard}j retard
-                          </Badge>
-                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{doc.numero}</p>
+                          {doc.reference && (
+                            <p className="text-xs text-[var(--color-text-tertiary)] truncate">Ref: {doc.reference}</p>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+                            {doc.client_nom || "Client non defini"}
+                          </p>
+                          {doc.client_ville && (
+                            <p className="text-xs text-[var(--color-text-tertiary)] truncate">{doc.client_ville}</p>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-sm text-[var(--color-text-primary)] truncate">{doc.objet || "-"}</p>
+                          {doc.chantier_titre && (
+                            <p className="text-xs text-[var(--color-text-tertiary)] truncate">Chantier: {doc.chantier_titre}</p>
+                          )}
+                        </div>
+
+                        <div className="text-xs text-[var(--color-text-secondary)] space-y-1">
+                          <p>Emis: {formatDate(doc.date_emission)}</p>
+                          {doc.type === "devis" && doc.date_validite && (
+                            <p>Validite: {formatDate(doc.date_validite)}</p>
+                          )}
+                          {doc.type === "facture" && doc.date_echeance && (
+                            <p>Echeance: {formatDate(doc.date_echeance)}</p>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                            {formatMontant(doc.net_a_payer)}
+                          </p>
+                          {typeof doc.total_ht === "number" && (
+                            <p className="text-xs text-[var(--color-text-tertiary)]">HT: {formatMontant(doc.total_ht)}</p>
+                          )}
+                        </div>
+
+                        <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-1 items-start">
+                          <Select value={doc.statut} onValueChange={(value) => changeStatutMutation.mutate({ id: doc.id, statut: value })}>
+                            <SelectTrigger className={`h-8 px-2 text-xs ${statutInfo.color}`}>
+                              <div className="flex items-center gap-1">
+                                {StatutIcon ? <StatutIcon className="w-3 h-3" /> : null}
+                                <SelectValue placeholder={statutInfo.label} />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((statutOption) => {
+                                const optionInfo = STATUTS[statutOption];
+                                return (
+                                  <SelectItem key={statutOption} value={statutOption} disabled={doc.statut === statutOption}>
+                                    {optionInfo?.label || statutOption}
+                                  </SelectItem>
+                                );
+                              })}
+                            </SelectContent>
+                          </Select>
+                          {isRetard && (
+                            <span className="text-xs text-[var(--color-error-text)]">{joursRetard}j de retard</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setPreviewDoc(doc)}
+                          >
+                            <Eye className="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditDocument?.(doc)}>
+                            <Edit2 className="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(`/api/documents/${doc.id}/pdf`, "_blank")}
+                          >
+                            <Download className="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                          </Button>
+                          {doc.type === "devis" && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => convertirMutation.mutate(doc.id)}
+                              aria-label="Facturer"
+                              title="Facturer"
+                            >
+                              <Receipt className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => onViewDocument?.(doc)}>
+                                <Eye className="w-4 h-4 mr-2" />Voir
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => onEditDocument?.(doc)}>
+                                <Edit2 className="w-4 h-4 mr-2" />Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => window.open(`/api/documents/${doc.id}/pdf`, "_blank")}>
+                                <Download className="w-4 h-4 mr-2" />PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {doc.statut === "brouillon" && (
+                                <DropdownMenuItem onClick={() => envoyerMutation.mutate(doc.id)}>
+                                  <Send className="w-4 h-4 mr-2" />Envoyer
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => duplicateMutation.mutate(doc.id)}>
+                                <Copy className="w-4 h-4 mr-2" />Dupliquer
+                              </DropdownMenuItem>
+                              {doc.type === "devis" && (
+                                <DropdownMenuItem
+                                  onClick={() => convertirMutation.mutate(doc.id)}
+                                  className="text-[var(--color-success-text)]"
+                                >
+                                  <Receipt className="w-4 h-4 mr-2" />Facturer ce devis
+                                </DropdownMenuItem>
+                              )}
+                              {doc.statut === "brouillon" && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-[var(--color-error-text)]" onClick={() => handleDelete(doc)}>
+                                    <Trash2 className="w-4 h-4 mr-2" />Supprimer
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                      <p className="font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
-                        {doc.client_nom || "Client non défini"}
-                      </p>
-                      {doc.objet && (
-                        <p className="text-sm truncate text-[var(--color-text-tertiary)]">
-                          {doc.objet}
-                        </p>
-                      )}
-                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
-                    {/* Date */}
-                    <div className="hidden sm:block text-sm text-right text-[var(--color-text-secondary)]">
-                      <p>{formatDate(doc.date_emission)}</p>
-                      {doc.type === "devis" && doc.date_validite && (
-                        <p className="text-xs text-[var(--color-text-tertiary)]">
-                          Exp: {formatDate(doc.date_validite)}
-                        </p>
-                      )}
-                    </div>
+          {/* Pagination */}
+          {!isLoading && filteredDocuments.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--color-border-light)]">
+              <div className="text-sm text-[var(--color-text-secondary)]">
+                Affichage {startIndex + 1}-{Math.min(endIndex, filteredDocuments.length)} sur {filteredDocuments.length} documents
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
 
-                    {/* Amount */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                        {formatMontant(doc.net_a_payer)}
-                      </p>
-                    </div>
+                <div className="flex items-center gap-1 mx-2">
+                  {/* Afficher les numéros de page */}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => goToPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
 
-                    {/* Quick Preview Button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); setPreviewDoc(doc); }}
-                    >
-                      <Eye className="w-4 h-4 text-[var(--color-text-tertiary)]" />
-                    </Button>
-
-                    {/* Actions */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem onClick={() => onViewDocument?.(doc)}>
-                          <Eye className="w-4 h-4 mr-2" />Voir
-                        </DropdownMenuItem>
-                        {doc.statut === "brouillon" && (
-                          <DropdownMenuItem onClick={() => onEditDocument?.(doc)}>
-                            <Edit2 className="w-4 h-4 mr-2" />Modifier
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => window.open(`/api/documents/${doc.id}/pdf`, "_blank")}>
-                          <Download className="w-4 h-4 mr-2" />PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {doc.statut === "brouillon" && (
-                          <DropdownMenuItem onClick={() => envoyerMutation.mutate(doc.id)}>
-                            <Send className="w-4 h-4 mr-2" />Envoyer
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => duplicateMutation.mutate(doc.id)}>
-                          <Copy className="w-4 h-4 mr-2" />Dupliquer
-                        </DropdownMenuItem>
-                        {doc.statut === "brouillon" && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-[var(--color-error-text)]" onClick={() => handleDelete(doc)}>
-                              <Trash2 className="w-4 h-4 mr-2" />Supprimer
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                );
-              })}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Sheet Aper?u rapide */}
+      {/* Sheet Aperçu rapide */}
       <Sheet open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
         <SheetContent className="w-full sm:max-w-4xl overflow-hidden flex flex-col">
           {previewDoc && (
@@ -679,11 +1003,11 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
               </SheetHeader>
 
               <div className="flex-1 -mx-6 px-6 py-4 overflow-hidden flex flex-col gap-3">
-                <p className="text-xs text-[var(--color-text-tertiary)]">
+                <p className="text-xs text-[var(--color-text-primary)]">
                   Apercu du PDF final du document.
                 </p>
                 {previewLoading && (
-                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-secondary)]">
+                  <div className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Chargement du PDF...
                   </div>
@@ -699,24 +1023,36 @@ export default function DocumentsList({ onCreateDocument, onEditDocument, onView
                   />
                 )}
                 {!previewLoading && !previewPdfUrl && !previewError && (
-                  <div className="text-sm text-[var(--color-text-secondary)]">Aucun apercu disponible.</div>
+                  <div className="text-sm text-[var(--color-text-primary)]">Aucun apercu disponible.</div>
                 )}
               </div>
 
-              <div className="border-t border-[var(--color-border-light)] pt-4 flex flex-wrap gap-2">
-                <Button variant="outline" className="flex-1 min-w-[140px]" onClick={() => { setPreviewDoc(null); onEditDocument?.(previewDoc); }}>
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Modifier
-                </Button>
-                <Button variant="outline" onClick={handleDownloadPreview} disabled={!previewPdfUrl && !previewDocId}>
-                  <Download className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" onClick={() => envoyerMutation.mutate(previewDocId)} disabled={!previewDocId}>
-                  <Send className="w-4 h-4" />
-                </Button>
-                <Button className="flex-1 min-w-[140px]" onClick={() => { setPreviewDoc(null); onViewDocument?.(previewDoc); }}>
-                  Voir details
-                </Button>
+              <div className="border-t border-[var(--color-border-light)] pt-4 flex flex-col gap-3">
+                {/* Bouton Facturer proéminent pour devis */}
+                {previewDoc.type === "devis" && (
+                  <Button
+                    className="w-full bg-[var(--color-success-bg)] text-[var(--color-success-text)] hover:bg-[var(--color-success-bg-hover)] border border-[var(--color-success-border)]"
+                    onClick={() => { setPreviewDoc(null); convertirMutation.mutate(previewDoc.id); }}
+                  >
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Facturer ce devis
+                  </Button>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" className="flex-1 min-w-[140px]" onClick={() => { setPreviewDoc(null); onEditDocument?.(previewDoc); }}>
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Modifier
+                  </Button>
+                  <Button variant="outline" onClick={handleDownloadPreview} disabled={!previewPdfUrl && !previewDocId}>
+                    <Download className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" onClick={() => envoyerMutation.mutate(previewDocId)} disabled={!previewDocId}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                  <Button className="flex-1 min-w-[140px]" onClick={() => { setPreviewDoc(null); onViewDocument?.(previewDoc); }}>
+                    Voir details
+                  </Button>
+                </div>
               </div>
             </>
           )}

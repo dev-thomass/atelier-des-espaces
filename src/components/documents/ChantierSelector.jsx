@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Search,
@@ -23,7 +24,20 @@ const formatDateLabel = (value) => {
   return date.toLocaleDateString("fr-FR");
 };
 
+const getResponseErrorMessage = async (response, fallback) => {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload === "object") {
+      return payload.message || payload.error || fallback;
+    }
+  } catch (error) {
+    return fallback;
+  }
+  return fallback;
+};
+
 export default function ChantierSelector({ onSelect, selectedId }) {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("select");
   const [isCreating, setIsCreating] = useState(false);
@@ -60,7 +74,10 @@ export default function ChantierSelector({ onSelect, selectedId }) {
         },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("Erreur creation chantier");
+      if (!response.ok) {
+        const message = await getResponseErrorMessage(response, "Erreur creation chantier");
+        throw new Error(message);
+      }
       return response.json();
     },
     onSuccess: (data) => {
@@ -84,7 +101,11 @@ export default function ChantierSelector({ onSelect, selectedId }) {
 
   const handleCreateChantier = async () => {
     if (!newChantier.titre) {
-      alert("Le titre est obligatoire");
+      toast({
+        variant: "destructive",
+        title: "Titre requis",
+        description: "Le titre est obligatoire.",
+      });
       return;
     }
 
@@ -98,7 +119,12 @@ export default function ChantierSelector({ onSelect, selectedId }) {
       await createChantierMutation.mutateAsync(payload);
     } catch (error) {
       console.error("Erreur:", error);
-      alert("Erreur lors de la creation du chantier");
+      const message = error?.message || "Erreur lors de la creation du chantier";
+      toast({
+        variant: "destructive",
+        title: "Creation impossible",
+        description: message,
+      });
     } finally {
       setIsCreating(false);
     }
